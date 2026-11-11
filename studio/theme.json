@@ -1,0 +1,9 @@
+{
+  "bg": "#0b1020",
+  "bg2": "#1a2350",
+  "accent": "#ffb020",
+  "text": "#ffffff",
+  "muted": "#9aa4bf",
+  "font": "'Noto Sans Devanagari','Inter','Segoe UI',system-ui,sans-serif",
+  "brand": "Novaforge Labs"
+}

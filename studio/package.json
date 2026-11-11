@@ -1,0 +1,23 @@
+{
+  "name": "novaforge-studio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Script (markdown) -> Instagram carousel PNGs + 9:16 Reel + 16:9 YouTube video, fully automated",
+  "scripts": {
+    "build": "node src/build.js",
+    "carousel": "node src/build.js --only carousel",
+    "preview": "npx remotion studio remotion/index.jsx"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@remotion/bundler": "^4.0.0",
+    "@remotion/cli": "^4.0.0",
+    "@remotion/renderer": "^4.0.0",
+    "puppeteer": "^23.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "^4.0.0"
+  }
+}
