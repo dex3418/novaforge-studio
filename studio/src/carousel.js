@@ -51,20 +51,24 @@ function shell(t, brand, inner, footLeft, footRight) {
 function buildSlides(parsed, theme) {
   const brand = parsed.meta.brand || theme.brand || '';
   const handle = parsed.meta.handle || '';
-  const total = parsed.scenes.length + 2; // cover + scenes + closing
+  // When the title was taken from the first scene, the cover absorbs that scene.
+  const intro = parsed.scenes[0] && parsed.scenes[0].isTitle ? parsed.scenes[0] : null;
+  const scenes = intro ? parsed.scenes.slice(1) : parsed.scenes;
+  const total = scenes.length + 2; // cover + scenes + closing
   const slides = [];
 
+  const sub = intro && intro.body ? `<p style="font-size:44px;margin-top:40px;color:${theme.muted}">${esc(intro.body.replace(/\n\n/g, ' '))}</p>` : '';
   slides.push(
     shell(
       theme,
       brand,
-      `<h1>${esc(parsed.title)}</h1><div class="bar"></div>`,
-      'Swipe →',
+      `<h1>${esc(parsed.title)}</h1>${sub}<div class="bar"></div>`,
+      'Swipe \u2192',
       `1/${total}`
     )
   );
 
-  parsed.scenes.forEach((s, i) => {
+  scenes.forEach((s, i) => {
     const paras = (s.body || '').split(/\n\n/).filter(Boolean);
     const size = bodySize((s.body || '').length);
     const inner =

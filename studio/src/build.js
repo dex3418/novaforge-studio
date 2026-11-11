@@ -42,7 +42,11 @@ async function main() {
     try {
       const parsed = parseScript(file);
       const outDir = path.join(root, 'out', parsed.slug);
+      fs.mkdirSync(outDir, { recursive: true });
       console.log(`\n== ${parsed.slug} (${parsed.scenes.length} scenes) ==`);
+      if (parsed.meta.caption) {
+        fs.writeFileSync(path.join(outDir, `${parsed.slug}-caption.txt`), parsed.meta.caption + '\n');
+      }
       if (only.includes('carousel')) await makeCarousel(parsed, theme, outDir);
       const wantVideo = only.filter((x) => x === 'reel' || x === 'long');
       if (wantVideo.length) {

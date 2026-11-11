@@ -1,7 +1,12 @@
 name: studio
 
-# Renders carousel PNGs (zip), a 9:16 Reel and a 16:9 YouTube video from markdown scripts.
-# Triggers: push that touches studio/scripts/**, or manual run from the Actions tab.
+# Renders carousel PNGs (zip), a 9:16 Reel and a 16:9 YouTube video from a script.
+# Triggers:
+#   - the "box" page on your phone (workflow_dispatch with script_text)
+#   - manual run from the Actions tab
+#   - a push that touches studio/scripts/**
+
+run-name: studio - ${{ github.event.inputs.script_name || github.event.head_commit.message || 'run' }}
 
 on:
   push:
@@ -9,8 +14,16 @@ on:
       - 'studio/scripts/**'
   workflow_dispatch:
     inputs:
+      script_text:
+        description: 'Full script text (used by the box page)'
+        required: false
+        default: ''
+      script_name:
+        description: 'Short name for the output files'
+        required: false
+        default: ''
       script:
-        description: 'Script path relative to studio/ (blank = all scripts)'
+        description: 'Or a script path relative to studio/ (blank = all scripts)'
         required: false
         default: ''
       only:
@@ -58,12 +71,20 @@ jobs:
         id: pick
         working-directory: studio
         env:
+          SCRIPT_TEXT: ${{ github.event.inputs.script_text }}
+          SCRIPT_NAME: ${{ github.event.inputs.script_name }}
           SCRIPT_INPUT: ${{ github.event.inputs.script }}
           EVENT: ${{ github.event_name }}
         run: |
           skip=false
           files=""
-          if [ -n "$SCRIPT_INPUT" ]; then
+          if [ -n "$SCRIPT_TEXT" ]; then
+            name=$(printf '%s' "$SCRIPT_NAME" | tr 'A-Z' 'a-z' | tr -cs 'a-z0-9' '-' | sed 's/^-*//; s/-*$//' | cut -c1-40)
+            if [ -z "$name" ]; then name="post-$(date +%s)"; fi
+            mkdir -p scripts/_inbox
+            printf '%s\n' "$SCRIPT_TEXT" > "scripts/_inbox/$name.md"
+            files="scripts/_inbox/$name.md"
+          elif [ -n "$SCRIPT_INPUT" ]; then
             files="$SCRIPT_INPUT"
           elif [ "$EVENT" = "push" ]; then
             files=$(git diff --name-only --diff-filter=AM --relative HEAD~1 HEAD -- scripts | grep '\.md$' | tr '\n' ' ' || true)
@@ -94,4 +115,5 @@ jobs:
           path: |
             studio/out/**/*.mp4
             studio/out/**/*.zip
+            studio/out/**/*.txt
           retention-days: 14

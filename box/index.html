@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Novaforge Studio</title>
+<style>
+  :root{--bg:#0b1020;--card:#141b35;--line:#263056;--text:#f2f4fb;--muted:#9aa4bf;--accent:#ffb020;--ok:#3ecf8e;--bad:#ff6b6b}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 system-ui,-apple-system,'Segoe UI',sans-serif}
+  .wrap{max-width:720px;margin:0 auto;padding:18px 16px 60px}
+  h1{font-size:22px;margin:4px 0 2px}
+  .sub{color:var(--muted);font-size:14px;margin-bottom:18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:16px}
+  label.t{display:block;font-size:13px;color:var(--muted);margin:0 0 6px}
+  input[type=text],select,textarea{width:100%;background:#0e1430;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:11px;font:inherit}
+  textarea{min-height:260px;resize:vertical;line-height:1.5}
+  .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+  .row>div{flex:1;min-width:160px}
+  .pills{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+  .pill{position:relative}
+  .pill input{position:absolute;opacity:0}
+  .pill span{display:block;padding:10px 14px;border:1px solid var(--line);border-radius:999px;background:#0e1430;color:var(--muted);user-select:none}
+  .pill input:checked+span{background:var(--accent);border-color:var(--accent);color:#1a1300;font-weight:700}
+  button{font:inherit;border:0;border-radius:12px;padding:13px 18px;cursor:pointer}
+  .go{background:var(--accent);color:#1a1300;font-weight:800;width:100%;margin-top:14px;font-size:17px}
+  .go:disabled{opacity:.5}
+  .ghost{background:transparent;border:1px solid var(--line);color:var(--muted);padding:8px 12px;font-size:14px}
+  .msg{margin-top:12px;font-size:14px;min-height:20px}
+  .msg.ok{color:var(--ok)} .msg.bad{color:var(--bad)} .msg.warn{color:var(--accent)}
+  .stats{font-size:13px;color:var(--muted);margin-top:8px}
+  .run{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 0;border-top:1px solid var(--line)}
+  .run:first-child{border-top:0}
+  .run .n{font-weight:600;word-break:break-word}
+  .run .m{font-size:12px;color:var(--muted)}
+  .tag{font-size:12px;padding:3px 9px;border-radius:999px;border:1px solid var(--line);white-space:nowrap}
+  .tag.run{color:var(--accent);border-color:var(--accent)} .tag.done{color:var(--ok);border-color:var(--ok)} .tag.fail{color:var(--bad);border-color:var(--bad)}
+  a.btn{display:inline-block;background:var(--ok);color:#06210f;font-weight:700;border-radius:9px;padding:7px 12px;text-decoration:none;font-size:14px}
+  a.lnk{color:var(--muted);font-size:13px}
+  details{margin-top:12px;color:var(--muted);font-size:14px}
+  pre{white-space:pre-wrap;background:#0e1430;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:13px;color:#cdd3ea}
+  .setup{border-color:var(--accent)}
+  code{background:#0e1430;padding:2px 6px;border-radius:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Novaforge Studio</h1>
+  <div class="sub">Paste a script, choose what to make, press Start.</div>
+
+  <div id="setup" class="card setup" hidden>
+    <b>One-time setup needed</b>
+    <p>No GitHub token found. In Termux run:</p>
+    <pre>read -rsp "Paste token: " T; echo; printf 'GITHUB_TOKEN=%s\n' "$T" &gt; ~/.novaforge-studio.env; chmod 600 ~/.novaforge-studio.env; unset T</pre>
+    <p>Then stop the box (Ctrl+C) and start it again.</p>
+  </div>
+
+  <div class="card">
+    <label class="t" for="name">Name (optional, used for file names)</label>
+    <input id="name" type="text" placeholder="e.g. bastar-police-budget" autocomplete="off">
+
+    <div class="row" style="margin-top:14px"><div style="min-width:100%">
+      <label class="t" for="text">Script</label>
+      <textarea id="text" placeholder="Paste your script here..."></textarea>
+      <div class="stats" id="stats"></div>
+    </div></div>
+
+    <div class="row">
+      <div>
+        <label class="t">Make</label>
+        <div class="pills">
+          <label class="pill"><input type="checkbox" value="carousel" checked><span>Carousel</span></label>
+          <label class="pill"><input type="checkbox" value="reel" checked><span>Reel</span></label>
+          <label class="pill"><input type="checkbox" value="long"><span>YouTube</span></label>
+        </div>
+      </div>
+      <div>
+        <label class="t" for="voice">Voice</label>
+        <select id="voice"></select>
+      </div>
+    </div>
+
+    <button class="go" id="go">Start</button>
+    <div class="msg" id="msg"></div>
+
+    <details>
+      <summary>Script format</summary>
+      <pre>---
+title: Your video title
+brand: Vouchr
+handle: @yourhandle
+cta: Link in bio
+---
+## First point
+One or two short sentences, spoken and shown.
+
+## Second point
+Next section...
+
+### Caption
+#tags for the post</pre>
+      <div>ChatGPT-style slides also work: <code>## Slide 2</code> followed by <code>**Heading** - text</code>. A heading with no text is spoken instead. Keep each scene to 1-3 sentences.</div>
+      <button class="ghost" id="example" style="margin-top:10px">Fill with example</button>
+    </details>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <b>Recent runs</b><button class="ghost" id="refresh">Refresh</button>
+    </div>
+    <div id="runs"><div class="m" style="color:var(--muted)">Loading...</div></div>
+    <div class="stats">A run usually takes 5 to 15 minutes. Files stay downloadable for 14 days.</div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const EXAMPLE = `## The plan
+Say your hook in one or two short sentences.
+
+## First point
+Explain it in a sentence or two.
+
+## Take action now
+Tell people what to do next.
+
+### Caption
+#yourtag #another`;
+
+fetch('/api/config').then(r => r.json()).then(c => {
+  if (!c.hasToken) $('setup').hidden = false;
+  $('voice').innerHTML = c.voices.map(v => `<option>${v}</option>`).join('');
+  try { const v = localStorage.getItem('nf_voice'); if (v && c.voices.includes(v)) $('voice').value = v; } catch (e) {}
+});
+$('voice').addEventListener('change', () => { try { localStorage.setItem('nf_voice', $('voice').value); } catch (e) {} });
+
+function picked() { return [...document.querySelectorAll('.pill input:checked')].map(i => i.value); }
+
+function updateStats() {
+  const t = $('text').value.trim();
+  if (!t) { $('stats').textContent = ''; return; }
+  const body = t.replace(/^---[\s\S]*?---/, '').replace(/^#+\s.*$/gm, '');
+  const words = (body.match(/\S+/g) || []).length;
+  const sec = Math.round(words / 2.4);
+  let s = `${words} spoken words, about ${sec}s of video`;
+  if (sec > 90 && picked().includes('reel')) s += ' (over 90s: too long for a Reel)';
+  $('stats').textContent = s;
+}
+$('text').addEventListener('input', updateStats);
+document.querySelectorAll('.pill input').forEach(i => i.addEventListener('change', updateStats));
+$('example').addEventListener('click', () => { $('text').value = EXAMPLE; updateStats(); });
+
+function say(text, cls) { $('msg').textContent = text; $('msg').className = 'msg ' + (cls || ''); }
+
+$('go').addEventListener('click', async () => {
+  const only = picked();
+  if (!$('text').value.trim()) return say('Paste a script first.', 'bad');
+  if (!only.length) return say('Pick at least one output.', 'bad');
+  $('go').disabled = true; say('Starting...', '');
+  try {
+    const r = await fetch('/api/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-NF-Box': '1' },
+      body: JSON.stringify({ text: $('text').value, name: $('name').value, only, voice: $('voice').value })
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'Failed');
+    say('Started. It shows up under Recent runs in a few seconds.', 'ok');
+    setTimeout(loadRuns, 4000);
+  } catch (e) { say(e.message, 'bad'); }
+  $('go').disabled = false;
+});
+
+function ago(iso) {
+  const s = Math.max(0, (Date.now() - new Date(iso)) / 1000);
+  if (s < 60) return 'just now';
+  if (s < 3600) return Math.floor(s / 60) + ' min ago';
+  if (s < 86400) return Math.floor(s / 3600) + ' h ago';
+  return Math.floor(s / 86400) + ' d ago';
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+let timer;
+async function loadRuns() {
+  clearTimeout(timer);
+  let busy = false;
+  try {
+    const r = await fetch('/api/runs');
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'Failed');
+    $('runs').innerHTML = j.runs.length ? j.runs.map(x => {
+      let tag, extra = '';
+      if (x.status !== 'completed') { busy = true; tag = `<span class="tag run">${x.status === 'queued' ? 'waiting' : 'working'}</span>`; }
+      else if (x.conclusion === 'success') { tag = '<span class="tag done">done</span>'; extra = `<a class="btn" href="/api/download/${x.id}">Download</a>`; }
+      else { tag = `<span class="tag fail">${esc(x.conclusion || 'failed')}</span>`; }
+      return `<div class="run"><div><div class="n">${esc(x.title)}</div><div class="m">${ago(x.created)} - <a class="lnk" target="_blank" rel="noopener" href="${esc(x.url)}">details</a></div></div><div style="display:flex;gap:8px;align-items:center">${tag}${extra}</div></div>`;
+    }).join('') : '<div style="color:var(--muted)">No runs yet.</div>';
+  } catch (e) { $('runs').innerHTML = `<div style="color:var(--bad)">${esc(e.message)}</div>`; }
+  timer = setTimeout(loadRuns, busy ? 8000 : 25000);
+}
+$('refresh').addEventListener('click', loadRuns);
+loadRuns();
+</script>
+</body>
+</html>
