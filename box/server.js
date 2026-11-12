@@ -79,7 +79,7 @@ function withMeta(text, meta) {
   const m = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
   let head = m ? m[1].split(/\r?\n/) : [];
   const rest = m ? text.slice(m[0].length) : text;
-  for (const k of ['voice', 'brand', 'handle', 'cta', 'engine', 'template', 'palette', 'texture']) {
+  for (const k of ['voice', 'brand', 'handle', 'cta', 'engine', 'template', 'palette', 'texture', 'director']) {
     const v = String(meta[k] || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 120);
     if (!v) continue;
     head = head.filter((l) => !new RegExp('^\\s*' + k + '\\s*:', 'i').test(l));
@@ -115,6 +115,7 @@ async function start(req, res) {
   const template = choice(b.template, Object.keys(CAT.TEMPLATES));
   const palette = choice(b.palette, Object.keys(CAT.PALETTES));
   const texture = choice(b.texture, Object.keys(CAT.TEXTURES));
+  const director = choice(b.director, ['ai', 'rules']) || 'ai';
   const name = safeName(b.name);
 
   const r = await gh(`/repos/${REPO}/actions/workflows/${WORKFLOW}/dispatches`, {
@@ -123,7 +124,7 @@ async function start(req, res) {
     body: JSON.stringify({
       ref: REF,
       inputs: {
-        script_text: withMeta(text, { voice, engine, template, palette, texture, brand: b.brand, handle: b.handle, cta: b.cta }),
+        script_text: withMeta(text, { voice, engine, template, palette, texture, director, brand: b.brand, handle: b.handle, cta: b.cta }),
         script_name: name,
         only: only.join(','),
       },

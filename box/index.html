@@ -100,6 +100,10 @@
         <select id="voice"></select>
       </div>
       <div>
+        <label class="t" for="director">Look planner</label>
+        <select id="director"><option value="ai">AI director (Gemini, falls back to rules)</option><option value="rules">Rules only (no AI)</option></select>
+      </div>
+      <div>
         <label class="t" for="template">Template</label>
         <select id="template"></select>
       </div>
@@ -173,7 +177,7 @@ fetch('/api/config').then(r => r.json()).then(c => {
   $('template').innerHTML = auto(c.templates);
   $('palette').innerHTML = auto(c.palettes);
   $('texture').innerHTML = auto(c.textures);
-  for (const k of ['engine', 'template', 'palette', 'texture']) {
+  for (const k of ['engine', 'director', 'template', 'palette', 'texture']) {
     try { const v = localStorage.getItem('nf_' + k); if (v) $(k).value = v; } catch (e) {}
     $(k).addEventListener('change', () => { try { localStorage.setItem('nf_' + k, $(k).value); } catch (e) {} if (k === 'engine') fillVoices(); });
   }
@@ -214,7 +218,7 @@ $('go').addEventListener('click', async () => {
     const r = await fetch('/api/start', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-NF-Box': '1' },
-      body: JSON.stringify({ text: $('text').value, name: $('name').value, only, voice: $('voice').value, engine: $('engine').value, template: $('template').value, palette: $('palette').value, texture: $('texture').value, brand: $('brand').value, handle: $('handle').value, cta: $('cta').value })
+      body: JSON.stringify({ text: $('text').value, name: $('name').value, only, voice: $('voice').value, engine: $('engine').value, director: $('director').value, template: $('template').value, palette: $('palette').value, texture: $('texture').value, brand: $('brand').value, handle: $('handle').value, cta: $('cta').value })
     });
     const j = await r.json();
     if (!r.ok) throw new Error(j.error || 'Failed');

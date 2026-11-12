@@ -165,6 +165,7 @@ function parseText(src, slug) {
       template: (meta.template || '').toLowerCase(),
       palette: (meta.palette || '').toLowerCase(),
       texture: (meta.texture || '').toLowerCase(),
+      director: (meta.director || '').toLowerCase(),
     },
     scenes: out,
   };

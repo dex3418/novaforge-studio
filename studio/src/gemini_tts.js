@@ -26,7 +26,8 @@ function sentences(text) {
 }
 
 async function callOnce(model, key, text, voice, style) {
-  const prompt = style && TONE[style] ? `Say ${TONE[style]}: ${text}` : text;
+  const tone = TONE[style] || (style && style !== 'neutral' ? `in a ${String(style).slice(0, 60)} way` : '');
+  const prompt = tone ? `Say ${tone}: ${text}` : text;
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-goog-api-key': key },

@@ -37,7 +37,7 @@ async function makeAudio(parsed, plan, root) {
       engine,
       voice: parsed.meta.voice,
       rate,
-      style: parsed.meta.style || (p.voice && p.voice.style) || '',
+      style: parsed.meta.style || p.emotion || '',
     });
     const dur = durationSeconds(file);
     const words = s.narration.split(/\s+/).filter(Boolean);
@@ -53,6 +53,7 @@ async function makeAudio(parsed, plan, root) {
       data: p.data,
       emotion: p.emotion,
       emphasis: p.emphasis,
+      beats: p.beats || null,
       audio: `${parsed.slug}/scene-${s.index}.mp3`,
       audioFrames: Math.ceil(dur * FPS),
       frames: Math.ceil((dur + PAD_SECONDS) * FPS),

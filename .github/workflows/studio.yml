@@ -102,6 +102,7 @@ jobs:
           ONLY: ${{ github.event.inputs.only }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_TTS_MODEL: ${{ secrets.GEMINI_TTS_MODEL }}
+          GEMINI_MODEL: ${{ secrets.GEMINI_MODEL }}
         run: |
           if [ -n "$ONLY" ]; then
             node src/build.js $FILES --only "$ONLY"
