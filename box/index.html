@@ -92,8 +92,24 @@
         </div>
       </div>
       <div>
+        <label class="t" for="engine">Voice engine</label>
+        <select id="engine"><option value="edge">Edge (free, exact captions)</option><option value="gemini">Gemini (needs API key in GitHub)</option></select>
+      </div>
+      <div>
         <label class="t" for="voice">Voice</label>
         <select id="voice"></select>
+      </div>
+      <div>
+        <label class="t" for="template">Template</label>
+        <select id="template"></select>
+      </div>
+      <div>
+        <label class="t" for="palette">Colours</label>
+        <select id="palette"></select>
+      </div>
+      <div>
+        <label class="t" for="texture">Texture</label>
+        <select id="texture"></select>
       </div>
     </div>
 
@@ -144,12 +160,26 @@ Tell people what to do next.
 ### Caption
 #yourtag #another`;
 
+let CFG = null;
+function fillVoices() {
+  const list = CFG.voices[$('engine').value] || CFG.voices.edge;
+  $('voice').innerHTML = '<option value="">Auto (by language)</option>' + list.map(v => `<option value="${v.id}">${v.label}</option>`).join('');
+  try { const v = localStorage.getItem('nf_voice_' + $('engine').value); if (v && list.some(x => x.id === v)) $('voice').value = v; } catch (e) {}
+}
+const auto = (a) => '<option value="">Auto (pick for me)</option>' + a.map(x => `<option value="${x.id}">${x.label}</option>`).join('');
 fetch('/api/config').then(r => r.json()).then(c => {
+  CFG = c;
   if (!c.hasToken) $('setup').hidden = false;
-  $('voice').innerHTML = c.voices.map(v => `<option>${v}</option>`).join('');
-  try { const v = localStorage.getItem('nf_voice'); if (v && c.voices.includes(v)) $('voice').value = v; } catch (e) {}
+  $('template').innerHTML = auto(c.templates);
+  $('palette').innerHTML = auto(c.palettes);
+  $('texture').innerHTML = auto(c.textures);
+  for (const k of ['engine', 'template', 'palette', 'texture']) {
+    try { const v = localStorage.getItem('nf_' + k); if (v) $(k).value = v; } catch (e) {}
+    $(k).addEventListener('change', () => { try { localStorage.setItem('nf_' + k, $(k).value); } catch (e) {} if (k === 'engine') fillVoices(); });
+  }
+  fillVoices();
 });
-$('voice').addEventListener('change', () => { try { localStorage.setItem('nf_voice', $('voice').value); } catch (e) {} });
+$('voice').addEventListener('change', () => { try { localStorage.setItem('nf_voice_' + $('engine').value, $('voice').value); } catch (e) {} });
 
 const SAVED = ['brand', 'handle', 'cta'];
 SAVED.forEach(k => {
@@ -184,7 +214,7 @@ $('go').addEventListener('click', async () => {
     const r = await fetch('/api/start', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-NF-Box': '1' },
-      body: JSON.stringify({ text: $('text').value, name: $('name').value, only, voice: $('voice').value, brand: $('brand').value, handle: $('handle').value, cta: $('cta').value })
+      body: JSON.stringify({ text: $('text').value, name: $('name').value, only, voice: $('voice').value, engine: $('engine').value, template: $('template').value, palette: $('palette').value, texture: $('texture').value, brand: $('brand').value, handle: $('handle').value, cta: $('cta').value })
     });
     const j = await r.json();
     if (!r.ok) throw new Error(j.error || 'Failed');

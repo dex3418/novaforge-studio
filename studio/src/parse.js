@@ -154,12 +154,17 @@ function parseText(src, slug) {
     slug,
     title,
     meta: {
-      voice: meta.voice || 'en-IN-NeerjaNeural',
+      voice: meta.voice || '',
       rate: meta.rate || '+0%',
       brand: meta.brand || '',
       handle: meta.handle || '',
       cta: meta.cta || '',
       caption: meta.caption || caption.join(' '),
+      engine: (meta.engine || 'edge').toLowerCase(),
+      style: meta.style || '',
+      template: (meta.template || '').toLowerCase(),
+      palette: (meta.palette || '').toLowerCase(),
+      texture: (meta.texture || '').toLowerCase(),
     },
     scenes: out,
   };

@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const { parseScript } = require('./parse');
 const { makeCarousel } = require('./carousel');
+const { rulePlan, describePlan } = require('./plan');
 
 const root = path.resolve(__dirname, '..');
 const theme = JSON.parse(fs.readFileSync(path.join(root, 'theme.json'), 'utf8'));
@@ -47,11 +48,14 @@ async function main() {
       if (parsed.meta.caption) {
         fs.writeFileSync(path.join(outDir, `${parsed.slug}-caption.txt`), parsed.meta.caption + '\n');
       }
-      if (only.includes('carousel')) await makeCarousel(parsed, theme, outDir);
+      const plan = rulePlan(parsed);
+      fs.writeFileSync(path.join(outDir, `${parsed.slug}-plan.json`), JSON.stringify(plan, null, 2));
+      console.log('  plan: ' + describePlan(plan));
+      if (only.includes('carousel')) await makeCarousel(parsed, theme, outDir, plan);
       const wantVideo = only.filter((x) => x === 'reel' || x === 'long');
       if (wantVideo.length) {
         const { makeVideos } = require('./video');
-        await makeVideos(parsed, theme, outDir, root, wantVideo);
+        await makeVideos(parsed, theme, plan, outDir, root, wantVideo);
       }
     } catch (e) {
       failed++;

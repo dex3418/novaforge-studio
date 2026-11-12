@@ -34,7 +34,10 @@ const API = process.env.GITHUB_API || 'https://api.github.com';
 const PORT = Number(process.env.PORT || 8787);
 const WORKFLOW = 'studio.yml';
 const FORMATS = ['carousel', 'reel', 'long'];
-const VOICES = ['en-IN-NeerjaNeural', 'en-IN-PrabhatNeural', 'hi-IN-SwaraNeural', 'hi-IN-MadhurNeural'];
+const CAT = require(path.join(__dirname, '..', 'studio', 'src', 'catalog.js'));
+const ENGINES = ['edge', 'gemini'];
+const ALL_VOICES = [...CAT.VOICES.edge, ...CAT.VOICES.gemini].map((v) => v.id);
+const choice = (v, list) => (list.includes(String(v || '').toLowerCase()) ? String(v).toLowerCase() : '');
 
 function gh(p, opts = {}) {
   return fetch(API + p, {
@@ -76,7 +79,7 @@ function withMeta(text, meta) {
   const m = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
   let head = m ? m[1].split(/\r?\n/) : [];
   const rest = m ? text.slice(m[0].length) : text;
-  for (const k of ['voice', 'brand', 'handle', 'cta']) {
+  for (const k of ['voice', 'brand', 'handle', 'cta', 'engine', 'template', 'palette', 'texture']) {
     const v = String(meta[k] || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 120);
     if (!v) continue;
     head = head.filter((l) => !new RegExp('^\\s*' + k + '\\s*:', 'i').test(l));
@@ -107,7 +110,11 @@ async function start(req, res) {
   if (text.length > 60000) return send(res, 400, { error: 'Script is too long (limit about 60,000 characters).' });
   const only = (Array.isArray(b.only) ? b.only : []).filter((x) => FORMATS.includes(x));
   if (!only.length) return send(res, 400, { error: 'Pick at least one output.' });
-  const voice = VOICES.includes(b.voice) ? b.voice : VOICES[0];
+  const engine = choice(b.engine, ENGINES) || 'edge';
+  const voice = ALL_VOICES.includes(b.voice) ? b.voice : '';
+  const template = choice(b.template, Object.keys(CAT.TEMPLATES));
+  const palette = choice(b.palette, Object.keys(CAT.PALETTES));
+  const texture = choice(b.texture, Object.keys(CAT.TEXTURES));
   const name = safeName(b.name);
 
   const r = await gh(`/repos/${REPO}/actions/workflows/${WORKFLOW}/dispatches`, {
@@ -116,7 +123,7 @@ async function start(req, res) {
     body: JSON.stringify({
       ref: REF,
       inputs: {
-        script_text: withMeta(text, { voice, brand: b.brand, handle: b.handle, cta: b.cta }),
+        script_text: withMeta(text, { voice, engine, template, palette, texture, brand: b.brand, handle: b.handle, cta: b.cta }),
         script_name: name,
         only: only.join(','),
       },
@@ -181,7 +188,13 @@ const server = http.createServer(async (req, res) => {
       return res.end(fs.readFileSync(path.join(__dirname, 'index.html')));
     }
     if (req.method === 'GET' && url.pathname === '/api/config') {
-      return send(res, 200, { hasToken: !!TOKEN, repo: REPO, voices: VOICES });
+      return send(res, 200, {
+        hasToken: !!TOKEN, repo: REPO,
+        voices: CAT.VOICES,
+        templates: Object.entries(CAT.TEMPLATES).map(([id, t]) => ({ id, label: t.label })),
+        palettes: Object.entries(CAT.PALETTES).map(([id, p]) => ({ id, label: p.label })),
+        textures: Object.entries(CAT.TEXTURES).map(([id, label]) => ({ id, label })),
+      });
     }
     if (req.method === 'GET' && url.pathname === '/api/runs') return await runs(res);
     if (req.method === 'GET' && url.pathname.startsWith('/api/download/')) {

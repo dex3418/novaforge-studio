@@ -1,102 +1,76 @@
 'use strict';
 // Builds 1080x1350 Instagram carousel PNGs with Puppeteer, then zips them.
+// Slides come from the same scene library as the videos (finished state).
 
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
+const { renderScene, pageHtml } = require('./scenes');
 
-const esc = (s) =>
-  String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const W = 1080;
+const H = 1350;
 
-function bodySize(len) {
-  if (len < 120) return 56;
-  if (len < 220) return 48;
-  if (len < 330) return 42;
-  return 36;
-}
-
-function baseCss(t) {
-  return `
-  *{box-sizing:border-box;margin:0;padding:0}
-  html,body{width:1080px;height:1350px}
-  body{font-family:${t.font};color:${t.text};
-    background:linear-gradient(160deg,${t.bg} 0%,${t.bg2} 100%);
-    position:relative;overflow:hidden}
-  .glow{position:absolute;width:760px;height:760px;border-radius:50%;
-    background:radial-gradient(circle,${t.accent}33 0%,transparent 70%);top:-260px;right:-260px}
-  .wrap{position:absolute;inset:0;padding:96px 88px;display:flex;flex-direction:column}
-  .top{display:flex;justify-content:space-between;align-items:center;font-size:28px;color:${t.muted};letter-spacing:.04em}
-  .brand{font-weight:700;color:${t.accent}}
-  .main{flex:1;display:flex;flex-direction:column;justify-content:center}
-  .chip{display:inline-flex;align-items:center;justify-content:center;width:84px;height:84px;border-radius:22px;
-    background:${t.accent};color:${t.bg};font-weight:800;font-size:40px;margin-bottom:44px}
-  h1{font-size:92px;line-height:1.12;font-weight:800}
-  h2{font-size:68px;line-height:1.15;font-weight:800;margin-bottom:40px}
-  p{line-height:1.45;color:#e6e9f5;margin-bottom:26px}
-  .bar{height:8px;border-radius:4px;background:${t.accent};width:140px;margin-top:44px}
-  .foot{display:flex;justify-content:space-between;font-size:28px;color:${t.muted}}
-  `;
-}
-
-function shell(t, brand, handle, inner, footLeft, footRight) {
-  return `<!doctype html><html><head><meta charset="utf-8"><style>${baseCss(t)}</style></head><body>
-  <div class="glow"></div>
-  <div class="wrap">
-    <div class="top"><span class="brand">${esc(brand)}</span><span>${esc(handle)}</span></div>
-    <div class="main">${inner}</div>
-    <div class="foot"><span>${esc(footLeft)}</span><span>${esc(footRight)}</span></div>
-  </div></body></html>`;
-}
-
-function buildSlides(parsed, theme) {
+function buildSlides(parsed, theme, plan) {
   const brand = parsed.meta.brand || theme.brand || '';
   const handle = parsed.meta.handle || '';
+  const byIndex = new Map(plan.scenes.map((s) => [s.index, s]));
+
   // When the title was taken from the first scene, the cover absorbs that scene.
   const intro = parsed.scenes[0] && parsed.scenes[0].isTitle ? parsed.scenes[0] : null;
   const scenes = intro ? parsed.scenes.slice(1) : parsed.scenes;
-  const total = scenes.length + 2; // cover + scenes + closing
+  const lastIsCta = scenes.length && byIndex.get(scenes[scenes.length - 1].index).kind === 'cta';
+  const total = scenes.length + 1 + (lastIsCta ? 0 : 1); // cover + scenes (+ closing)
+
+  const base = { mode: 'slide', w: W, h: H, plan, font: theme.font, brand, handle, total };
   const slides = [];
 
-  const sub = intro && intro.body ? `<p style="font-size:44px;margin-top:40px;color:${theme.muted}">${esc(intro.body.replace(/\n\n/g, ' '))}</p>` : '';
   slides.push(
-    shell(
-      theme,
-      brand,
-      handle,
-      `<h1>${esc(parsed.title)}</h1>${sub}<div class="bar"></div>`,
-      'Swipe \u2192',
-      `1/${total}`
-    )
+    renderScene({
+      ...base,
+      scene: {
+        index: 0, kind: 'cover', emotion: 'neutral',
+        data: { title: parsed.title, sub: intro && intro.body ? intro.body.replace(/\n\n/g, ' ') : '' },
+      },
+      footLeft: 'Swipe →',
+      pageLabel: `1/${total}`,
+    })
   );
 
   scenes.forEach((s, i) => {
-    const paras = (s.body || '').split(/\n\n/).filter(Boolean);
-    const size = bodySize((s.body || '').length);
-    const inner =
-      `<div class="chip">${i + 1}</div><h2>${esc(s.heading)}</h2>` +
-      paras.map((p) => `<p style="font-size:${size}px">${esc(p)}</p>`).join('');
-    slides.push(shell(theme, brand, handle, inner, '', `${i + 2}/${total}`));
+    const p = byIndex.get(s.index);
+    slides.push(
+      renderScene({
+        ...base,
+        scene: { ...s, ...p },
+        num: i + 1,
+        pageLabel: `${i + 2}/${total}`,
+      })
+    );
   });
 
-  const closing =
-    `<h1>${esc(parsed.meta.cta || 'Thanks for reading')}</h1>` +
-    (handle ? `<p style="font-size:48px;margin-top:36px;color:${theme.accent}">${esc(handle)}</p>` : '') +
-    '<div class="bar"></div>';
-  slides.push(shell(theme, brand, handle, closing, '', `${total}/${total}`));
-  return slides;
+  if (!lastIsCta) {
+    slides.push(
+      renderScene({
+        ...base,
+        scene: { index: 99, kind: 'cta', emotion: 'neutral', data: { text: parsed.meta.cta || 'Thanks for reading', button: handle || 'Link in bio' } },
+        pageLabel: `${total}/${total}`,
+      })
+    );
+  }
+  return slides.map((html) => pageHtml(html, W, H));
 }
 
-async function makeCarousel(parsed, theme, outDir) {
+async function makeCarousel(parsed, theme, outDir, plan) {
   const puppeteer = require('puppeteer');
   const dir = path.join(outDir, 'carousel');
   fs.mkdirSync(dir, { recursive: true });
-  const slides = buildSlides(parsed, theme);
+  const slides = buildSlides(parsed, theme, plan);
 
   const browser = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
   const files = [];
   try {
     const page = await browser.newPage();
-    await page.setViewport({ width: 1080, height: 1350, deviceScaleFactor: 1 });
+    await page.setViewport({ width: W, height: H, deviceScaleFactor: 1 });
     for (let i = 0; i < slides.length; i++) {
       await page.setContent(slides[i], { waitUntil: 'load' });
       await page.evaluate(() => document.fonts && document.fonts.ready);
