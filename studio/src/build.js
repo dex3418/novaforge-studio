@@ -10,7 +10,7 @@
 const fs = require('fs');
 const path = require('path');
 const { parseText } = require('./parse');
-const { cleanScript } = require('./clean');
+const { prepareScript } = require('./ai_clean');
 const { makeCarousel } = require('./carousel');
 const { rulePlan, describePlan } = require('./plan');
 const { direct } = require('./director');
@@ -55,15 +55,9 @@ async function build(file, only) {
     // 1 ------------------------------------------------------------ clean
     const cleaned = await report.run('1 Clean script', async () => {
       const raw = fs.readFileSync(file, 'utf8');
-      const c = cleanScript(raw);
+      const c = await prepareScript(raw);
       fs.writeFileSync(path.join(outDir, `${slug}-cleaned.md`), c.text);
-      const r = c.report;
-      const d = [];
-      if (r.dropped && r.dropped.length) d.push('removed sections: ' + r.dropped.join(', '));
-      if (r.tables) d.push(`removed ${r.tables} table lines`);
-      if (r.timestamps) d.push(`removed ${r.timestamps} timestamps`);
-      if (r.notes) d.push(`removed ${r.notes} bracket notes (UNVERIFIED etc.)`);
-      return { summary: r.kind === 'document' ? `pasted document cleaned to ${r.scenes} scenes` : 'already in studio format', details: d, value: c.text };
+      return { status: c.status, summary: c.summary, details: c.details, value: c.text };
     });
 
     // 2 ------------------------------------------------------------ read

@@ -198,4 +198,4 @@ function tidyLine(l, stats) {
   });
 }
 
-module.exports = { cleanScript };
+module.exports = { cleanScript, tidy };
