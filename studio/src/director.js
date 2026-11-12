@@ -7,7 +7,7 @@
 const { PALETTES, TEXTURES, TEMPLATES, TRANSITIONS, EMOTIONS } = require('./catalog');
 const { validatePlan, sentenceRanges } = require('./plan');
 
-const MODELS = (process.env.GEMINI_MODEL ? [process.env.GEMINI_MODEL] : []).concat(['gemini-2.5-flash', 'gemini-2.0-flash']);
+const MODELS = (process.env.GEMINI_MODEL ? [process.env.GEMINI_MODEL] : []).concat(['gemini-4-argon', 'gemini-3.8-flash', 'gemini-2.5-flash']);
 const MAX_CHARS = 24000;
 
 const LIBRARY = `
@@ -65,7 +65,7 @@ async function callModel(model, key, prompt) {
     signal: AbortSignal.timeout(90000),
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { responseMimeType: 'application/json', temperature: 0.4 },
+      generationConfig: { responseMimeType: 'application/json' }, // temperature/top_p/top_k are deprecated on newer Gemini models
     }),
   });
   if (!res.ok) {
