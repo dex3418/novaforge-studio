@@ -7,7 +7,7 @@
 const { PALETTES, TEXTURES, TEMPLATES, TRANSITIONS, EMOTIONS } = require('./catalog');
 const { validatePlan, sentenceRanges } = require('./plan');
 
-const MODELS = (process.env.GEMINI_MODEL ? [process.env.GEMINI_MODEL] : []).concat(['gemini-4-argon', 'gemini-3.8-flash', 'gemini-2.5-flash']);
+const MODELS = (process.env.GEMINI_MODEL ? [process.env.GEMINI_MODEL] : []).concat(['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-4-argon']);
 const MAX_CHARS = 24000;
 
 const LIBRARY = `
@@ -69,7 +69,7 @@ async function callModel(model, key, prompt) {
     }),
   });
   if (!res.ok) {
-    const e = new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 160)}`);
+    const e = new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 400)}`);
     e.status = res.status;
     throw e;
   }
@@ -106,7 +106,7 @@ async function direct(parsed, rules, opts = {}) {
   const tried = [];
   const models = opts.models || MODELS;
   for (const model of models) {
-    for (let attempt = 1; attempt <= 2 && !raw; attempt++) {
+    for (let attempt = 1; attempt <= 3 && !raw; attempt++) {
       try {
         raw = parseJson(await (opts.call || callModel)(model, key, prompt));
         usedModel = model;
@@ -114,12 +114,13 @@ async function direct(parsed, rules, opts = {}) {
         lastErr = e;
         tried.push(`${model}: ${e.message}`);
         if (e.status === 404 || e.status === 400 || e.status === 403 || e.status === 401) break;
-        await new Promise((r) => setTimeout(r, 2000 * attempt));
+        if (e.status === 429 && /limit: 0/.test(e.message)) break; // no free quota on this model: retrying won't help
+        await new Promise((r) => setTimeout(r, 4000 * attempt)); // 503 = busy, usually clears in seconds
       }
     }
     if (raw) break;
   }
-  if (!raw) return { plan: rules, status: 'warn', note: `AI director failed (${lastErr ? lastErr.message : 'no answer'}), using rules`, details: tried.concat(['404 = model name not available: add a GEMINI_MODEL secret. 400/403 = key problem. 429 = rate limit.']) };
+  if (!raw) return { plan: rules, status: 'warn', note: `AI director failed (${tried.length ? tried.map((t) => t.slice(0, 110)).join(' | ') : lastErr ? lastErr.message : 'no answer'}), using rules`, details: tried.concat(['404 = model name not available: add a GEMINI_MODEL secret. 400/403 = key problem. 429 = rate limit.']) };
 
   const meta = parsed.meta || {};
   const ai = { ...raw, source: 'ai', version: 2 };
