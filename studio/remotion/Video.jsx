@@ -55,6 +55,7 @@ const Scene = ({ scene, plan, theme, brand, handle, total, w, h }) => {
       decor: p.beat.decor || scene.decor,
       cstyle: p.beat.cstyle || scene.cstyle,
       align: p.beat.align || scene.align,
+      icon: p.beat.icon || (k === 0 ? scene.icon : undefined),
     };
     local = frame - p.start;
     sceneFrames = p.end - p.start;
@@ -68,7 +69,7 @@ const Scene = ({ scene, plan, theme, brand, handle, total, w, h }) => {
     sceneFrames, audioFrames, wordIdx, wordFrames,
     font: theme.font, brand, handle, total, num: scene.index,
   });
-  const fadeOut = interpolate(frame, [scene.frames - 5, scene.frames], [1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  const fadeOut = scene.end ? 1 : interpolate(frame, [scene.frames - 5, scene.frames], [1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
   return <AbsoluteFill style={{ opacity: fadeOut }} dangerouslySetInnerHTML={{ __html: html }} />;
 };
 
@@ -82,7 +83,7 @@ export const Video = ({ scenes, plan, theme, brand, handle, musicFile }) => {
       {scenes.map((s) => {
         const seq = (
           <Sequence key={s.index} from={from} durationInFrames={s.frames}>
-            <Audio src={staticFile(s.audio)} />
+            {s.audio ? <Audio src={staticFile(s.audio)} /> : null}
             <Scene scene={s} plan={plan} theme={theme} brand={brand} handle={handle} total={scenes.length} w={width} h={height} />
           </Sequence>
         );

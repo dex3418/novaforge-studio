@@ -6,7 +6,8 @@
 // validatePlan() = makes any plan safe to render. The AI director will later write a
 //                  plan in this same shape; anything invalid falls back to a plain caption.
 
-const { PALETTES, TEXTURES, TEMPLATES, TRANSITIONS, SCHEMES, DECORS, HEADERS, CSTYLES, ALIGNS, KINDS, EMOTIONS } = require('./catalog');
+const { FAMILIES, PALETTES, TEXTURES, TEMPLATES, TRANSITIONS, SCHEMES, DECORS, HEADERS, CSTYLES, ALIGNS, KINDS, EMOTIONS } = require('./catalog');
+const { ICONS, pickIcon } = require('./icons');
 
 const hash = (s) => {
   let h = 0;
@@ -177,6 +178,28 @@ function decide(sc, i, n) {
   return { kind: 'caption', data: {} };
 }
 
+// ------------------------------------------------------------ seeded randomness
+// Every run draws a fresh seed (recorded in the plan and report), so the same topic
+// does not always get the same look. Put "seed: 123" in the script header to repeat a look.
+
+function rng(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const shuffled = (arr, r) => {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(r() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+};
+
 // ------------------------------------------------------------ template choice
 
 const TEMPLATE_RULES = [
@@ -184,35 +207,67 @@ const TEMPLATE_RULES = [
   ['jobs', /recruit|vacanc|\bjob|apply|exam|police|bharti|career|syllabus|admit card|eligib/gi],
   ['steps', /\bstep|first|then|next|how to|guide|process/gi],
   ['myth', /\bmyth|\bfact\b|truth|misconception/gi],
-  ['quote', /\bquote|\bsaid\b|inspir|motivat|“/gi],
+  ['quote', /\bquote|\bsaid\b|inspir|“/gi],
   ['event', /\bdate\b|deadline|schedule|last day|register by|event|\bon \d/gi],
-  ['news', /announc|launch|\bnew\b|update|breaking|notice|introducing/gi],
+  ['news', /announc|breaking|notice|introducing/gi],
+  ['explainer', /\bwhy\b|\bwhat is|explain|because|means|\bhow\b/gi],
+  ['story', /story|journey|years ago|\bonce\b|began|founders?|started with/gi],
+  ['finance', /invest|funding|revenue|profit|loan|\bbank|stock|returns?|crore|series [a-d]/gi],
+  ['tech', /\bai\b|\bapp\b|software|startup|sensor|device|\bcode\b|\bdata\b|\bchip|cloud|tech|hardware/gi],
+  ['education', /learn|study|exam|course|class|syllabus|tutorial|lesson|practice/gi],
+  ['launch', /launch|introducing|new feature|release|available now|\bnew\b/gi],
+  ['motivation', /dream|goal|never give up|success|hustle|believe|discipline|motivat/gi],
+  ['lifestyle', /routine|habit|morning|health|\bhome\b|\bfood|travel|daily life/gi],
+  ['review', /review|\bvs\b|compare|better|\bpros\b|\bcons\b|rating/gi],
+  ['daily', /today|this week|\bupdate|latest|\bnews\b|report/gi],
 ];
 
-function pickTemplate(text) {
-  let best = 'tips';
-  let bestScore = 0;
-  for (const [id, re] of TEMPLATE_RULES) {
-    const s = (text.match(re) || []).length;
-    if (s > bestScore) {
-      best = id;
-      bestScore = s;
-    }
-  }
-  return best;
+function pickTemplate(text, r) {
+  const scored = TEMPLATE_RULES.map(([id, re]) => [id, (text.match(re) || []).length]).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
+  if (!scored.length) return shuffled(['tips', 'explainer', 'story', 'tech', 'education', 'daily'], r)[0];
+  const best = scored[0][1];
+  const top = scored.filter(([, n]) => n >= best * 0.5).slice(0, 3);
+  return top[Math.floor(r() * top.length)][0];
 }
 
-// ------------------------------------------------------------ beats
-// A scene's spoken text is cut into "beats" (whole sentences). Each beat gets its own
-// visual, so one long scene can show a counter, then captions, then a checklist.
+// ------------------------------------------------------------ segments and beats
+// A scene's spoken text is cut into short numbered "lines" (a sentence, or part of a long
+// sentence cut at a comma / "and" / "which"). Beats are groups of lines, each with its own
+// visual, so one long scene shows a counter, then a line of kinetic text, then an icon...
 
-function sentenceRanges(narration) {
+const CONJ = new Set('and but which while because so then that plus or yet'.split(' '));
+
+function splitLong(ws, max) {
+  if (ws.length <= max) return [ws];
+  const isBreak = (i) => /[,;:–—]$/.test(ws[i]) || (i + 1 < ws.length && CONJ.has(ws[i + 1].toLowerCase().replace(/[^a-z]/g, '')));
+  const chunks = [];
+  let start = 0;
+  while (ws.length - start > max) {
+    let cut = -1;
+    for (let i = start + max - 1; i >= start + 4; i--) {
+      if (isBreak(i)) {
+        cut = i;
+        break;
+      }
+    }
+    if (cut < 0) cut = start + max - 1;
+    chunks.push(ws.slice(start, cut + 1));
+    start = cut + 1;
+  }
+  const tail = ws.slice(start);
+  if (tail.length < 4 && chunks.length) chunks[chunks.length - 1] = chunks[chunks.length - 1].concat(tail);
+  else chunks.push(tail);
+  return chunks;
+}
+
+function segmentRanges(narration, maxWords = 16) {
   const out = [];
   let w = 0;
-  for (const text of sentences(narration)) {
-    const n = words(text).length;
-    out.push({ text, from: w, to: w + n });
-    w += n;
+  for (const sentence of sentences(narration)) {
+    for (const c of splitLong(words(sentence), maxWords)) {
+      out.push({ text: c.join(' '), from: w, to: w + c.length });
+      w += c.length;
+    }
   }
   return out;
 }
@@ -234,10 +289,12 @@ function strings(kind, d) {
   switch (kind) {
     case 'kinetic': case 'quote': case 'alert': case 'cta': return [d.text];
     case 'keyword': return [d.word, d.line];
+    case 'spot': return [d.line];
     case 'qa': return [d.q, d.a];
     case 'mythfact': return [d.myth, d.fact];
     case 'compare': return [d.left && d.left.text, d.right && d.right.text];
     case 'checklist': case 'steps': return (d.items || []).map((i) => i && i.text);
+    case 'stats': case 'bars': return (d.items || []).map((i) => i && i.label);
     default: return [];
   }
 }
@@ -245,14 +302,11 @@ function strings(kind, d) {
 const cap = (s, n) => words(s).slice(0, n).join(' ');
 
 function groundedData(kind, d, src) {
-  if (kind === 'counter') {
-    const have = numbersIn(src);
-    if (!d.values.every((v) => have.has(Number(v)))) return false;
-  }
-  if (kind === 'progress') {
-    if (!numbersIn(src).has(Number(d.value))) return false;
-  }
-  return strings(kind, d).every((x) => !x || grounded(x, src));
+  const have = numbersIn(src);
+  if (kind === 'counter' && !d.values.every((v) => have.has(Number(v)))) return false;
+  if (kind === 'progress' && !have.has(Number(d.value))) return false;
+  if ((kind === 'stats' || kind === 'bars') && !d.items.every((i) => have.has(Number(i.value)))) return false;
+  return strings(kind, d).every((x) => !x || grounded(x, src, 0.5));
 }
 
 function locate(text, beatText) {
@@ -269,6 +323,16 @@ function locate(text, beatText) {
 // fills the timing fractions the renderer needs and trims anything too long for the screen
 function finalize(kind, d, beatText) {
   const o = JSON.parse(JSON.stringify(d));
+  const spread = (items, key) => {
+    let prev = -1;
+    items.forEach((it, i) => {
+      let f = Number.isFinite(it.frac) ? it.frac : locate(it[key] || '', beatText);
+      if (f == null) f = i / items.length;
+      f = Math.max(f, prev + 0.02);
+      it.frac = Math.min(0.95, f);
+      prev = it.frac;
+    });
+  };
   if (kind === 'counter') {
     o.values = o.values.map(Number).slice(0, 2);
     o.prefix = isStr(o.prefix) ? String(o.prefix).slice(0, 3) : '';
@@ -276,16 +340,22 @@ function finalize(kind, d, beatText) {
     o.label = isStr(o.label) ? cap(o.label, 9) : '';
   }
   if (kind === 'checklist' || kind === 'steps') {
-    o.items = o.items.slice(0, 6).map((it) => ({ text: cap(it.text, 14), frac: Number.isFinite(it.frac) ? it.frac : null }));
-    let prev = -1;
-    o.items.forEach((it, i) => {
-      let f = it.frac;
-      if (f == null) f = locate(it.text, beatText);
-      if (f == null) f = i / o.items.length;
-      f = Math.max(f, prev + 0.02);
-      it.frac = Math.min(0.95, f);
-      prev = it.frac;
-    });
+    o.items = o.items.slice(0, 6).map((it) => ({ text: cap(it.text, 14), frac: it.frac }));
+    spread(o.items, 'text');
+  }
+  if (kind === 'stats') {
+    o.items = o.items.slice(0, 4).map((it) => ({ value: Number(it.value), prefix: isStr(it.prefix) ? String(it.prefix).slice(0, 3) : '', suffix: isStr(it.suffix) ? String(it.suffix).slice(0, 10) : '', label: cap(it.label, 5), frac: it.frac }));
+    spread(o.items, 'label');
+  }
+  if (kind === 'bars') {
+    o.items = o.items.slice(0, 5).map((it) => ({ value: Number(it.value), label: cap(it.label, 4), frac: it.frac }));
+    o.prefix = isStr(o.prefix) ? String(o.prefix).slice(0, 3) : '';
+    o.suffix = isStr(o.suffix) ? String(o.suffix).slice(0, 10) : '';
+    spread(o.items, 'label');
+  }
+  if (kind === 'spot') {
+    o.line = cap(o.line, 14);
+    if (!ICONS[o.icon]) o.icon = pickIcon(o.line + ' ' + beatText) || 'star';
   }
   if (kind === 'qa') {
     o.q = cap(o.q, 22);
@@ -330,72 +400,158 @@ function motionFields(g) {
   if (DECORS.includes(g.decor)) o.decor = g.decor;
   if (CSTYLES.includes(g.cstyle)) o.cstyle = g.cstyle;
   if (ALIGNS.includes(g.align)) o.align = g.align;
+  if (ICONS[g.icon]) o.icon = g.icon;
   return o;
 }
 
-// Fills in whatever motion the plan left open, so beats differ from each other:
-// transitions, colour changes, animated backgrounds, caption looks, vertical position.
-const T_POOL = ['slide', 'bounce', 'wipe', 'rise', 'zoom', 'circle', 'drop', 'spin', 'split', 'flip'];
-const D_POOL = ['orbs', 'sweep', 'rings', 'bars', 'sparks'];
-const S_PATTERN = ['base', 'pop', 'base', 'flip', 'base', 'base', 'pop', 'flip'];
-const POP_OK = new Set(['counter', 'kinetic', 'alert', 'quote', 'progress', 'keyword', 'cta', 'mythfact']);
-const A_CAPTION = ['bottom', 'center', 'top'];
+// ------------------------------------------------------------ pacing and motion
+// Fills in whatever the plan left open. Each axis (colour, texture, animation, objects,
+// caption look, colour scheme) is drawn on its own from a shuffled pool, so they do not
+// move in lockstep. An "energy" curve keeps the start punchy, adds a pattern-interrupt
+// every few beats so the middle never goes flat, and builds to the end.
 
-function assignMotion(plan, seed) {
-  let k = 0;
+const BOLD_T = ['bounce', 'spin', 'drop', 'circle', 'shake', 'elastic', 'rise'];
+const SOFT_T = ['slide', 'wipe', 'zoom', 'split', 'blinds', 'swipeup', 'flip', 'fade'];
+const BOLD_D = ['sparks', 'rings', 'confetti', 'comets', 'bars', 'shapes'];
+const SOFT_D = ['orbs', 'sweep', 'waves', 'orbit', 'shapes'];
+const POP_OK = new Set(['counter', 'kinetic', 'alert', 'quote', 'progress', 'keyword', 'cta', 'mythfact', 'spot', 'stats']);
+const A_CAPTION = ['bottom', 'center', 'top'];
+const MID = { low: 0.32, mid: 0.48, high: 0.62 };
+
+function energyAt(k, n, base) {
+  const pos = n > 1 ? k / (n - 1) : 0;
+  if (k < 2 || pos < 0.1) return 0.95;
+  if (pos > 0.85) return 0.7 + 0.3 * ((pos - 0.85) / 0.15);
+  if (k % 5 === 4) return 0.95; // pattern interrupt
+  return base + 0.12 * Math.sin(pos * Math.PI * 7);
+}
+
+function assignMotion(plan, parsed, seed) {
+  const r = rng(seed ^ 0x9e3779b9);
+  const meta = parsed.meta || {};
+  const tpl = TEMPLATES[plan.template] || TEMPLATES.tips;
+  const fam = FAMILIES[tpl.family] || FAMILIES.night;
+
+  const first = PALETTES[plan.palette] ? plan.palette : fam[0];
+  const palOrder = [first, ...shuffled(fam.filter((p) => p !== first), r)];
+  const allTex = Object.keys(TEXTURES).filter((x) => x !== 'none');
+  const t0 = TEXTURES[plan.texture] && plan.texture !== 'none' ? plan.texture : tpl.textures[0];
+  const texOrder = [t0, ...shuffled(tpl.textures.filter((x) => x !== t0), r), ...shuffled(allTex.filter((x) => x !== t0 && !tpl.textures.includes(x)), r)];
+  const fixedPal = PALETTES[meta.palette] ? meta.palette : null;
+  const fixedTex = TEXTURES[meta.texture] ? meta.texture : null;
+
+  plan.scenes.forEach((s, si) => {
+    if (!PALETTES[s.palette]) s.palette = fixedPal || palOrder[si % palOrder.length];
+    if (!TEXTURES[s.texture]) s.texture = fixedTex || texOrder[(si * 2) % texOrder.length];
+  });
+  plan.palette = plan.scenes[0].palette;
+  plan.texture = plan.scenes[0].texture;
+
+  const textOf = (s) => {
+    const sc = parsed.scenes.find((x) => x.index === s.index);
+    return sc ? sc.narration : '';
+  };
+  const units = [];
+  plan.scenes.forEach((s) => {
+    if (s.beats && s.beats.length > 1) s.beats.forEach((b) => units.push({ u: b, text: b.text || textOf(s) }));
+    else units.push({ u: s, text: textOf(s) });
+  });
+
+  const base = MID[tpl.energy] || MID.mid;
+  const n = units.length;
+  let prevT = '';
   let prevScheme = 'base';
-  const fill = (u) => {
-    if (!u.transition) u.transition = T_POOL[(seed + k * 3) % T_POOL.length];
+  let prevIcon = '';
+  let prevD = '';
+  units.forEach(({ u, text }, k) => {
+    const e = energyAt(k, n, base);
+    const high = e >= 0.85;
+    if (!u.transition) {
+      const pool = (high ? BOLD_T : e > 0.55 ? BOLD_T.concat(SOFT_T) : SOFT_T).filter((x) => x !== prevT);
+      u.transition = pool[Math.floor(r() * pool.length)];
+    }
+    prevT = u.transition;
     if (!u.scheme) {
-      let sch = S_PATTERN[(seed + k) % S_PATTERN.length];
-      if (sch === 'pop' && !POP_OK.has(u.kind)) sch = 'base';
+      let sch = 'base';
+      const roll = r();
+      if (high) sch = POP_OK.has(u.kind) ? 'pop' : 'flip';
+      else if (roll < 0.15 + (e > 0.55 ? 0.1 : 0)) sch = POP_OK.has(u.kind) ? 'pop' : 'flip';
+      else if (roll < 0.38) sch = 'flip';
       if (sch !== 'base' && sch === prevScheme) sch = 'base';
       u.scheme = sch;
     }
     prevScheme = u.scheme;
-    if (!u.decor) u.decor = plan.decor || D_POOL[(seed + k * 2) % D_POOL.length];
-    if (!u.cstyle) u.cstyle = CSTYLES[(seed + k) % CSTYLES.length];
-    if (!u.align) u.align = u.kind === 'caption' ? A_CAPTION[(seed + k) % A_CAPTION.length] : 'center';
-    k++;
-  };
-  for (const s of plan.scenes) {
-    if (s.beats && s.beats.length > 1) s.beats.forEach(fill);
-    else fill(s);
-  }
+    if (!u.decor) {
+      const pool = (plan.decor ? [plan.decor] : high ? BOLD_D : e > 0.55 ? BOLD_D.concat(SOFT_D) : SOFT_D).filter((x) => x !== prevD || plan.decor);
+      u.decor = pool[Math.floor(r() * pool.length)];
+    }
+    prevD = u.decor;
+    if (!u.cstyle) u.cstyle = CSTYLES[Math.floor(r() * CSTYLES.length)];
+    if (!u.align) u.align = u.kind === 'caption' ? A_CAPTION[Math.floor(r() * A_CAPTION.length)] : 'center';
+    if (!u.icon) {
+      const ic = pickIcon(text);
+      if (ic && ic !== prevIcon && r() < 0.75) u.icon = ic;
+    }
+    if (u.icon) prevIcon = u.icon;
+    u.energy = Math.round(e * 100) / 100;
+  });
 }
 
-// raw beats (sentence ranges) -> checked beats with word ranges, or null
+// raw beats (line ranges) -> checked beats with word ranges, or null
 function normalizeBeats(g, sc, trust, diag) {
   const raw = Array.isArray(g.beats) ? g.beats.filter((b) => b && typeof b === 'object') : [];
-  if (!raw.length || raw.length > 10) {
-    if (diag && Array.isArray(g.beats)) diag.push({ scene: sc.index, reason: `${raw.length} beats (need 1 to 10)` });
+  if (!raw.length || raw.length > 40) {
+    if (diag && Array.isArray(g.beats)) diag.push({ scene: sc.index, reason: `${raw.length} beats (need 1 to 40)` });
     return null;
   }
-  const rng = sentenceRanges(sc.narration);
-  if (rng.length < 1) return null;
+  const rng_ = segmentRanges(sc.narration);
+  if (rng_.length < 1) return null;
   const sorted = raw
     .map((b) => ({ ...b, a: Number(b.fromSentence), z: Number(b.toSentence) }))
     .sort((x, y) => x.a - y.a);
   let at = 0;
   for (const b of sorted) {
-    if (!Number.isInteger(b.a) || !Number.isInteger(b.z) || b.a !== at || b.z <= b.a || b.z > rng.length) {
-      if (diag) diag.push({ scene: sc.index, reason: `beat ranges do not line up with the ${rng.length} sentences` });
+    if (!Number.isInteger(b.a) || !Number.isInteger(b.z) || b.a !== at || b.z <= b.a || b.z > rng_.length) {
+      if (diag) diag.push({ scene: sc.index, reason: `beat ranges do not line up with the ${rng_.length} lines` });
       return null;
     }
     at = b.z;
   }
-  if (at !== rng.length) {
-    if (diag) diag.push({ scene: sc.index, reason: `beats cover ${at} of ${rng.length} sentences` });
+  if (at !== rng_.length) {
+    if (diag) diag.push({ scene: sc.index, reason: `beats cover ${at} of ${rng_.length} lines` });
     return null;
   }
 
   const ws = words(sc.narration);
   const src = `${sc.heading} ${sc.body} ${sc.narration}`;
+  const mk = (a, z, kind, data, extra) => {
+    const from = rng_[a].from;
+    const to = rng_[z - 1].to;
+    return { ...extra, fromSentence: a, toSentence: z, from, to, kind, data, text: ws.slice(from, to).join(' ') };
+  };
+  const SPLITTABLE = new Set(['counter', 'progress', 'kinetic', 'keyword', 'spot', 'alert', 'quote']);
+  // groups of lines up to `max` words
+  const groups = (a, z, max) => {
+    const out = [];
+    let s0 = a;
+    let w = 0;
+    for (let i = a; i < z; i++) {
+      const lw = rng_[i].to - rng_[i].from;
+      if (i > s0 && w + lw > max) {
+        out.push([s0, i]);
+        s0 = i;
+        w = 0;
+      }
+      w += lw;
+    }
+    out.push([s0, z]);
+    return out;
+  };
+
   const out = [];
   for (const b of sorted) {
-    const from = rng[b.a].from;
-    const to = rng[b.z - 1].to;
-    const text = ws.slice(from, to).join(' ');
+    const text = ws.slice(rng_[b.a].from, rng_[b.z - 1].to).join(' ');
+    const wcb = text.split(' ').length;
     let kind = KINDS.includes(b.kind) ? b.kind : 'caption';
     let data = b.data && typeof b.data === 'object' ? b.data : {};
     const why = !KINDS.includes(b.kind) ? `unknown kind "${b.kind}"` : !CHECK[kind](data) ? `${kind}: data missing or wrong shape` : !trust && !groundedData(kind, data, src) ? `${kind}: text or number not found in the script` : '';
@@ -406,46 +562,45 @@ function normalizeBeats(g, sc, trust, diag) {
     } else {
       data = finalize(kind, data, text);
     }
-    const prev = out[out.length - 1];
-    if (prev && prev.kind === 'caption' && kind === 'caption') {
-      prev.to = to;
-      prev.toSentence = b.z;
-      continue;
-    }
-    out.push({
+    const extra = {
       ...motionFields(b),
-      fromSentence: b.a, toSentence: b.z, from, to, kind, data,
       emotion: EMOTIONS.includes(b.emotion) ? b.emotion : null,
       emphasis: Array.isArray(b.emphasis) ? b.emphasis.filter(isStr).slice(0, 8) : [],
-    });
+    };
+    // keep every beat short: long captions are cut into several, long single-point visuals
+    // keep their first lines and hand the rest to kinetic text
+    if (kind === 'caption' && wcb > 18) {
+      for (const [a, z] of groups(b.a, b.z, 16)) out.push(mk(a, z, 'caption', {}, { ...extra, ...(out.length ? { transition: undefined, scheme: undefined, decor: undefined, icon: undefined } : {}) }));
+      continue;
+    }
+    if (SPLITTABLE.has(kind) && wcb > 24 && b.z - b.a > 1) {
+      const [head, ...rest] = groups(b.a, b.z, 16);
+      out.push(mk(head[0], head[1], kind, data, extra));
+      for (const [a, z] of rest) {
+        const t = ws.slice(rng_[a].from, rng_[z - 1].to).join(' ');
+        out.push(mk(a, z, 'kinetic', { text: cap(t, 18) }, { emotion: extra.emotion, emphasis: extra.emphasis }));
+      }
+      continue;
+    }
+    out.push(mk(b.a, b.z, kind, data, extra));
   }
-  if (out.every((b) => b.kind === 'caption')) return null;
-  return out;
+  // merge neighbouring plain captions, but never into something long
+  const merged = [];
+  for (const b of out) {
+    const prev = merged[merged.length - 1];
+    if (prev && prev.kind === 'caption' && b.kind === 'caption' && prev.to - prev.from + (b.to - b.from) <= 14) {
+      prev.to = b.to;
+      prev.toSentence = b.toSentence;
+      prev.text = ws.slice(prev.from, prev.to).join(' ');
+      continue;
+    }
+    merged.push(b);
+  }
+  if (merged.every((b) => b.kind === 'caption') && merged.length <= 1) return null;
+  return merged;
 }
 
 // ------------------------------------------------------------ rule beats
-
-function groupSentences(rng) {
-  const groups = [];
-  let cur = null;
-  rng.forEach((r, i) => {
-    const wc = r.to - r.from;
-    const special = amounts(r.text).length === 1 || percents(r.text).length === 1 || wc <= 18;
-    if (special) {
-      if (cur) groups.push(cur);
-      groups.push({ a: i, z: i + 1 });
-      cur = null;
-    } else if (cur && cur.words + wc <= 30 && cur.z - cur.a < 2) {
-      cur.z = i + 1;
-      cur.words += wc;
-    } else {
-      if (cur) groups.push(cur);
-      cur = { a: i, z: i + 1, words: wc };
-    }
-  });
-  if (cur) groups.push(cur);
-  return groups;
-}
 
 const STOP = new Set('once when which that because and but from the a an of for to with while after before so as by in on is was are were will'.split(' '));
 // a short label from the words right after the amount ("per unit", "grant")
@@ -460,25 +615,69 @@ function labelAfter(text, a) {
   return l ? l[0].toUpperCase() + l.slice(1) : '';
 }
 
+function numbersOf(text) {
+  const am = amounts(text).map((a) => ({ ...a, kind: 'amt' }));
+  const pc = percents(text).map((p) => ({ ...p, kind: 'pct' }));
+  return [...am, ...pc].sort((x, y) => x.index - y.index);
+}
+
+function groupLines(rng_) {
+  const groups = [];
+  let cur = null;
+  rng_.forEach((r, i) => {
+    const wc = r.to - r.from;
+    const nums = numbersOf(r.text);
+    const special = nums.length >= 1 && nums.length <= 4;
+    if (special) {
+      if (cur) groups.push(cur);
+      groups.push({ a: i, z: i + 1, special: true });
+      cur = null;
+    } else if (cur && cur.words + wc <= 16 && cur.z - cur.a < 2) {
+      cur.z = i + 1;
+      cur.words += wc;
+    } else {
+      if (cur) groups.push(cur);
+      cur = { a: i, z: i + 1, words: wc };
+    }
+  });
+  if (cur) groups.push(cur);
+  return groups;
+}
+
 function ruleBeats(sc) {
-  const rng = sentenceRanges(sc.narration);
+  const rng_ = segmentRanges(sc.narration);
   const wc = words(sc.narration).length;
-  if (rng.length < 2 || wc < 28) return null;
-  const beats = groupSentences(rng).map((g, gi) => {
-    const text = rng.slice(g.a, g.z).map((r) => r.text).join(' ');
-    const am = amounts(text);
-    const pc = percents(text);
+  if (rng_.length < 2 || wc < 20) return null;
+  let spots = 0;
+  const beats = groupLines(rng_).map((g, gi) => {
+    const text = rng_.slice(g.a, g.z).map((r) => r.text).join(' ');
+    const nums = numbersOf(text);
     let kind = 'caption';
     let data = {};
-    if (am.length === 1) {
+    if (nums.length >= 2 && nums.length <= 4 && nums.every((x) => x.kind === 'pct' || x.values.length === 1)) {
+      const items = nums.map((x) => ({ value: x.values ? x.values[0] : x.value, prefix: x.kind === 'amt' ? '₹' : '', suffix: x.kind === 'amt' ? x.suffix || '' : '%', label: labelAfter(text, x) }));
+      if (items.every((i) => i.label) && new Set(items.map((i) => i.label.toLowerCase())).size === items.length) {
+        kind = 'stats';
+        data = { items };
+      }
+    } else if (nums.length === 1 && nums[0].kind === 'amt') {
       kind = 'counter';
-      data = { values: am[0].values, prefix: '₹', suffix: am[0].suffix || '', label: labelAfter(text, am[0]) };
-    } else if (pc.length === 1 && am.length === 0) {
+      data = { values: nums[0].values, prefix: '₹', suffix: nums[0].suffix || '', label: labelAfter(text, nums[0]) };
+    } else if (nums.length === 1 && nums[0].kind === 'pct') {
       kind = 'progress';
-      data = { value: pc[0].value, label: labelAfter(text, pc[0]) };
-    } else if (words(text).length <= 18) {
-      kind = 'kinetic';
-      data = { text };
+      data = { value: nums[0].value, label: labelAfter(text, nums[0]) };
+    }
+    if (kind === 'caption') {
+      const w = words(text).length;
+      const ic = w <= 11 && spots < 1 ? pickIcon(text, 2) : null;
+      if (ic) {
+        kind = 'spot';
+        data = { icon: ic, line: text };
+        spots++;
+      } else if (gi % 3 !== 2 && w <= 18) {
+        kind = 'kinetic';
+        data = { text };
+      }
     }
     return { fromSentence: g.a, toSentence: g.z, kind, data };
   });
@@ -487,37 +686,44 @@ function ruleBeats(sc) {
 
 // ------------------------------------------------------------ plans
 
-function rulePlan(parsed) {
+const SPLIT_KINDS = new Set(['counter', 'progress', 'alert', 'kinetic', 'caption', 'quote']);
+
+function rulePlan(parsed, opts = {}) {
   const meta = parsed.meta || {};
+  const seed = Number.isFinite(Number(meta.seed)) && meta.seed !== '' && meta.seed != null ? Number(meta.seed) : opts.seed != null ? opts.seed : Math.floor(Math.random() * 2147483647);
+  const r = rng(seed);
   const n = parsed.scenes.length;
   const text = `${parsed.title} ${parsed.scenes.map((s) => `${s.heading} ${s.body}`).join(' ')}`;
 
-  const tid = TEMPLATES[meta.template] ? meta.template : pickTemplate(text);
+  const tid = TEMPLATES[meta.template] ? meta.template : pickTemplate(text, r);
   const t = TEMPLATES[tid];
-  const palette = PALETTES[meta.palette] ? meta.palette : t.palette;
-  const texture = TEXTURES[meta.texture] ? meta.texture : t.textures[hash(parsed.slug) % t.textures.length];
 
   const scenes = parsed.scenes.map((sc, i) => {
     const d = decide(sc, i, n);
     const emotion = emotionOf(`${sc.heading} ${sc.body}`);
     const emphasis = [...new Set((`${sc.heading} ${sc.body}`.match(/[^\s]*\d[^\s]*/g) || []).map((x) => x.replace(/[^\p{L}\p{N}]/gu, '')))].filter(Boolean);
-    const beats = d.kind === 'caption' ? ruleBeats(sc) : null;
+    const long = words(sc.narration).length > 24;
+    const beats = SPLIT_KINDS.has(d.kind) && (long || d.kind === 'caption') ? ruleBeats(sc) : null;
     return {
       index: sc.index, kind: d.kind, data: d.data, emotion, emphasis, beats,
       voice: { rateDelta: RATE_DELTA[emotion], style: STYLE[emotion] },
     };
   });
 
-  return validatePlan({ version: 2, source: 'rules', template: tid, palette, texture, transition: t.transition, scenes }, parsed);
+  return validatePlan({ version: 3, source: 'rules', seed, template: tid, palette: PALETTES[meta.palette] ? meta.palette : FAMILIES[t.family][0], texture: TEXTURES[meta.texture] ? meta.texture : t.textures[0], transition: 'slide', scenes }, parsed);
 }
 
 const isStr = (x) => typeof x === 'string' && x.trim().length > 0;
+const okItems = (a, lo, hi, f) => Array.isArray(a) && a.length >= lo && a.length <= hi && a.every((i) => i && f(i));
 const CHECK = {
   caption: () => true,
   kinetic: (d) => isStr(d.text),
   counter: (d) => Array.isArray(d.values) && d.values.length > 0 && d.values.every((v) => isFinite(Number(v))),
-  checklist: (d) => Array.isArray(d.items) && d.items.length >= 1 && d.items.length <= 8 && d.items.every((i) => i && isStr(i.text)),
-  steps: (d) => Array.isArray(d.items) && d.items.length >= 1 && d.items.length <= 8 && d.items.every((i) => i && isStr(i.text)),
+  checklist: (d) => okItems(d.items, 1, 8, (i) => isStr(i.text)),
+  steps: (d) => okItems(d.items, 1, 8, (i) => isStr(i.text)),
+  stats: (d) => okItems(d.items, 2, 4, (i) => isFinite(Number(i.value)) && isStr(i.label)),
+  bars: (d) => okItems(d.items, 2, 5, (i) => isFinite(Number(i.value)) && isStr(i.label)),
+  spot: (d) => isStr(d.line),
   keyword: (d) => isStr(d.word),
   quote: (d) => isStr(d.text),
   qa: (d) => isStr(d.q) && isStr(d.a),
@@ -534,17 +740,19 @@ function validatePlan(plan, parsed, fallback, diag) {
   const p = plan && typeof plan === 'object' ? plan : {};
   const fb = fallback || null;
   const trust = p.source !== 'ai';
+  const seed = Number.isFinite(Number(p.seed)) ? Number(p.seed) : fb && Number.isFinite(fb.seed) ? fb.seed : hash(parsed.slug || parsed.title);
   const tid = TEMPLATES[p.template] ? p.template : fb ? fb.template : 'tips';
   const out = {
-    version: 2,
+    version: 3,
     source: p.source === 'ai' ? 'ai' : 'rules',
+    seed,
     template: tid,
-    palette: PALETTES[p.palette] ? p.palette : fb ? fb.palette : TEMPLATES[tid].palette,
+    palette: PALETTES[p.palette] ? p.palette : fb ? fb.palette : FAMILIES[TEMPLATES[tid].family][0],
     texture: TEXTURES[p.texture] ? p.texture : fb ? fb.texture : TEMPLATES[tid].textures[0],
-    transition: TRANSITIONS.includes(p.transition) ? p.transition : fb ? fb.transition : TEMPLATES[tid].transition,
+    transition: TRANSITIONS.includes(p.transition) ? p.transition : 'slide',
     scenes: [],
-    header: HEADERS.includes(p.header) ? p.header : fb && fb.header ? fb.header : HEADERS[hash(parsed.slug || parsed.title) % HEADERS.length],
-    decor: DECORS.includes(p.decor) ? p.decor : fb && fb.decor ? fb.decor : null,
+    header: HEADERS.includes(p.header) ? p.header : fb && fb.header ? fb.header : HEADERS[seed % HEADERS.length],
+    decor: DECORS.includes(p.decor) ? p.decor : null,
     captions: (parsed.meta && parsed.meta.captions === 'always') || p.captions === 'always' ? 'always' : 'smart',
   };
   const given = Array.isArray(p.scenes) ? p.scenes : [];
@@ -579,6 +787,8 @@ function validatePlan(plan, parsed, fallback, diag) {
     const rd = Number.isFinite(Number(g.rateDelta)) ? Number(g.rateDelta) : Number.isFinite(Number(v.rateDelta)) ? Number(v.rateDelta) : f ? f.voice.rateDelta : RATE_DELTA[emotion];
     out.scenes.push({
       ...motionFields(g),
+      ...(PALETTES[g.palette] ? { palette: g.palette } : {}),
+      ...(TEXTURES[g.texture] ? { texture: g.texture } : {}),
       index: sc.index,
       kind,
       data,
@@ -591,17 +801,18 @@ function validatePlan(plan, parsed, fallback, diag) {
       },
     });
   });
-  assignMotion(out, hash(parsed.slug || parsed.title));
+  assignMotion(out, parsed, seed);
   return out;
 }
 
 function describePlan(plan) {
-  const head = `template=${plan.template} palette=${plan.palette} texture=${plan.texture} header=${plan.header} captions=${plan.captions} (${plan.source})`;
+  const head = `template=${plan.template} seed=${plan.seed} header=${plan.header} captions=${plan.captions} (${plan.source})`;
   const lines = plan.scenes.map((s) => {
-    const b = s.beats && s.beats.length ? ' beats: ' + s.beats.map((x) => `${x.kind}(${x.transition},${x.scheme})`).join(' > ') : ` (${s.transition},${s.scheme})`;
-    return `  scene ${s.index}: ${s.kind} / ${s.emotion}${b}`;
+    const one = (x) => `${x.kind}[${x.transition},${x.scheme}${x.icon ? ',' + x.icon : ''}]`;
+    const b = s.beats && s.beats.length > 1 ? ' ' + s.beats.map(one).join(' > ') : ' ' + one(s);
+    return `  scene ${s.index} (${s.palette}/${s.texture}):${b}`;
   });
   return [head, ...lines].join('\n');
 }
 
-module.exports = { rulePlan, validatePlan, describePlan, amounts, sentenceRanges, grounded };
+module.exports = { rulePlan, validatePlan, describePlan, amounts, sentenceRanges: segmentRanges, segmentRanges, grounded, assignMotion, rng };

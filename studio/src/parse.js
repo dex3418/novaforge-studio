@@ -172,6 +172,7 @@ function parseText(src, slug) {
       texture: (meta.texture || '').toLowerCase(),
       director: (meta.director || '').toLowerCase(),
       captions: (meta.captions || '').toLowerCase(),
+      seed: (meta.seed || '').toString().trim(),
     },
     scenes: out,
   };

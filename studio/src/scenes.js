@@ -8,6 +8,7 @@
 const { PALETTES } = require('./catalog');
 const { textureStyle, rgba, rgb } = require('./textures');
 const { decorHtml } = require('./decor');
+const { iconSvg, ICONS, pickIcon } = require('./icons');
 
 const esc = (s) =>
   String(s == null ? '' : s)
@@ -21,6 +22,10 @@ const ease = (x) => 1 - Math.pow(1 - clamp(x), 3);
 const back = (x) => {
   const t = clamp(x) - 1;
   return 1 + 2.70158 * t * t * t + 1.70158 * t * t;
+};
+const elastic = (x) => {
+  const t = clamp(x);
+  return t === 0 ? 0 : t === 1 ? 1 : Math.pow(2, -10 * t) * Math.sin(((t * 10 - 0.75) * (2 * Math.PI)) / 3) + 1;
 };
 const lum = (hex) => {
   const [r, g, b] = rgb(hex);
@@ -89,7 +94,7 @@ function makeCtx(o) {
   const fps = o.fps || 30;
   const ctx = {
     w, h, u: (Math.min(w, h) / 1080) * (video ? (h > w ? 1.08 : 1.2) : 1), long: w > h, video,
-    pal: schemePalette(PALETTES[plan.palette] || PALETTES.navy, video ? sc.scheme : 'base'),
+    pal: schemePalette(PALETTES[sc.palette] || PALETTES[plan.palette] || PALETTES.navy, video ? sc.scheme : 'base'),
     plan, sc, speed, fps,
     t: video ? (o.frame || 0) / fps : 99,
     frame: o.frame || 0,
@@ -154,6 +159,16 @@ function transitionStyle(ctx) {
       return `opacity:${op};transform:rotate(${(1 - b) * -9}deg) scale(${0.75 + 0.25 * b})`;
     case 'split':
       return `clip-path:inset(${(1 - e) * 50}% 0 ${(1 - e) * 50}% 0);opacity:${x}`;
+    case 'blinds':
+      return `-webkit-mask-image:repeating-linear-gradient(90deg,#000 0,#000 ${e * 96 * u}px,transparent ${e * 96 * u}px,transparent ${96 * u}px);mask-image:repeating-linear-gradient(90deg,#000 0,#000 ${e * 96 * u}px,transparent ${e * 96 * u}px,transparent ${96 * u}px);opacity:${x}`;
+    case 'elastic': {
+      const el = elastic(f / 24);
+      return `opacity:${op};transform:scale(${0.6 + 0.4 * el}, ${1.4 - 0.4 * el})`;
+    }
+    case 'shake':
+      return `opacity:${op};transform:translateX(${Math.sin(f * 2.1) * (1 - e) * 46 * u}px) scale(${0.9 + 0.1 * b})`;
+    case 'swipeup':
+      return `opacity:${op};transform:translateY(${(1 - e) * ctx.h * 0.22}px)`;
     default:
       return `opacity:${op}`;
   }
@@ -198,6 +213,16 @@ function captionLine(ctx, size, per, color, style) {
 function captionFoot(ctx) {
   const size = 50 * ctx.u;
   return `<div style="min-height:${size * 2.5}px;margin-top:${24 * ctx.u}px;font-size:${size}px;font-weight:700;line-height:1.25">${captionLine(ctx, size, ctx.long ? 7 : 5, ctx.pal.text)}</div>`;
+}
+
+// a big soft icon behind the text: the beat's "object"
+function objectIcon(ctx, name) {
+  if (!ICONS[name]) return '';
+  const { u, pal, w, h, t } = ctx;
+  const p = ctx.b(0.1, 0.9);
+  const size = (ctx.long ? 600 : 640) * u;
+  const pos = ctx.long ? `right:${w * 0.05}px;top:${(h - size) / 2 + Math.sin(t * 1.6) * 16 * u}px` : `right:${-70 * u}px;bottom:${h * 0.1 + Math.sin(t * 1.6) * 18 * u}px`;
+  return `<div style="position:absolute;${pos};opacity:${0.22 * Math.min(1, p * 2)};transform:rotate(${Math.sin(t * 0.9) * 5 + (1 - p) * -25}deg) scale(${0.55 + 0.45 * p})">${iconSvg(name, size, pal.accent, rgba(pal.accent, 0.1), 1.1)}</div>`;
 }
 
 function chip(ctx, text) {
@@ -458,6 +483,76 @@ const STAGES = {
     );
   },
 
+  // 2-4 numbers side by side
+  stats(ctx, sc) {
+    const u = ctx.u;
+    const items = (sc.data.items || []).slice(0, 4);
+    if (items.length < 2) throw new Error('need 2+ items');
+    const n = items.length;
+    const cols = ctx.long || n === 3 ? Math.min(n, 3) : 2;
+    const cards = items
+      .map((it, i) => {
+        const t0 = ctx.at(it.frac != null ? it.frac : i / n);
+        const p = ctx.video ? back((ctx.t - t0) / 0.6) : 1;
+        const c = ctx.video ? ease((ctx.t - t0) / 1.1) : 1;
+        const v = Number(it.value);
+        const dec = !Number.isInteger(v);
+        const shown = (dec ? Math.round(v * c * 100) / 100 : Math.round(v * c)).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+        const text = `${it.prefix || ''}${shown}${it.suffix || ''}`;
+        const fs = fit(text.length, [[6, 100], [9, 80], [13, 62], [1e9, 48]]) * u * (cols === 3 ? 0.85 : 1);
+        return `<div style="padding:${34 * u}px ${30 * u}px;border-radius:${28 * u}px;background:${ctx.pal.card};border:${3 * u}px solid ${rgba(ctx.pal.accent, 0.35)};opacity:${Math.min(1, p * 1.6)};transform:scale(${0.7 + 0.3 * p})"><div style="font-size:${fs}px;font-weight:800;line-height:1.05;color:${ctx.pal.accent};letter-spacing:-0.02em">${esc(text)}</div><div style="margin-top:${14 * u}px;font-size:${38 * u}px;font-weight:700;line-height:1.2">${esc(it.label || '')}</div></div>`;
+      })
+      .join('');
+    return (sc.heading && !ctx.video ? heading(ctx, sc.heading, 60) : '') + `<div style="display:grid;grid-template-columns:repeat(${cols},1fr);gap:${26 * u}px">${cards}</div>`;
+  },
+
+  // horizontal bar chart
+  bars(ctx, sc) {
+    const u = ctx.u;
+    const d = sc.data;
+    const items = (d.items || []).slice(0, 5);
+    if (items.length < 2) throw new Error('need 2+ items');
+    const max = Math.max(...items.map((i) => Number(i.value)), 1);
+    const n = items.length;
+    const rows = items
+      .map((it, i) => {
+        const t0 = ctx.at(it.frac != null ? it.frac : i / n);
+        const g = ctx.video ? ease((ctx.t - t0) / 0.9) : 1;
+        const a = ctx.video ? ease((ctx.t - t0) / 0.3) : 1;
+        const v = Number(it.value);
+        const shown = (Number.isInteger(v) ? Math.round(v * g) : Math.round(v * g * 100) / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+        return `<div style="margin-bottom:${34 * u}px;opacity:${a}"><div style="display:flex;justify-content:space-between;align-items:baseline;font-size:${44 * u}px;font-weight:700;margin-bottom:${10 * u}px"><span>${esc(it.label || '')}</span><span style="color:${ctx.pal.accent};font-weight:800">${esc(d.prefix || '')}${shown}${esc(d.suffix || '')}</span></div><div style="height:${34 * u}px;border-radius:${17 * u}px;background:${ctx.pal.card};overflow:hidden"><div style="height:100%;width:${(v / max) * 100 * g}%;border-radius:${17 * u}px;background:${ctx.pal.accent}"></div></div></div>`;
+      })
+      .join('');
+    return (sc.heading && !ctx.video ? heading(ctx, sc.heading, 60) : '') + rows;
+  },
+
+  // one big icon with a line of text
+  spot(ctx, sc) {
+    const u = ctx.u;
+    const d = sc.data;
+    const name = ICONS[d.icon] ? d.icon : pickIcon(d.line || sc.narration) || 'star';
+    const p = ctx.b(0.05, 0.8);
+    const dia = (ctx.long ? 360 : 400) * u;
+    const size = fit(String(d.line || '').length, [[40, 84], [90, 66], [1e9, 52]]) * u * (ctx.long ? 0.9 : 1);
+    return (
+      `<div style="align-self:flex-start;width:${dia}px;height:${dia}px;border-radius:50%;background:${ctx.pal.accent};display:flex;align-items:center;justify-content:center;margin-bottom:${46 * u}px;transform:scale(${0.4 + 0.6 * p}) rotate(${(1 - p) * -25}deg);box-shadow:0 0 0 ${28 * u * Math.min(1, p)}px ${rgba(ctx.pal.accent, 0.18)}">${iconSvg(name, dia * 0.58, ctx.pal.onAccent, 'none', 1.5)}</div>` +
+      (d.line ? `<div style="font-size:${size}px;font-weight:800;line-height:1.15;opacity:${ctx.a(0.4, 0.5)};transform:translateY(${(1 - ctx.a(0.4, 0.5)) * 30 * u}px)">${esc(d.line)}</div>` : '')
+    );
+  },
+
+  // silent closing card (videos only)
+  endcard(ctx, sc) {
+    const u = ctx.u;
+    const d = sc.data || {};
+    const p = ctx.b(0.05, 0.8);
+    return (
+      `<div style="font-size:${(ctx.long ? 130 : 150) * u}px;font-weight:800;line-height:1.05;color:${ctx.pal.accent};transform-origin:left center;transform:scale(${0.6 + 0.4 * p});opacity:${Math.min(1, p * 2)}">${esc(d.brand || '')}</div>` +
+      (d.cta ? `<div style="margin-top:${34 * u}px;font-size:${58 * u}px;font-weight:800;line-height:1.2;opacity:${ctx.a(0.3, 0.5)}">${esc(d.cta)}</div>` : '') +
+      (d.handle ? `<div style="align-self:flex-start;margin-top:${44 * u}px;padding:${22 * u}px ${48 * u}px;border-radius:999px;background:${ctx.pal.accent};color:${ctx.pal.onAccent};font-weight:800;font-size:${50 * u}px;transform:scale(${0.8 + 0.2 * ctx.a(0.5, 0.5)});opacity:${ctx.a(0.5, 0.4)}">${esc(d.handle)}</div>` : '')
+    );
+  },
+
   // ---- slide-only
   cover(ctx, sc) {
     const u = ctx.u;
@@ -491,7 +586,7 @@ function renderScene(o) {
   const video = ctx.video;
   const header = video ? ctx.plan.header || 'top' : 'top';
   const showFoot = video && ctx.plan.captions === 'always' && sc.kind !== 'caption' && sc.kind !== 'kinetic';
-  const tx = textureStyle(ctx.plan.texture, pal, ctx.t === 99 ? 0 : ctx.t, u);
+  const tx = textureStyle(sc.texture || ctx.plan.texture, pal, ctx.t === 99 ? 0 : ctx.t, u);
   const brandSpan = `<span style="font-weight:800;color:${pal.accent}">${esc(ctx.brand)}</span>`;
   const row = (a, b) => `<div style="display:flex;justify-content:space-between;align-items:center;font-size:${30 * u}px;color:${pal.muted};letter-spacing:.04em;height:${44 * u}px">${a}<span>${b}</span></div>`;
   let top = row(brandSpan, esc(ctx.handle));
@@ -516,6 +611,7 @@ function renderScene(o) {
     `<div style="position:absolute;inset:0;${tx}"></div>` +
     `<div style="position:absolute;width:${760 * u}px;height:${760 * u}px;border-radius:50%;top:${-260 * u}px;right:${-260 * u}px;background:radial-gradient(circle,${rgba(pal.accent, 0.2)} 0%,transparent 70%)"></div>` +
     decor +
+    (video && sc.icon && sc.kind !== 'spot' ? objectIcon(ctx, sc.icon) : '') +
     side +
     `<div style="position:absolute;inset:0;padding:${P}px;display:flex;flex-direction:column">` +
     top +

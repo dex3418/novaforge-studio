@@ -54,6 +54,7 @@ async function makeAudio(parsed, plan, root) {
       emotion: p.emotion,
       emphasis: p.emphasis,
       beats: p.beats || null,
+      transition: p.transition, scheme: p.scheme, decor: p.decor, cstyle: p.cstyle, align: p.align, icon: p.icon, palette: p.palette, texture: p.texture,
       voiceInfo: { engine: r.engine, voice: r.voice, rate, timing: r.timing ? r.timing.kind : 'estimated', note: r.note || '' },
       audio: `${parsed.slug}/scene-${s.index}.mp3`,
       audioFrames: Math.ceil(dur * FPS),
@@ -61,6 +62,31 @@ async function makeAudio(parsed, plan, root) {
       seconds: dur,
       wordFrames,
     });
+  }
+  // silent closing card with brand, call to action and handle
+  const brand = parsed.meta.brand || '';
+  if (brand || parsed.meta.handle) {
+    const lastKind = out[out.length - 1] && out[out.length - 1].kind;
+    out.push({
+      index: 99, heading: '', body: '', narration: '', kind: 'endcard',
+      data: { brand: brand || parsed.meta.handle, handle: brand ? parsed.meta.handle || '' : '', cta: lastKind === 'cta' ? '' : parsed.meta.cta || '' },
+      emotion: 'excited', emphasis: [], beats: null, audio: null, audioFrames: 0, frames: 75, seconds: 2.5, wordFrames: null,
+      transition: 'bounce', scheme: 'pop', decor: 'sparks', cstyle: 'chunk', align: 'center',
+      palette: plan.scenes[plan.scenes.length - 1].palette, texture: plan.scenes[plan.scenes.length - 1].texture, end: true,
+    });
+  }
+  return out;
+}
+
+// how long each beat is on screen (seconds), for the pacing report
+function beatSeconds(scenes) {
+  const out = [];
+  for (const s of scenes) {
+    if (s.end) continue;
+    const ws = s.narration.split(/\s+/).filter(Boolean);
+    if (!s.beats || s.beats.length < 2) { out.push(s.seconds); continue; }
+    const startOf = (w) => (s.wordFrames && s.wordFrames.length === ws.length ? s.wordFrames[Math.min(w, ws.length - 1)] / FPS : (w / Math.max(1, ws.length)) * s.seconds);
+    s.beats.forEach((b, i) => out.push((i + 1 < s.beats.length ? startOf(s.beats[i + 1].from) : s.seconds) - (i === 0 ? 0 : startOf(b.from))));
   }
   return out;
 }
@@ -94,7 +120,7 @@ async function renderOne(compId, parsed, theme, plan, scenes, root, outFile, mus
 async function makeVideos(parsed, theme, plan, outDir, root, which) {
   fs.mkdirSync(outDir, { recursive: true });
   const scenes = await makeAudio(parsed, plan, root);
-  const total = scenes.reduce((a, s) => a + s.seconds + PAD_SECONDS, 0);
+  const total = scenes.reduce((a, s) => a + (s.end ? 0 : s.seconds + PAD_SECONDS), 0);
   console.log(`  total narration ~${total.toFixed(1)}s`);
   if (which.includes('reel') && total > 90) console.warn('  WARNING: Reel is longer than 90s, Instagram may trim or reject it.');
 
@@ -117,4 +143,4 @@ async function makeVideos(parsed, theme, plan, outDir, root, which) {
   } };
 }
 
-module.exports = { makeVideos, makeAudio };
+module.exports = { makeVideos, makeAudio, beatSeconds };

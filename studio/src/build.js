@@ -45,6 +45,19 @@ function kindCounts(plan) {
   return Object.entries(c).map(([k, n]) => `${k} x${n}`).join(', ');
 }
 
+// how varied the plan is: distinct kinds, transitions, colours, textures, decor
+function variety(plan) {
+  const units = [];
+  plan.scenes.forEach((s) => (s.beats && s.beats.length > 1 ? s.beats.forEach((x) => units.push(x)) : units.push(s)));
+  const n = (f) => new Set(units.map(f).filter(Boolean)).size;
+  const caps = units.filter((u) => u.kind === 'caption').length;
+  return [
+    `${units.length} beats: ${n((u) => u.kind)} kinds, ${n((u) => u.transition)} transitions, ${n((u) => u.decor)} decors, ${n((u) => u.scheme)} colour schemes`,
+    `${new Set(plan.scenes.map((s) => s.palette)).size} palettes and ${new Set(plan.scenes.map((s) => s.texture)).size} textures across ${plan.scenes.length} scenes`,
+    `${caps} of ${units.length} beats are plain captions (${Math.round((caps / Math.max(1, units.length)) * 100)}%)`,
+  ];
+}
+
 async function build(file, only) {
   const slug = slugOf(file);
   const outDir = path.join(root, 'out', slug);
@@ -86,7 +99,7 @@ async function build(file, only) {
       st.ms = Date.now() - t;
     }
     fs.writeFileSync(path.join(outDir, `${slug}-plan.json`), JSON.stringify(plan, null, 2));
-    report.add('4 Plan', 'ok', `${plan.source === 'ai' ? 'AI' : 'rules'} plan: ${kindCounts(plan)}`, [describePlan(plan)]);
+    report.add('4 Plan', 'ok', `${plan.source === 'ai' ? 'AI' : 'rules'} plan: ${kindCounts(plan)}`, [...variety(plan), describePlan(plan)]);
 
     // 5 + 6 --------------------------------------------------------- outputs
     if (only.includes('carousel')) {
@@ -100,12 +113,16 @@ async function build(file, only) {
       const { makeVideos } = require('./video');
       const job = await report.run('5 Voice', async () => {
         const j = await makeVideos(parsed, theme, plan, outDir, root, wantVideo);
-        const infos = j.scenes.map((s) => s.voiceInfo);
+        const voiced = j.scenes.filter((s) => !s.end);
+        const infos = voiced.map((s) => s.voiceInfo);
         const fell = infos.filter((x) => x.note);
         const est = infos.filter((x) => x.timing === 'estimated');
-        const d = j.scenes.map((s) => `scene ${s.index}: ${s.voiceInfo.engine}/${s.voiceInfo.voice} ${s.voiceInfo.rate}, ${s.seconds.toFixed(1)}s, captions ${s.voiceInfo.timing}${s.voiceInfo.note ? ' - ' + s.voiceInfo.note : ''}`);
-        const st = fell.length || est.length ? 'warn' : 'ok';
-        return { status: st, summary: `${j.scenes.length} voice clips, ${j.total.toFixed(0)}s total${fell.length ? `, ${fell.length} fell back to Edge` : ''}${est.length ? `, ${est.length} with estimated caption timing` : ''}`, details: d, value: j };
+        const d = voiced.map((s) => `scene ${s.index}: ${s.voiceInfo.engine}/${s.voiceInfo.voice} ${s.voiceInfo.rate}, ${s.seconds.toFixed(1)}s, captions ${s.voiceInfo.timing}${s.voiceInfo.note ? ' - ' + s.voiceInfo.note : ''}`);
+        const bs = require('./video').beatSeconds(j.scenes).sort((x, y) => y - x);
+        const longBeats = bs.filter((x) => x > 6).length;
+        d.push(`pacing: ${bs.length} beats, average ${(bs.reduce((a, x) => a + x, 0) / Math.max(1, bs.length)).toFixed(1)}s, longest ${(bs[0] || 0).toFixed(1)}s, ${longBeats} longer than 6s`);
+        const st = fell.length || est.length || longBeats > 2 ? 'warn' : 'ok';
+        return { status: st, summary: `${voiced.length} voice clips, ${j.total.toFixed(0)}s total${fell.length ? `, ${fell.length} fell back to Edge` : ''}${est.length ? `, ${est.length} with estimated caption timing` : ''}`, details: d, value: j };
       });
       await report.run('6b Render video', async () => {
         const files = await job.run();
