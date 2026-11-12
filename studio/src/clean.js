@@ -7,6 +7,9 @@
 const DROP_H = /title options?|outline|description|thumbnail|editor review|summary|improve|stronger hook|facts? to verify|brand risks?|next step|resources|timestamps|hashtags?|keywords?|sources|checklist for editors|b-?roll|shot list/i;
 const FULL_H = /^(full script|script|narration|voice ?over|spoken script|final script)\b/i;
 const HOOK_H = /^hook\b/i;
+// labels that mark production notes, never narration (Focus:, On-screen:, Visual:, ...)
+const DROP_START = /^(focus|on[\u2010-\u2015\-\s]*screen(?:\s+text)?|visuals?|text overlay|overlay)\b/i;
+const SPOKEN_LABEL = /\*{0,2}Spoken:?\*{0,2}/i;
 const TS = /\(?\s*\d{1,2}:\d{2}(?:\s*[‐-―−\-]\s*\d{1,2}:\d{2})?\s*\)?/g;
 
 const stripBold = (s) => s.replace(/\*\*(.+?)\*\*/g, '$1').replace(/__(.+?)__/g, '$1').replace(/(^|\s)\*(\S[^*]*?)\*(?=\s|$|[.,;:!?])/g, '$1$2');
@@ -74,12 +77,28 @@ function paragraphs(lines) {
   return out;
 }
 
+// Pulls only the "Spoken:" lines out of a section; "On-screen:" lines are dropped.
+function spokenBits(lines, stats) {
+  const body = lines.join('\n');
+  const re = /(?:^|\n)[ \t]*(?:\d+[.)][ \t]*)?\*{0,2}Spoken:?\*{0,2}[ \t]*([\s\S]*?)(?=\n[ \t]*\n|\n[ \t]*(?:\d+[.)][ \t]*)?\*{0,2}(?:Spoken|On[\u2010-\u2015\-\s]*screen)|$)/gi;
+  const out = [];
+  let m;
+  while ((m = re.exec(body))) {
+    const t = tidy(m[1].replace(/\s*\n\s*/g, ' '), stats);
+    if (t) out.push(t);
+    if (m[0].length === 0) re.lastIndex++;
+  }
+  return out;
+}
+
 function cleanScript(raw) {
   const stats = { notes: 0, timestamps: 0, tables: 0, dropped: [] };
   const text = String(raw);
   const secs = splitSections(text);
   const heads = secs.map((s) => s.h);
-  const isDoc = heads.some((h) => DROP_H.test(h) || FULL_H.test(h)) || /\|\s*-{3,}/.test(text);
+  const hasSpoken = SPOKEN_LABEL.test(text);
+  const hasScenes = /^##\s/m.test(text);
+  const isDoc = hasSpoken || !hasScenes || heads.some((h) => DROP_H.test(h) || FULL_H.test(h) || DROP_START.test(h)) || /\|\s*-{3,}/.test(text);
   stats.tables = (text.match(/^\s*\|.*\|\s*$/gm) || []).length;
 
   if (!isDoc) {
@@ -94,6 +113,14 @@ function cleanScript(raw) {
 
   let title = '';
   const scenes = [];
+  const caption = [];
+  for (const sec of secs) {
+    const ci = sec.lines.findIndex((l) => /^#{3,}\s*caption/i.test(l));
+    if (ci >= 0) {
+      for (const l of sec.lines.slice(ci + 1)) if (l.trim() && !/^\s*\.\s*$/.test(l)) caption.push(l.trim());
+      sec.lines = sec.lines.slice(0, ci);
+    }
+  }
   for (const sec of secs) {
     const h = sec.h;
     if (!h) {
@@ -134,8 +161,15 @@ function cleanScript(raw) {
       }
       continue;
     }
-    if (DROP_H.test(h)) {
+    if (DROP_H.test(h) || DROP_START.test(h)) {
       stats.dropped.push(h);
+      continue;
+    }
+    const bits = spokenBits(sec.lines, stats);
+    if (bits.length) {
+      const base = headingText(h, stats).replace(/\s*\([^)]*\)\s*$/, '');
+      if (bits.length === 1) scenes.push({ h: base, paras: bits });
+      else bits.forEach((b, i) => scenes.push({ h: `${base.replace(/s$/i, '')} ${i + 1}`, paras: [b] }));
       continue;
     }
     // unknown section inside a document: keep as a scene
@@ -144,11 +178,16 @@ function cleanScript(raw) {
   }
 
   const outScenes = scenes.filter((s) => s.paras.length);
+  if (!title && outScenes.length) {
+    const first = outScenes[0].paras[0] || '';
+    title = (first.match(/^.*?[.!?](?=\s|$)/) || [first])[0].replace(/[.!?]+$/, '').slice(0, 80);
+  }
   const lines = [];
   if (title) lines.push('---', `title: ${title}`, '---', '');
   for (const s of outScenes) {
     lines.push(`## ${s.h || 'Scene'}`, ...s.paras.flatMap((p) => [p, '']));
   }
+  if (caption.length) lines.push('### Caption', caption.join(' '), '');
   return { text: lines.join('\n').trim() + '\n', report: { kind: 'document', scenes: outScenes.length, ...stats } };
 }
 
