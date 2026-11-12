@@ -70,13 +70,19 @@ function readBody(req, limit = 200000) {
   });
 }
 
-function withVoice(text, voice) {
+// Puts the box fields into the script's header. Anything filled in on the page
+// wins over the same line in the pasted script; empty fields leave the script alone.
+function withMeta(text, meta) {
   const m = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
-  if (m) {
-    if (/^voice\s*:/m.test(m[1])) return text;
-    return text.replace(/^---\r?\n/, `---\nvoice: ${voice}\n`);
+  let head = m ? m[1].split(/\r?\n/) : [];
+  const rest = m ? text.slice(m[0].length) : text;
+  for (const k of ['voice', 'brand', 'handle', 'cta']) {
+    const v = String(meta[k] || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 120);
+    if (!v) continue;
+    head = head.filter((l) => !new RegExp('^\\s*' + k + '\\s*:', 'i').test(l));
+    head.push(`${k}: ${v}`);
   }
-  return `---\nvoice: ${voice}\n---\n` + text;
+  return `---\n${head.join('\n')}\n---\n${rest}`;
 }
 
 function safeName(s) {
@@ -109,7 +115,11 @@ async function start(req, res) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       ref: REF,
-      inputs: { script_text: withVoice(text, voice), script_name: name, only: only.join(',') },
+      inputs: {
+        script_text: withMeta(text, { voice, brand: b.brand, handle: b.handle, cta: b.cta }),
+        script_name: name,
+        only: only.join(','),
+      },
     }),
   });
   if (r.status === 204) return send(res, 200, { ok: true, name });

@@ -4,7 +4,8 @@ import { Video } from './Video';
 
 const defaults = {
   title: 'Preview',
-  brand: 'Novaforge Labs',
+  brand: '',
+  handle: '',
   theme: {
     bg: '#0b1020',
     bg2: '#1a2350',

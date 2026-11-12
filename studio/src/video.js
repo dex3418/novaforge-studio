@@ -1,9 +1,12 @@
 'use strict';
 // Voiceover per scene (Edge TTS) -> Remotion render for Reel (9:16) and Long (16:9).
+// Scene length = real length of the voice clip, and every caption word gets the
+// moment it is actually spoken, so voice and picture stay in step.
 
 const fs = require('fs');
 const path = require('path');
 const { synth, durationSeconds } = require('./tts');
+const { wordStartTimes } = require('./align');
 
 const FPS = 30;
 const PAD_SECONDS = 0.35; // breathing room after each scene
@@ -26,8 +29,15 @@ function makeAudio(parsed, root) {
   return parsed.scenes.map((s) => {
     const file = path.join(dir, `scene-${s.index}.mp3`);
     console.log(`  voice scene ${s.index}/${parsed.scenes.length}`);
-    synth(s.narration, file, parsed.meta.voice, parsed.meta.rate);
+    const { timing } = synth(s.narration, file, parsed.meta.voice, parsed.meta.rate);
     const dur = durationSeconds(file);
+
+    const words = s.narration.split(/\s+/).filter(Boolean);
+    const starts = wordStartTimes(words, timing);
+    // frame at which each caption word starts being spoken (null = estimate in the video)
+    const wordFrames = starts ? starts.map((t) => Math.floor(Math.min(t, dur) * FPS)) : null;
+    console.log(`    ${dur.toFixed(1)}s, caption timing: ${timing ? timing.kind : 'estimated'}`);
+
     return {
       index: s.index,
       heading: s.heading,
@@ -36,6 +46,7 @@ function makeAudio(parsed, root) {
       audioFrames: Math.ceil(dur * FPS),
       frames: Math.ceil((dur + PAD_SECONDS) * FPS),
       seconds: dur,
+      wordFrames,
     };
   });
 }
@@ -46,6 +57,7 @@ async function renderOne(compId, parsed, theme, scenes, root, outFile, musicFile
   const inputProps = {
     title: parsed.title,
     brand: parsed.meta.brand || theme.brand || '',
+    handle: parsed.meta.handle || '',
     theme,
     scenes,
     totalFrames: scenes.reduce((a, s) => a + s.frames, 0),
@@ -92,4 +104,4 @@ async function makeVideos(parsed, theme, outDir, root, which) {
     await renderOne('Long', parsed, theme, scenes, root, path.join(outDir, `${parsed.slug}-youtube.mp4`), musicFile);
 }
 
-module.exports = { makeVideos };
+module.exports = { makeVideos, makeAudio };

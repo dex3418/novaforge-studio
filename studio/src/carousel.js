@@ -38,11 +38,11 @@ function baseCss(t) {
   `;
 }
 
-function shell(t, brand, inner, footLeft, footRight) {
+function shell(t, brand, handle, inner, footLeft, footRight) {
   return `<!doctype html><html><head><meta charset="utf-8"><style>${baseCss(t)}</style></head><body>
   <div class="glow"></div>
   <div class="wrap">
-    <div class="top"><span class="brand">${esc(brand)}</span><span></span></div>
+    <div class="top"><span class="brand">${esc(brand)}</span><span>${esc(handle)}</span></div>
     <div class="main">${inner}</div>
     <div class="foot"><span>${esc(footLeft)}</span><span>${esc(footRight)}</span></div>
   </div></body></html>`;
@@ -62,6 +62,7 @@ function buildSlides(parsed, theme) {
     shell(
       theme,
       brand,
+      handle,
       `<h1>${esc(parsed.title)}</h1>${sub}<div class="bar"></div>`,
       'Swipe \u2192',
       `1/${total}`
@@ -74,14 +75,14 @@ function buildSlides(parsed, theme) {
     const inner =
       `<div class="chip">${i + 1}</div><h2>${esc(s.heading)}</h2>` +
       paras.map((p) => `<p style="font-size:${size}px">${esc(p)}</p>`).join('');
-    slides.push(shell(theme, brand, inner, handle, `${i + 2}/${total}`));
+    slides.push(shell(theme, brand, handle, inner, '', `${i + 2}/${total}`));
   });
 
   const closing =
     `<h1>${esc(parsed.meta.cta || 'Thanks for reading')}</h1>` +
     (handle ? `<p style="font-size:48px;margin-top:36px;color:${theme.accent}">${esc(handle)}</p>` : '') +
     '<div class="bar"></div>';
-  slides.push(shell(theme, brand, closing, '', `${total}/${total}`));
+  slides.push(shell(theme, brand, handle, closing, '', `${total}/${total}`));
   return slides;
 }
 

@@ -12,10 +12,20 @@ import {
 
 const CHUNK = 4; // words shown at once
 
-// Which word is being spoken right now, weighted by word length.
-function currentWordIndex(words, frame, audioFrames) {
+// Which word is being spoken right now.
+// Uses the real timing from the voice (wordFrames). Only if that is missing
+// does it fall back to a guess based on word length.
+function currentWordIndex(words, frame, audioFrames, wordFrames) {
   if (!words.length) return 0;
-  const weights = words.map((w) => w.length + 1);
+  if (wordFrames && wordFrames.length === words.length) {
+    let idx = 0;
+    for (let i = 0; i < wordFrames.length; i++) {
+      if (wordFrames[i] <= frame) idx = i;
+      else break;
+    }
+    return idx;
+  }
+  const weights = words.map((w) => w.length + 1 + (/[.,!?;:]$/.test(w) ? 3 : 0));
   const sum = weights.reduce((a, b) => a + b, 0);
   const p = Math.min(1, Math.max(0, frame / Math.max(1, audioFrames)));
   let acc = 0;
@@ -26,12 +36,12 @@ function currentWordIndex(words, frame, audioFrames) {
   return words.length - 1;
 }
 
-const Scene = ({ scene, theme, vertical, total }) => {
+const Scene = ({ scene, theme, vertical }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
   const words = scene.narration.split(/\s+/).filter(Boolean);
-  const idx = currentWordIndex(words, frame, scene.audioFrames);
+  const idx = currentWordIndex(words, frame, scene.audioFrames, scene.wordFrames);
   const start = Math.floor(idx / CHUNK) * CHUNK;
   const chunk = words.slice(start, start + CHUNK);
 
@@ -64,9 +74,7 @@ const Scene = ({ scene, theme, vertical, total }) => {
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', color: theme.muted, fontSize: 32 }}>
           <span style={{ color: theme.accent, fontWeight: 700 }}>{scene.brand}</span>
-          <span>
-            {scene.index}/{total}
-          </span>
+          <span>{scene.handle}</span>
         </div>
 
         <div
@@ -116,7 +124,7 @@ const Scene = ({ scene, theme, vertical, total }) => {
   );
 };
 
-export const Video = ({ scenes, theme, brand, vertical, musicFile }) => {
+export const Video = ({ scenes, theme, brand, handle, vertical, musicFile }) => {
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
   let from = 0;
@@ -134,7 +142,7 @@ export const Video = ({ scenes, theme, brand, vertical, musicFile }) => {
         const seq = (
           <Sequence key={s.index} from={from} durationInFrames={s.frames}>
             <Audio src={staticFile(s.audio)} />
-            <Scene scene={{ ...s, brand }} theme={theme} vertical={vertical} total={scenes.length} />
+            <Scene scene={{ ...s, brand, handle }} theme={theme} vertical={vertical} />
           </Sequence>
         );
         from += s.frames;
