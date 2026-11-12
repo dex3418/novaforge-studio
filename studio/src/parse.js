@@ -47,12 +47,17 @@ function clean(s) {
 
 // Text for the voice: make symbols, currency and links pronounceable.
 // (Slides keep the original text; only the narration is changed.)
+const UNIT_WORD = { lakh: 'lakh', lakhs: 'lakh', lac: 'lakh', lacs: 'lakh', crore: 'crore', crores: 'crore', cr: 'crore', thousand: 'thousand', million: 'million', billion: 'billion', k: 'thousand' };
+
 function speakable(t) {
-  const NUM = '(\\d{1,3}(?:,\\d{3})+|\\d+)';
+  const NUM = '(\\d{1,3}(?:,\\d{2,3})+(?:\\.\\d+)?|\\d+(?:\\.\\d+)?)';
+  const UNIT = '(?:\\s?(lakhs?|lacs?|crores?|cr|thousand|million|billion|k)\\b)?';
+  const SYMB = '(?:\u20B9|\\bRs\\.?)\\s?';
+  const unit = (u) => (u ? ' ' + UNIT_WORD[u.toLowerCase()] : '');
   return String(t)
     .replace(/https?:\/\/(?:www\.)?([^\s/)]+)[^\s)]*/gi, (_, host) => host.replace(/\./g, ' dot '))
-    .replace(new RegExp('\u20B9\\s?' + NUM + '\\s*[\u2011\u2010\u2013\u2014-]\\s*\u20B9?\\s?' + NUM, 'g'), '$1 to $2 rupees')
-    .replace(new RegExp('\u20B9\\s?' + NUM, 'g'), '$1 rupees')
+    .replace(new RegExp(SYMB + NUM + UNIT + '\\s*[\u2011\u2010\u2013\u2014-]\\s*(?:\u20B9|Rs\\.?)?\\s?' + NUM + UNIT, 'gi'), (m, a, u1, b, u2) => `${a}${unit(u1 || u2) && !u1 ? '' : unit(u1)} to ${b}${unit(u2)} rupees`)
+    .replace(new RegExp(SYMB + NUM + UNIT, 'gi'), (m, n, u) => `${n}${unit(u)} rupees`)
     .replace(/\u2248/g, ' about ')
     .replace(/\s?\u00D7\s?/g, ' by ')
     .replace(/\u2011|\u2010/g, '-')
@@ -166,6 +171,7 @@ function parseText(src, slug) {
       palette: (meta.palette || '').toLowerCase(),
       texture: (meta.texture || '').toLowerCase(),
       director: (meta.director || '').toLowerCase(),
+      captions: (meta.captions || '').toLowerCase(),
     },
     scenes: out,
   };

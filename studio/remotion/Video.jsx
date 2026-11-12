@@ -50,6 +50,11 @@ const Scene = ({ scene, plan, theme, brand, handle, total, w, h }) => {
       emphasis: p.beat.emphasis && p.beat.emphasis.length ? p.beat.emphasis : scene.emphasis,
       narration: p.words.join(' '),
       heading: k === 0 ? scene.heading : '',
+      transition: p.beat.transition || scene.transition,
+      scheme: p.beat.scheme || scene.scheme,
+      decor: p.beat.decor || scene.decor,
+      cstyle: p.beat.cstyle || scene.cstyle,
+      align: p.beat.align || scene.align,
     };
     local = frame - p.start;
     sceneFrames = p.end - p.start;

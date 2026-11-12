@@ -23,6 +23,7 @@ VISUAL TYPES (kind) and their "data":
 - compare  {"left":{"title":"max 3 words","text":"..."},"right":{"title":"max 3 words","text":"..."}}  two options side by side.
 - progress {"value":0-100,"label":"max 6 words"}  one percentage that appears in the text.
 - alert    {"text":"...","tone":"warning" or "note"}  a warning or tip.
+- keyword  {"word":"1-2 words","line":"max 12 words"}  the ONE key term of the beat shown huge (a name, a number word, a concept). Both copied from the beat.
 - cta      {"text":"...","sub":"","button":"short handle or phrase"}  final call to action, last beat of the last scene only.
 `;
 
@@ -37,12 +38,13 @@ Decide how each part of the script should look on screen. Output JSON only.
 ${LIBRARY}
 RULES
 1. Split every scene into "beats": consecutive groups of whole sentences (1 to 4 sentences each). Beats must cover every sentence of the scene, in order, with no gaps and no overlap. fromSentence is inclusive, toSentence is exclusive.
-2. Give each beat one visual kind. Make the video varied: use a real visual (counter, checklist, steps, qa, mythfact, compare, progress, alert, kinetic, quote) whenever the beat's main point fits one, and caption for plain explanation. Avoid the same non-caption kind twice in a row.
+2. Give each beat one visual kind. The video must feel like motion graphics, not subtitles: at least 2 of every 3 beats must be a real visual (counter, checklist, steps, qa, mythfact, compare, progress, alert, kinetic, keyword, quote). Use kinetic for any punchy statement of up to 18 words and keyword for the key term of a beat. Use caption only for the few beats that cannot be shown any other way. Avoid the same non-caption kind twice in a row.
 3. NEVER invent anything. Every number, name and phrase you put in "data" must come from the spoken text of that scene. You may trim and pick, not add. If nothing fits, use caption with data {}.
 4. Use a counter only when the beat's key point is one number (or one range). Use checklist/steps only when the beat really lists items.
 5. For each scene also give "emotion" (one of ${EMOTIONS.join(', ')}) and "rateDelta" (-10 to 10, speaking speed change in percent). Excited +5, serious -5.
 6. Pick one "template" (${Object.keys(TEMPLATES).join(', ')}), "palette" (${Object.keys(PALETTES).join(', ')}), "texture" (${Object.keys(TEXTURES).join(', ')}) and "transition" (${TRANSITIONS.join(', ')}) that suit the whole post.
-7. Optional "emphasis": up to 6 words/numbers from the beat to highlight.
+7. Optional per beat: "transition" (one of ${TRANSITIONS.join(', ')}), "scheme" (base, pop = accent-colour background for a punchy beat, flip = light/dark swap), "cstyle" (chunk, pill, stack: caption look). Vary them across beats; leave out to let the system rotate them.
+8. Optional "emphasis": up to 6 words/numbers from the beat to highlight.
 
 OUTPUT SHAPE
 {"template":"..","palette":"..","texture":"..","transition":"..",
@@ -93,27 +95,31 @@ function parseJson(text) {
 // returns { plan, note }. Never throws: any problem returns the rules plan.
 async function direct(parsed, rules, opts = {}) {
   const key = process.env.GEMINI_API_KEY;
-  if (!key) return { plan: rules, note: 'AI director skipped: GEMINI_API_KEY is not set, using rules' };
+  if (!key) return { plan: rules, status: 'warn', note: 'AI director skipped: GEMINI_API_KEY is not set, using rules', details: ['Add the GEMINI_API_KEY secret in the repo (Settings > Secrets and variables > Actions).'] };
   const size = parsed.scenes.reduce((a, s) => a + s.narration.length, 0);
-  if (size > MAX_CHARS) return { plan: rules, note: 'AI director skipped: script too long, using rules' };
+  if (size > MAX_CHARS) return { plan: rules, status: 'warn', note: 'AI director skipped: script too long, using rules', details: [`${size} characters of speech, limit ${MAX_CHARS}`] };
 
   const prompt = buildPrompt(parsed);
   let raw = null;
   let lastErr = null;
+  let usedModel = '';
+  const tried = [];
   const models = opts.models || MODELS;
   for (const model of models) {
     for (let attempt = 1; attempt <= 2 && !raw; attempt++) {
       try {
         raw = parseJson(await (opts.call || callModel)(model, key, prompt));
+        usedModel = model;
       } catch (e) {
         lastErr = e;
+        tried.push(`${model}: ${e.message}`);
         if (e.status === 404 || e.status === 400 || e.status === 403 || e.status === 401) break;
         await new Promise((r) => setTimeout(r, 2000 * attempt));
       }
     }
     if (raw) break;
   }
-  if (!raw) return { plan: rules, note: `AI director failed (${lastErr ? lastErr.message : 'no answer'}), using rules` };
+  if (!raw) return { plan: rules, status: 'warn', note: `AI director failed (${lastErr ? lastErr.message : 'no answer'}), using rules`, details: tried.concat(['404 = model name not available: add a GEMINI_MODEL secret. 400/403 = key problem. 429 = rate limit.']) };
 
   const meta = parsed.meta || {};
   const ai = { ...raw, source: 'ai', version: 2 };
@@ -127,9 +133,16 @@ async function direct(parsed, rules, opts = {}) {
   if (PALETTES[meta.palette]) ai.palette = meta.palette;
   if (TEXTURES[meta.texture]) ai.texture = meta.texture;
 
-  const plan = validatePlan(ai, parsed, rules);
+  const diag = [];
+  const plan = validatePlan(ai, parsed, rules, diag);
+  const proposed = (Array.isArray(raw.scenes) ? raw.scenes : []).reduce((a, s) => a + (Array.isArray(s.beats) ? s.beats.filter((b) => b && b.kind && b.kind !== 'caption').length : 0), 0);
   const beats = plan.scenes.reduce((a, s) => a + (s.beats ? s.beats.filter((b) => b.kind !== 'caption').length : s.kind !== 'caption' ? 1 : 0), 0);
-  return { plan, note: `AI director ok: ${beats} visual beats` };
+  const status = proposed === 0 || beats === 0 ? 'warn' : 'ok';
+  return {
+    plan, status,
+    note: `AI director ${status === 'ok' ? 'ok' : 'gave no usable visuals'}: ${proposed} visual beats proposed, ${beats} kept (model ${usedModel})`,
+    details: [`AI planned ${(Array.isArray(raw.scenes) ? raw.scenes.filter((s) => s && Array.isArray(s.beats) && s.beats.length).length : 0)} of ${parsed.scenes.length} scenes; the rules filled in the rest`, `template ${plan.template}, palette ${plan.palette}, texture ${plan.texture}, transition ${plan.transition}`, ...diag.slice(0, 25).map((x) => `rejected in scene ${x.scene}: ${x.reason}`)],
+  };
 }
 
 module.exports = { direct, buildPrompt, parseJson };

@@ -54,6 +54,7 @@ async function makeAudio(parsed, plan, root) {
       emotion: p.emotion,
       emphasis: p.emphasis,
       beats: p.beats || null,
+      voiceInfo: { engine: r.engine, voice: r.voice, rate, timing: r.timing ? r.timing.kind : 'estimated', note: r.note || '' },
       audio: `${parsed.slug}/scene-${s.index}.mp3`,
       audioFrames: Math.ceil(dur * FPS),
       frames: Math.ceil((dur + PAD_SECONDS) * FPS),
@@ -89,6 +90,7 @@ async function renderOne(compId, parsed, theme, plan, scenes, root, outFile, mus
   console.log(`  ${compId} -> ${outFile}`);
 }
 
+// step 1: makeVideos() makes the voices and returns { scenes, total, run }; step 2: run() renders
 async function makeVideos(parsed, theme, plan, outDir, root, which) {
   fs.mkdirSync(outDir, { recursive: true });
   const scenes = await makeAudio(parsed, plan, root);
@@ -102,8 +104,17 @@ async function makeVideos(parsed, theme, plan, outDir, root, which) {
     fs.copyFileSync(music, path.join(root, 'public', 'music.mp3'));
     musicFile = 'music.mp3';
   }
-  if (which.includes('reel')) await renderOne('Reel', parsed, theme, plan, scenes, root, path.join(outDir, `${parsed.slug}-reel.mp4`), musicFile);
-  if (which.includes('long')) await renderOne('Long', parsed, theme, plan, scenes, root, path.join(outDir, `${parsed.slug}-youtube.mp4`), musicFile);
+  const files = [];
+  const timeIt = async (id, file) => {
+    const t = Date.now();
+    await renderOne(id, parsed, theme, plan, scenes, root, file, musicFile);
+    files.push({ id, file, seconds: (Date.now() - t) / 1000, mb: fs.statSync(file).size / 1048576 });
+  };
+  return { scenes, total, run: async () => {
+    if (which.includes('reel')) await timeIt('Reel', path.join(outDir, `${parsed.slug}-reel.mp4`));
+    if (which.includes('long')) await timeIt('Long', path.join(outDir, `${parsed.slug}-youtube.mp4`));
+    return files;
+  } };
 }
 
 module.exports = { makeVideos, makeAudio };

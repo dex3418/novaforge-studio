@@ -37,12 +37,17 @@ const TEMPLATES = {
   event: { label: 'Event / Date', palette: 'ocean', textures: ['rings', 'topo', 'mesh'], transition: 'zoom' },
 };
 
-const TRANSITIONS = ['fade', 'slide', 'wipe', 'zoom', 'flip'];
+const TRANSITIONS = ['fade', 'slide', 'wipe', 'zoom', 'flip', 'bounce', 'rise', 'drop', 'circle', 'spin', 'split'];
+const SCHEMES = ['base', 'pop', 'flip']; // colour change per beat: normal, accent background, light/dark flip
+const DECORS = ['none', 'orbs', 'sweep', 'rings', 'bars', 'sparks']; // animated background shapes (video)
+const HEADERS = ['top', 'pill', 'bottom', 'side']; // where brand and handle sit
+const CSTYLES = ['chunk', 'pill', 'stack']; // caption look
+const ALIGNS = ['center', 'top', 'bottom'];
 
 // Every scene type the renderer can draw. The planner (rules now, AI later) may only use these.
 const KINDS = [
   'caption', 'kinetic', 'counter', 'checklist', 'steps', 'quote',
-  'qa', 'mythfact', 'compare', 'progress', 'alert', 'cta',
+  'qa', 'mythfact', 'compare', 'progress', 'alert', 'cta', 'keyword',
 ];
 
 const EMOTIONS = ['neutral', 'excited', 'serious', 'curious', 'calm'];
@@ -64,4 +69,4 @@ const VOICES = {
 };
 const DEFAULT_VOICE = { edge: 'en-IN-NeerjaNeural', gemini: 'Kore' };
 
-module.exports = { PALETTES, TEXTURES, TEMPLATES, TRANSITIONS, KINDS, EMOTIONS, VOICES, DEFAULT_VOICE };
+module.exports = { PALETTES, TEXTURES, TEMPLATES, TRANSITIONS, SCHEMES, DECORS, HEADERS, CSTYLES, ALIGNS, KINDS, EMOTIONS, VOICES, DEFAULT_VOICE };

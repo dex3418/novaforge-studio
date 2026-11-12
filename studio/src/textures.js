@@ -62,4 +62,4 @@ function textureStyle(id, pal, t, px) {
   }
 }
 
-module.exports = { textureStyle, rgba };
+module.exports = { textureStyle, rgba, rgb };

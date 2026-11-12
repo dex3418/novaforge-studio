@@ -70,9 +70,11 @@ async function synth(text, outFile, o = {}) {
       return { ...r, engine: 'gemini', voice };
     } catch (e) {
       console.warn(`  Gemini voice failed (${e.message}). Using the Edge voice instead.`);
+      const r = edgeSynth(text, outFile, '', rate);
+      return { ...r, engine: 'edge', note: `Gemini voice failed (${e.message.slice(0, 140)}), used Edge` };
     }
   }
-  const r = edgeSynth(text, outFile, o.engine === 'gemini' ? '' : o.voice, rate);
+  const r = edgeSynth(text, outFile, o.voice, rate);
   return { ...r, engine: 'edge' };
 }
 

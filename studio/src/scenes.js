@@ -6,7 +6,8 @@
 // No animation libraries and no downloads: styles are computed from the time.
 
 const { PALETTES } = require('./catalog');
-const { textureStyle, rgba } = require('./textures');
+const { textureStyle, rgba, rgb } = require('./textures');
+const { decorHtml } = require('./decor');
 
 const esc = (s) =>
   String(s == null ? '' : s)
@@ -16,6 +17,37 @@ const esc = (s) =>
     .replace(/"/g, '&quot;');
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
 const ease = (x) => 1 - Math.pow(1 - clamp(x), 3);
+// springy ease: overshoots a little, then settles (the "bounce")
+const back = (x) => {
+  const t = clamp(x) - 1;
+  return 1 + 2.70158 * t * t * t + 1.70158 * t * t;
+};
+const lum = (hex) => {
+  const [r, g, b] = rgb(hex);
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+};
+const mix = (a, b, t) => {
+  const A = rgb(a);
+  const B = rgb(b);
+  return '#' + A.map((x, i) => Math.round(x + (B[i] - x) * t).toString(16).padStart(2, '0')).join('');
+};
+
+// colour change for one beat: "pop" = accent colour as the background, "flip" = light<->dark
+function schemePalette(p, scheme) {
+  if (scheme === 'pop') {
+    const fg = p.onAccent;
+    return { ...p, bg: p.accent, bg2: mix(p.accent, '#000000', 0.24), accent: fg, text: fg, muted: mix(fg, p.accent, 0.35), card: rgba(fg, 0.12), onAccent: p.accent, dark: lum(p.accent) < 0.55 };
+  }
+  if (scheme === 'flip') {
+    if (p.dark) {
+      const accent = mix(p.accent, '#000000', 0.3);
+      return { ...p, bg: mix(p.text, p.accent, 0.06), bg2: mix(p.text, p.accent, 0.2), text: p.bg, muted: mix(p.bg, '#ffffff', 0.45), accent, card: 'rgba(0,0,0,0.06)', onAccent: lum(accent) < 0.5 ? '#ffffff' : '#111111', dark: false };
+    }
+    const accent = mix(p.accent, '#ffffff', 0.2);
+    return { ...p, bg: mix(p.text, '#000000', 0.15), bg2: mix(p.text, p.accent, 0.28), text: p.bg, muted: mix(p.bg, p.text, 0.45), accent, card: 'rgba(255,255,255,0.08)', onAccent: lum(accent) < 0.5 ? '#ffffff' : '#111111', dark: true };
+  }
+  return p;
+}
 const fit = (n, steps) => {
   for (const [m, v] of steps) if (n < m) return v;
   return steps[steps.length - 1][1];
@@ -56,8 +88,8 @@ function makeCtx(o) {
   const words = String(sc.narration || '').split(/\s+/).filter(Boolean);
   const fps = o.fps || 30;
   const ctx = {
-    w, h, u: Math.min(w, h) / 1080, long: w > h, video,
-    pal: PALETTES[plan.palette] || PALETTES.navy,
+    w, h, u: (Math.min(w, h) / 1080) * (video ? (h > w ? 1.08 : 1.2) : 1), long: w > h, video,
+    pal: schemePalette(PALETTES[plan.palette] || PALETTES.navy, video ? sc.scheme : 'base'),
     plan, sc, speed, fps,
     t: video ? (o.frame || 0) / fps : 99,
     frame: o.frame || 0,
@@ -85,6 +117,8 @@ function makeCtx(o) {
   };
   // 0..1 animation progress that starts at t0 and lasts d seconds (always 1 on slides)
   ctx.a = (t0, d) => (video ? ease((ctx.t - t0) / (d / speed)) : 1);
+  // same, with a springy overshoot
+  ctx.b = (t0, d) => (video ? back((ctx.t - t0) / (d / speed)) : 1);
   return ctx;
 }
 
@@ -94,33 +128,68 @@ function transitionStyle(ctx) {
   if (!ctx.video) return '';
   const f = ctx.frame;
   const n = ctx.sceneFrames;
-  const e = ease(f / 10);
+  const e = ease(f / 11);
+  const b = back(f / 18);
   const x = ease((n - f) / 8);
   const op = Math.min(e, x);
   const u = ctx.u;
-  switch (ctx.plan.transition) {
+  switch (ctx.sc.transition || ctx.plan.transition) {
     case 'slide':
-      return `opacity:${op};transform:translateX(${(1 - e) * 90 * u - (1 - x) * 90 * u}px)`;
+      return `opacity:${op};transform:translateX(${(1 - b) * 110 * u - (1 - x) * 90 * u}px)`;
     case 'wipe':
       return `clip-path:inset(0 ${(1 - e) * 100}% 0 0);opacity:${x}`;
     case 'zoom':
-      return `opacity:${op};transform:scale(${0.9 + 0.1 * e + (1 - x) * 0.08})`;
+      return `opacity:${op};transform:scale(${0.88 + 0.12 * e + (1 - x) * 0.08})`;
     case 'flip':
       return `opacity:${op};transform:perspective(1400px) rotateX(${(1 - e) * -55 + (1 - x) * 55}deg)`;
+    case 'bounce':
+      return `opacity:${op};transform:scale(${(0.5 + 0.5 * b) * (0.94 + 0.06 * x)})`;
+    case 'rise':
+      return `opacity:${op};transform:translateY(${(1 - b) * 190 * u + (1 - x) * -60 * u}px)`;
+    case 'drop':
+      return `opacity:${op};transform:translateY(${-(1 - b) * 190 * u + (1 - x) * 60 * u}px)`;
+    case 'circle':
+      return `clip-path:circle(${e * 150}% at 50% 55%);opacity:${x}`;
+    case 'spin':
+      return `opacity:${op};transform:rotate(${(1 - b) * -9}deg) scale(${0.75 + 0.25 * b})`;
+    case 'split':
+      return `clip-path:inset(${(1 - e) * 50}% 0 ${(1 - e) * 50}% 0);opacity:${x}`;
     default:
       return `opacity:${op}`;
   }
 }
 
-function captionLine(ctx, size, per, color) {
+function captionLine(ctx, size, per, color, style) {
   const n = ctx.words.length;
   const idx = Math.min(ctx.wordIdx, Math.max(0, n - 1));
   const start = Math.floor(idx / per) * per;
-  return ctx.words
-    .slice(start, start + per)
+  const slice = ctx.words.slice(start, start + per);
+  const pulse = (i) => {
+    const wf = ctx.wordFrames && ctx.wordFrames.length === n ? ctx.wordFrames[start + i] / ctx.fps : null;
+    return wf == null ? 0 : 1 - ease((ctx.t - wf) / 0.22);
+  };
+  if (style === 'pill') {
+    return `<div style="text-align:center">${slice
+      .map((wd, i) => {
+        const on = start + i === idx;
+        return `<span style="display:inline-block;margin:${size * 0.08}px ${size * 0.12}px;padding:${size * 0.04}px ${size * 0.2}px;border-radius:${size * 0.3}px;background:${on ? ctx.pal.accent : 'transparent'};color:${on ? ctx.pal.onAccent : color};transform:scale(${on ? 1 + 0.14 * pulse(i) : 1})">${esc(wd)}</span>`;
+      })
+      .join('')}</div>`;
+  }
+  if (style === 'stack') {
+    return slice
+      .map((wd, i) => {
+        const shown = start + i <= idx;
+        const on = start + i === idx;
+        const p = shown ? 1 - pulse(i) * 0.9 : 0;
+        return `<div style="font-size:${size * 1.25}px;line-height:1.02;font-weight:800;color:${on ? ctx.pal.accent : color};opacity:${shown ? 1 : 0};transform:translateX(${(1 - p) * -70 * ctx.u}px)">${esc(wd)}</div>`;
+      })
+      .join('');
+  }
+  return slice
     .map(
       (wd, i) =>
-        `<span style="display:inline-block;margin-right:${size * 0.25}px;color:${start + i === idx ? ctx.pal.accent : color}">${esc(wd)}</span>`
+        `<span style="display:inline-block;margin-right:${size * 0.25}px;color:${start + i === idx ? ctx.pal.accent : color};transform:scale(${start + i === idx ? 1 + 0.08 * pulse(i) : 1})">${esc(wd)}</span>`
     )
     .join('');
 }
@@ -167,31 +236,55 @@ const STAGES = {
     const u = ctx.u;
     const showHead = sc.heading && sc.heading !== sc.narration;
     if (ctx.video) {
-      const size = (ctx.long ? 84 : 92) * u;
+      const style = sc.cstyle || 'chunk';
+      const size = (ctx.long ? 88 : 98) * u * (style === 'stack' ? 0.9 : 1);
+      const per = style === 'stack' ? 3 : style === 'pill' ? 3 : 4;
       return (
         (showHead ? heading(ctx, sc.heading, ctx.long ? 70 : 76) : '') +
-        `<div style="font-size:${size}px;font-weight:800;line-height:1.2;min-height:${size * 2.4}px">${captionLine(ctx, size, 4, ctx.pal.text)}</div>`
+        `<div style="font-size:${size}px;font-weight:800;line-height:1.2;min-height:${size * 2.4}px">${captionLine(ctx, size, per, ctx.pal.text, style)}</div>`
       );
     }
     const size = fit(String(sc.body || '').length, [[120, 56], [220, 48], [330, 42], [1e9, 36]]);
     return chip(ctx, ctx.num) + heading(ctx, sc.heading, 68) + slideParas(ctx, size);
   },
 
-  // hook line: words pop in as they are spoken, numbers and key words highlighted
+  // words appear as they are spoken; numbers and key words highlighted.
+  // look: pop | slam | rise (from data.style, or from the beat's caption style)
   kinetic(ctx, sc) {
     const u = ctx.u;
     const src = ctx.video ? ctx.words : String(sc.data.text || sc.body || sc.heading).split(/\s+/).filter(Boolean);
     const emph = new Set((sc.emphasis || []).map(norm));
     const n = src.length;
-    const size = fit(n, [[9, 112], [15, 90], [1e9, 72]]) * u * (ctx.long ? 0.9 : 1);
+    const look = sc.data.style || { chunk: 'pop', pill: 'slam', stack: 'rise' }[sc.cstyle] || 'pop';
+    const size = fit(n, [[9, 142], [15, 114], [1e9, 88]]) * u * (ctx.long ? 0.9 : 1);
     const html = src
       .map((wd, i) => {
         const strong = emph.has(norm(wd)) || /\d/.test(wd);
-        const p = ctx.video ? ease((ctx.t - ctx.at(i / n)) / 0.25) : 1;
-        return `<span style="display:inline-block;margin:0 ${size * 0.22}px ${size * 0.12}px 0;font-size:${size * (strong ? 1.15 : 1)}px;font-weight:800;line-height:1.12;color:${strong ? ctx.pal.accent : ctx.pal.text};opacity:${p};transform:translateY(${(1 - p) * 30 * u}px) scale(${0.85 + 0.15 * p})">${esc(wd)}</span>`;
+        const q = ctx.video ? (ctx.t - ctx.at(i / n)) / 0.3 : 1;
+        const p = ease(q);
+        const bp = back(q);
+        let tf;
+        if (look === 'slam') tf = `scale(${2.3 - 1.3 * bp})`;
+        else if (look === 'rise') tf = `translateY(${(1 - bp) * 80 * u}px) rotate(${(1 - p) * -5}deg)`;
+        else tf = `translateY(${(1 - bp) * 36 * u}px) scale(${0.8 + 0.2 * bp})`;
+        return `<span style="display:inline-block;margin:0 ${size * 0.22}px ${size * 0.12}px 0;font-size:${size * (strong ? 1.15 : 1)}px;font-weight:800;line-height:1.12;color:${strong ? ctx.pal.accent : ctx.pal.text};opacity:${look === 'slam' ? Math.min(1, p * 3) : p};transform:${tf}">${esc(wd)}</span>`;
       })
       .join('');
     return `<div>${html}</div>` + bar(ctx, 0.2);
+  },
+
+  // one huge word with a line under it
+  keyword(ctx, sc) {
+    const u = ctx.u;
+    const d = sc.data;
+    if (!d.word) throw new Error('no word');
+    const p = ctx.b(0.05, 0.7);
+    const size = fit(String(d.word).length, [[6, 310], [10, 230], [16, 160], [1e9, 118]]) * u * (ctx.long ? 0.85 : 1);
+    return (
+      `<div style="font-size:${size}px;font-weight:800;line-height:1;color:${ctx.pal.accent};letter-spacing:-0.02em;word-break:break-word;transform-origin:left center;opacity:${Math.min(1, p * 2)};transform:scale(${0.4 + 0.6 * p}) rotate(${(1 - p) * -6}deg)">${esc(d.word)}</div>` +
+      bar(ctx, 0.3) +
+      (d.line ? `<div style="margin-top:${36 * u}px;font-size:${64 * u}px;font-weight:800;line-height:1.2;opacity:${ctx.a(0.5, 0.5)}">${esc(d.line)}</div>` : '')
+    );
   },
 
   // one big number (or range) that counts up
@@ -208,7 +301,7 @@ const STAGES = {
     const size = fit(text.length, [[7, 240], [10, 190], [15, 150], [1e9, 110]]) * u * (ctx.long ? 0.9 : 1);
     const lab = ctx.a(0.1, 0.5);
     return (
-      `<div style="font-size:${size}px;font-weight:800;line-height:1.05;color:${ctx.pal.accent};letter-spacing:-0.02em">${esc(text)}</div>` +
+      `<div style="font-size:${size}px;font-weight:800;line-height:1.05;color:${ctx.pal.accent};letter-spacing:-0.02em;transform-origin:left center;transform:scale(${0.82 + 0.18 * ctx.b(0.05, 0.7)})">${esc(text)}</div>` +
       bar(ctx, 0.2) +
       `<div style="margin-top:${36 * u}px;font-size:${64 * u}px;font-weight:800;line-height:1.15;opacity:${lab}">${esc(d.label || sc.heading)}</div>` +
       (!ctx.video && d.sub ? `<p style="margin-top:${24 * u}px;font-size:${40 * u}px;line-height:1.4;color:${ctx.pal.muted}">${esc(d.sub)}</p>` : '')
@@ -226,9 +319,10 @@ const STAGES = {
       .map((it, i) => {
         const t0 = ctx.at(it.frac || i / n);
         const a = ctx.video ? ease((ctx.t - t0) / 0.4) : 1;
+        const bb = ctx.video ? back((ctx.t - t0) / 0.5) : 1;
         const ck = ctx.video ? ease((ctx.t - t0 - 0.25) / 0.3) : 1;
         const dia = 64 * u;
-        return `<div style="display:flex;align-items:center;gap:${28 * u}px;margin-bottom:${30 * u}px;opacity:${a};transform:translateX(${(1 - a) * -50 * u}px)"><div style="flex:none;width:${dia}px;height:${dia}px;border-radius:50%;border:${4 * u}px solid ${ctx.pal.accent};background:${rgba(ctx.pal.accent, 0.9 * ck)};display:flex;align-items:center;justify-content:center">${checkIcon(dia * 0.62, ctx.pal.onAccent, ck)}</div><div style="font-size:${size}px;font-weight:700;line-height:1.25">${esc(it.text)}</div></div>`;
+        return `<div style="display:flex;align-items:center;gap:${28 * u}px;margin-bottom:${30 * u}px;opacity:${a};transform:translateX(${(1 - bb) * -90 * u}px)"><div style="flex:none;width:${dia}px;height:${dia}px;border-radius:50%;border:${4 * u}px solid ${ctx.pal.accent};background:${rgba(ctx.pal.accent, 0.9 * ck)};display:flex;align-items:center;justify-content:center">${checkIcon(dia * 0.62, ctx.pal.onAccent, ck)}</div><div style="font-size:${size}px;font-weight:700;line-height:1.25">${esc(it.text)}</div></div>`;
       })
       .join('');
     return heading(ctx, sc.heading, 64) + rows;
@@ -246,11 +340,12 @@ const STAGES = {
       .map((it, i) => {
         const t0 = ctx.at(it.frac || i / n);
         const a = ctx.video ? ease((ctx.t - t0) / 0.4) : 1;
+        const bb = ctx.video ? back((ctx.t - t0) / 0.5) : 1;
         const line =
           i < n - 1
             ? `<div style="width:${5 * u}px;height:${34 * u}px;margin:0 0 0 ${dia / 2 - 2.5 * u}px;background:${rgba(ctx.pal.accent, 0.5)}"></div>`
             : '';
-        return `<div style="opacity:${a};transform:translateY(${(1 - a) * 30 * u}px)"><div style="display:flex;align-items:center;gap:${28 * u}px"><div style="flex:none;width:${dia}px;height:${dia}px;border-radius:50%;background:${ctx.pal.accent};color:${ctx.pal.onAccent};font-weight:800;font-size:${36 * u}px;display:flex;align-items:center;justify-content:center">${i + 1}</div><div style="font-size:${size}px;font-weight:700;line-height:1.25">${esc(it.text)}</div></div>${line}</div>`;
+        return `<div style="opacity:${a};transform:translateY(${(1 - bb) * 60 * u}px)"><div style="display:flex;align-items:center;gap:${28 * u}px"><div style="flex:none;width:${dia}px;height:${dia}px;border-radius:50%;background:${ctx.pal.accent};color:${ctx.pal.onAccent};font-weight:800;font-size:${36 * u}px;display:flex;align-items:center;justify-content:center">${i + 1}</div><div style="font-size:${size}px;font-weight:700;line-height:1.25">${esc(it.text)}</div></div>${line}</div>`;
       })
       .join('');
     return heading(ctx, sc.heading, 64) + rows;
@@ -393,20 +488,38 @@ function renderScene(o) {
   const P = (ctx.long ? 120 : 88) * u;
   const sc = o.scene;
   const stage = renderStage(ctx, sc);
-  const showFoot = ctx.video && sc.kind !== 'caption' && sc.kind !== 'kinetic';
+  const video = ctx.video;
+  const header = video ? ctx.plan.header || 'top' : 'top';
+  const showFoot = video && ctx.plan.captions === 'always' && sc.kind !== 'caption' && sc.kind !== 'kinetic';
   const tx = textureStyle(ctx.plan.texture, pal, ctx.t === 99 ? 0 : ctx.t, u);
-  const top =
-    `<div style="display:flex;justify-content:space-between;align-items:center;font-size:${30 * u}px;color:${pal.muted};letter-spacing:.04em;height:${44 * u}px"><span style="font-weight:800;color:${pal.accent}">${esc(ctx.brand)}</span><span>${esc(ctx.handle)}</span></div>`;
-  const foot = ctx.video
-    ? '<div style="height:20px"></div>'
+  const brandSpan = `<span style="font-weight:800;color:${pal.accent}">${esc(ctx.brand)}</span>`;
+  const row = (a, b) => `<div style="display:flex;justify-content:space-between;align-items:center;font-size:${30 * u}px;color:${pal.muted};letter-spacing:.04em;height:${44 * u}px">${a}<span>${b}</span></div>`;
+  let top = row(brandSpan, esc(ctx.handle));
+  let bottom = video ? '<div style="height:20px"></div>' : '';
+  let side = '';
+  if (header === 'pill') {
+    top = `<div style="display:flex;justify-content:space-between;align-items:center;height:${52 * u}px;font-size:${28 * u}px;color:${pal.muted}"><span style="background:${pal.accent};color:${pal.onAccent};font-weight:800;padding:${8 * u}px ${24 * u}px;border-radius:999px">${esc(ctx.brand)}</span><span>${esc(ctx.handle)}</span></div>`;
+  } else if (header === 'bottom') {
+    top = `<div style="height:${44 * u}px"></div>`;
+    bottom = `<div style="margin-top:${24 * u}px">${row(brandSpan, esc(ctx.handle))}<div style="height:18px"></div></div>`;
+  } else if (header === 'side') {
+    top = `<div style="height:${44 * u}px"></div>`;
+    side = `<div style="position:absolute;left:${34 * u}px;top:50%;transform:translateY(-50%) rotate(180deg);writing-mode:vertical-rl;white-space:nowrap;font-size:${28 * u}px;letter-spacing:.22em;color:${pal.muted}">${esc(ctx.brand)}  ·  ${esc(ctx.handle)}</div>`;
+  }
+  const foot = video
+    ? bottom
     : `<div style="display:flex;justify-content:space-between;font-size:${28 * u}px;color:${pal.muted};height:${40 * u}px"><span>${esc(ctx.footLeft)}</span><span>${esc(ctx.pageLabel)}</span></div>`;
+  const justify = { top: 'flex-start', bottom: 'flex-end', center: 'center' }[video ? sc.align : 'center'] || 'center';
+  const decor = video ? decorHtml(sc.decor || ctx.plan.decor || 'none', pal, ctx.t, w, h, u, sc.index || 0) : '';
   return (
     `<div class="nf" style="position:relative;width:${w}px;height:${h}px;overflow:hidden;font-family:${ctx.font};color:${pal.text};background:linear-gradient(160deg,${pal.bg} 0%,${pal.bg2} 100%)">` +
     `<div style="position:absolute;inset:0;${tx}"></div>` +
     `<div style="position:absolute;width:${760 * u}px;height:${760 * u}px;border-radius:50%;top:${-260 * u}px;right:${-260 * u}px;background:radial-gradient(circle,${rgba(pal.accent, 0.2)} 0%,transparent 70%)"></div>` +
+    decor +
+    side +
     `<div style="position:absolute;inset:0;padding:${P}px;display:flex;flex-direction:column">` +
     top +
-    `<div style="flex:1;display:flex;flex-direction:column;justify-content:center;${transitionStyle(ctx)}">${stage}</div>` +
+    `<div class="nf-stage" style="flex:1;min-height:0;display:flex;flex-direction:column;justify-content:${justify};${transitionStyle(ctx)}"><div class="nf-inner" style="display:flex;flex-direction:column">${stage}</div></div>` +
     (showFoot ? captionFoot(ctx) : '') +
     foot +
     '</div></div>'

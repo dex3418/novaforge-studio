@@ -74,6 +74,15 @@ async function makeCarousel(parsed, theme, outDir, plan) {
     for (let i = 0; i < slides.length; i++) {
       await page.setContent(slides[i], { waitUntil: 'load' });
       await page.evaluate(() => document.fonts && document.fonts.ready);
+      // text too long for the slide: shrink the content to fit instead of running over
+      await page.evaluate(() => {
+        const s = document.querySelector('.nf-stage');
+        const i = s && s.firstElementChild;
+        if (!s || !i) return;
+        const need = i.getBoundingClientRect().height;
+        const have = s.clientHeight;
+        if (need > have) i.style.zoom = String(Math.max(0.55, (have / need) * 0.97));
+      });
       const f = path.join(dir, `slide-${String(i + 1).padStart(2, '0')}.png`);
       await page.screenshot({ path: f });
       files.push(f);
