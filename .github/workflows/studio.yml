@@ -116,9 +116,20 @@ jobs:
         with:
           name: studio-output
           path: |
-            studio/out/**/*.mp4
-            studio/out/**/*.zip
+            studio/out/**/*-carousel.zip
+            studio/out/**/*-reel.mp4
+            studio/out/**/*-youtube.mp4
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload report and caption
+        if: always() && steps.pick.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: studio-report
+          path: |
             studio/out/**/*.txt
             studio/out/**/*.json
             studio/out/**/*.md
+          if-no-files-found: ignore
           retention-days: 14

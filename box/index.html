@@ -252,8 +252,8 @@ async function loadRuns() {
     $('runs').innerHTML = j.runs.length ? j.runs.map(x => {
       let tag, extra = '';
       if (x.status !== 'completed') { busy = true; tag = `<span class="tag run">${x.status === 'queued' ? 'waiting' : 'working'}</span>`; }
-      else if (x.conclusion === 'success') { tag = '<span class="tag done">done</span>'; extra = `<a class="btn" href="/api/download/${x.id}">Download</a>`; }
-      else { tag = `<span class="tag fail">${esc(x.conclusion || 'failed')}</span>`; }
+      else if (x.conclusion === 'success') { tag = '<span class="tag done">done</span>'; extra = `<a class="btn" href="/api/download/${x.id}">Download</a> <a class="btn" href="/api/report/${x.id}">Report</a>`; }
+      else { tag = `<span class="tag fail">${esc(x.conclusion || 'failed')}</span>`; extra = `<a class="btn" href="/api/report/${x.id}">Report</a>`; }
       return `<div class="run"><div><div class="n">${esc(x.title)}</div><div class="m">${ago(x.created)} - <a class="lnk" target="_blank" rel="noopener" href="${esc(x.url)}">details</a></div></div><div style="display:flex;gap:8px;align-items:center">${tag}${extra}</div></div>`;
     }).join('') : '<div style="color:var(--muted)">No runs yet.</div>';
   } catch (e) { $('runs').innerHTML = `<div style="color:var(--bad)">${esc(e.message)}</div>`; }

@@ -166,11 +166,11 @@ async function runs(res) {
   });
 }
 
-async function download(id, res) {
+async function download(id, res, name = 'studio-output') {
   if (!/^\d+$/.test(id)) return send(res, 400, { error: 'bad id' });
   const a = await gh(`/repos/${REPO}/actions/runs/${id}/artifacts`);
   if (!a.ok) return send(res, 502, { error: `GitHub said ${a.status}` });
-  const art = ((await a.json()).artifacts || []).find((x) => !x.expired);
+  const art = ((await a.json()).artifacts || []).find((x) => !x.expired && x.name === name);
   if (!art) return send(res, 404, { error: 'No files for this run (expired or the run failed).' });
   const z = await gh(`/repos/${REPO}/actions/artifacts/${art.id}/zip`, { redirect: 'manual' });
   const loc = z.headers.get('location');
@@ -201,6 +201,9 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && url.pathname === '/api/runs') return await runs(res);
     if (req.method === 'GET' && url.pathname.startsWith('/api/download/')) {
       return await download(url.pathname.split('/').pop(), res);
+    }
+    if (req.method === 'GET' && url.pathname.startsWith('/api/report/')) {
+      return await download(url.pathname.split('/').pop(), res, 'studio-report');
     }
     if (req.method === 'POST' && url.pathname === '/api/start') {
       if (req.headers['x-nf-box'] !== '1') return send(res, 403, { error: 'forbidden' });

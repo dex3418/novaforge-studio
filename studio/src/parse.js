@@ -160,7 +160,7 @@ function parseText(src, slug) {
     title,
     meta: {
       voice: meta.voice || '',
-      rate: meta.rate || '+0%',
+      rate: meta.rate || '+12%',
       brand: meta.brand || '',
       handle: meta.handle || '',
       cta: meta.cta || '',
