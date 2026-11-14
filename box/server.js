@@ -36,6 +36,7 @@ const WORKFLOW = 'studio.yml';
 const FORMATS = ['carousel', 'reel', 'long'];
 const CAT = require(path.join(__dirname, '..', 'studio', 'src', 'catalog.js'));
 const ENGINES = ['edge', 'gemini'];
+const FB = require('./feedback');
 const ALL_VOICES = [...CAT.VOICES.edge, ...CAT.VOICES.gemini].map((v) => v.id);
 const choice = (v, list) => (list.includes(String(v || '').toLowerCase()) ? String(v).toLowerCase() : '');
 
@@ -79,8 +80,8 @@ function withMeta(text, meta) {
   const m = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
   let head = m ? m[1].split(/\r?\n/) : [];
   const rest = m ? text.slice(m[0].length) : text;
-  for (const k of ['voice', 'brand', 'handle', 'cta', 'engine', 'template', 'palette', 'texture', 'director', 'captions']) {
-    const v = String(meta[k] || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 120);
+  for (const k of ['voice', 'brand', 'handle', 'cta', 'engine', 'template', 'palette', 'texture', 'director', 'captions', 'note']) {
+    const v = String(meta[k] || '').replace(/[\r\n]+/g, ' ').trim().slice(0, k === 'note' ? 400 : 120);
     if (!v) continue;
     head = head.filter((l) => !new RegExp('^\\s*' + k + '\\s*:', 'i').test(l));
     head.push(`${k}: ${v}`);
@@ -97,19 +98,13 @@ function safeName(s) {
   return n || 'post-' + Math.floor(Date.now() / 1000);
 }
 
-async function start(req, res) {
-  if (!TOKEN) return send(res, 400, { error: 'No GitHub token set. See the setup note on the page.' });
-  let b;
-  try {
-    b = JSON.parse(await readBody(req));
-  } catch (e) {
-    return send(res, 400, { error: 'Bad request: ' + e.message });
-  }
+// Sends one script to GitHub. `b` is what the page sends; `extra.note` is a "redo" request.
+async function dispatch(b, extra = {}) {
   const text = String(b.text || '').trim();
-  if (!text) return send(res, 400, { error: 'Paste a script first.' });
-  if (text.length > 60000) return send(res, 400, { error: 'Script is too long (limit about 60,000 characters).' });
+  if (!text) return { code: 400, error: 'Paste a script first.' };
+  if (text.length > 56000) return { code: 400, error: 'Script is too long (limit about 56,000 characters).' };
   const only = (Array.isArray(b.only) ? b.only : []).filter((x) => FORMATS.includes(x));
-  if (!only.length) return send(res, 400, { error: 'Pick at least one output.' });
+  if (!only.length) return { code: 400, error: 'Pick at least one output.' };
   const engine = choice(b.engine, ENGINES) || 'edge';
   const voice = ALL_VOICES.includes(b.voice) ? b.voice : '';
   const template = choice(b.template, Object.keys(CAT.TEMPLATES));
@@ -117,7 +112,7 @@ async function start(req, res) {
   const texture = choice(b.texture, Object.keys(CAT.TEXTURES));
   const director = choice(b.director, ['ai', 'rules']) || 'ai';
   const captions = choice(b.captions, ['smart', 'always']) || 'smart';
-  const name = safeName(b.name);
+  const name = safeName(extra.name || b.name);
 
   const r = await gh(`/repos/${REPO}/actions/workflows/${WORKFLOW}/dispatches`, {
     method: 'POST',
@@ -125,13 +120,17 @@ async function start(req, res) {
     body: JSON.stringify({
       ref: REF,
       inputs: {
-        script_text: withMeta(text, { voice, engine, template, palette, texture, director, captions, brand: b.brand, handle: b.handle, cta: b.cta }),
+        script_text: withMeta(text, { voice, engine, template, palette, texture, director, captions, brand: b.brand, handle: b.handle, cta: b.cta, note: extra.note }),
         script_name: name,
         only: only.join(','),
+        calibration: FB.compact(),
       },
     }),
   });
-  if (r.status === 204) return send(res, 200, { ok: true, name });
+  if (r.status === 204) {
+    FB.recordDispatch({ name, body: { text, only, engine, voice, template, palette, texture, director, captions, brand: b.brand || '', handle: b.handle || '', cta: b.cta || '' } });
+    return { code: 200, ok: true, name };
+  }
   let msg = '';
   try {
     msg = (await r.json()).message || '';
@@ -144,9 +143,96 @@ async function start(req, res) {
       : r.status === 404
       ? ' (repo or workflow not found: check the repo name and that studio.yml is pushed)'
       : r.status === 422
-      ? ' (the workflow on GitHub may be out of date: push update v29 first)'
+      ? ' (the workflow on GitHub may be out of date: push update v8 first)'
       : '';
-  send(res, 502, { error: `GitHub said ${r.status}: ${msg}${hint}` });
+  return { code: 502, error: `GitHub said ${r.status}: ${msg}${hint}` };
+}
+
+async function start(req, res) {
+  if (!TOKEN) return send(res, 400, { error: 'No GitHub token set. See the setup note on the page.' });
+  let b;
+  try {
+    b = JSON.parse(await readBody(req));
+  } catch (e) {
+    return send(res, 400, { error: 'Bad request: ' + e.message });
+  }
+  const r = await dispatch(b);
+  send(res, r.code, r.error ? { error: r.error } : { ok: true, name: r.name });
+}
+
+// the plan of a finished run (from its report bundle), turned into "what it looked like"
+async function runFacts(runId) {
+  const a = await gh(`/repos/${REPO}/actions/runs/${runId}/artifacts`);
+  if (!a.ok) throw new Error(`GitHub said ${a.status}`);
+  const art = ((await a.json()).artifacts || []).find((x) => !x.expired && x.name === 'studio-report');
+  if (!art) throw new Error('report bundle not found (expired?)');
+  const z = await gh(`/repos/${REPO}/actions/artifacts/${art.id}/zip`, { redirect: 'manual' });
+  const loc = z.headers.get('location');
+  if (!loc) throw new Error(`GitHub said ${z.status}`);
+  const buf = Buffer.from(await (await fetch(loc)).arrayBuffer());
+  const raw = FB.zipEntry(buf, (n) => /-plan\.json$/.test(n));
+  if (!raw) throw new Error('no plan in the report bundle');
+  return FB.factsFromPlan(JSON.parse(raw.toString('utf8')));
+}
+
+async function readJsonBody(req, res) {
+  try {
+    return JSON.parse(await readBody(req, 60000));
+  } catch (e) {
+    send(res, 400, { error: 'Bad request: ' + e.message });
+    return null;
+  }
+}
+
+async function rate(req, res) {
+  const b = await readJsonBody(req, res);
+  if (!b) return;
+  const id = String(b.runId || '');
+  if (!/^\d+$/.test(id)) return send(res, 400, { error: 'bad run id' });
+  if (b.rating === 'none') {
+    FB.removeRating(id);
+    return send(res, 200, { ok: true });
+  }
+  if (!FB.RATINGS.includes(b.rating)) return send(res, 400, { error: 'bad rating' });
+  let facts = null;
+  let warn = '';
+  const known = FB.loadRatings()[id];
+  if (known && known.facts) facts = known.facts;
+  else {
+    try {
+      facts = await runFacts(id);
+    } catch (e) {
+      warn = `Saved, but I could not read what the video looked like (${e.message}), so it teaches the calibration nothing yet. Rate it again once the report is available.`;
+    }
+  }
+  FB.setRating(id, b.rating, { title: String(b.title || '').slice(0, 80), facts });
+  send(res, 200, { ok: true, warn });
+}
+
+async function comment(req, res) {
+  const b = await readJsonBody(req, res);
+  if (!b) return;
+  try {
+    FB.addComment(String(b.runId || ''), String(b.title || '').slice(0, 80), b.text);
+    send(res, 200, { ok: true });
+  } catch (e) {
+    send(res, 400, { error: e.message });
+  }
+}
+
+// run the same script again, with the comment as a request to the AI director
+async function redo(req, res) {
+  if (!TOKEN) return send(res, 400, { error: 'No GitHub token set.' });
+  const b = await readJsonBody(req, res);
+  if (!b) return;
+  const note = String(b.note || '').replace(/\s+/g, ' ').trim();
+  if (!note) return send(res, 400, { error: 'Write what to change first.' });
+  const d = FB.findDispatch(b.title, b.created);
+  if (!d) return send(res, 404, { error: 'I no longer have that script (the box keeps the last 15 you sent from this phone). Paste it again and add the note.' });
+  FB.addComment(String(b.runId || ''), String(b.title || '').slice(0, 80), note);
+  const base = d.name.replace(/-redo\d*$/, '');
+  const r = await dispatch(d.body, { note, name: `${base}-redo` });
+  send(res, r.code, r.error ? { error: r.error } : { ok: true, name: r.name });
 }
 
 async function runs(res) {
@@ -204,6 +290,33 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === 'GET' && url.pathname.startsWith('/api/report/')) {
       return await download(url.pathname.split('/').pop(), res, 'studio-report');
+    }
+    if (req.method === 'GET' && url.pathname === '/api/feedback') {
+      const rt = FB.loadRatings();
+      const sc = FB.scores(rt);
+      return send(res, 200, {
+        ratings: Object.fromEntries(Object.entries(rt).map(([k, v]) => [k, v.rating])),
+        comments: Object.fromEntries(Object.entries(FB.loadComments()).map(([k, v]) => [k, v.text])),
+        n: sc.n, notes: FB.loadNotes(), dir: FB.DIR,
+      });
+    }
+    if (req.method === 'GET' && url.pathname === '/api/calibration') {
+      res.writeHead(200, { 'Content-Type': 'text/markdown; charset=utf-8', 'Cache-Control': 'no-store', ...(url.searchParams.get('dl') ? { 'Content-Disposition': 'attachment; filename="calibration.md"' } : {}) });
+      return res.end(FB.readCalibration());
+    }
+    if (req.method === 'POST' && ['/api/rate', '/api/comment', '/api/redo', '/api/notes', '/api/reset'].includes(url.pathname)) {
+      if (req.headers['x-nf-box'] !== '1') return send(res, 403, { error: 'forbidden' });
+      if (url.pathname === '/api/rate') return await rate(req, res);
+      if (url.pathname === '/api/comment') return await comment(req, res);
+      if (url.pathname === '/api/redo') return await redo(req, res);
+      if (url.pathname === '/api/notes') {
+        const b = await readJsonBody(req, res);
+        if (!b) return;
+        FB.saveNotes(b.text);
+        return send(res, 200, { ok: true });
+      }
+      FB.reset();
+      return send(res, 200, { ok: true });
     }
     if (req.method === 'POST' && url.pathname === '/api/start') {
       if (req.headers['x-nf-box'] !== '1') return send(res, 403, { error: 'forbidden' });

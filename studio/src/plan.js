@@ -8,6 +8,7 @@
 
 const { FAMILIES, PALETTES, TEXTURES, TEMPLATES, TRANSITIONS, SCHEMES, DECORS, HEADERS, CSTYLES, ALIGNS, KINDS, EMOTIONS } = require('./catalog');
 const { ICONS, pickIcon } = require('./icons');
+const cal = require('./calibration');
 
 const hash = (s) => {
   let h = 0;
@@ -223,10 +224,16 @@ const TEMPLATE_RULES = [
 ];
 
 function pickTemplate(text, r) {
-  const scored = TEMPLATE_RULES.map(([id, re]) => [id, (text.match(re) || []).length]).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
-  if (!scored.length) return shuffled(['tips', 'explainer', 'story', 'tech', 'education', 'daily'], r)[0];
-  const best = scored[0][1];
-  const top = scored.filter(([, n]) => n >= best * 0.5).slice(0, 3);
+  // your ratings count too: a liked template gets a bonus, a disliked one is dropped when there is a choice
+  const scored = TEMPLATE_RULES.map(([id, re]) => [id, (text.match(re) || []).length]).filter(([, n]) => n > 0).map(([id, n]) => [id, n + 2 * cal.score('template', id)]).sort((a, b) => b[1] - a[1]);
+  const fine = scored.filter(([id]) => !cal.avoided('template', id));
+  const list = fine.length ? fine : scored;
+  if (!list.length || list[0][1] <= 0) {
+    const pool = cal.pool('template', ['tips', 'explainer', 'story', 'tech', 'education', 'daily'], 2);
+    return cal.order('template', shuffled(pool, r))[0];
+  }
+  const best = list[0][1];
+  const top = list.filter(([, n]) => n >= best * 0.5).slice(0, 3);
   return top[Math.floor(r() * top.length)][0];
 }
 
@@ -432,11 +439,11 @@ function assignMotion(plan, parsed, seed) {
   const tpl = TEMPLATES[plan.template] || TEMPLATES.tips;
   const fam = FAMILIES[tpl.family] || FAMILIES.night;
 
-  const first = PALETTES[plan.palette] ? plan.palette : fam[0];
-  const palOrder = [first, ...shuffled(fam.filter((p) => p !== first), r)];
+  const first = PALETTES[plan.palette] && (PALETTES[meta.palette] || !cal.avoided('palette', plan.palette)) ? plan.palette : cal.order('palette', fam)[0];
+  const palOrder = [first, ...cal.pool('palette', cal.order('palette', shuffled(fam.filter((p) => p !== first), r)), 2)];
   const allTex = Object.keys(TEXTURES).filter((x) => x !== 'none');
   const t0 = TEXTURES[plan.texture] && plan.texture !== 'none' ? plan.texture : tpl.textures[0];
-  const texOrder = [t0, ...shuffled(tpl.textures.filter((x) => x !== t0), r), ...shuffled(allTex.filter((x) => x !== t0 && !tpl.textures.includes(x)), r)];
+  const texOrder = [t0, ...cal.pool('texture', [...cal.order('texture', shuffled(tpl.textures.filter((x) => x !== t0), r)), ...cal.order('texture', shuffled(allTex.filter((x) => x !== t0 && !tpl.textures.includes(x)), r))], 6)];
   const fixedPal = PALETTES[meta.palette] ? meta.palette : null;
   const fixedTex = TEXTURES[meta.texture] ? meta.texture : null;
 
@@ -467,7 +474,7 @@ function assignMotion(plan, parsed, seed) {
     const e = energyAt(k, n, base);
     const high = e >= 0.85;
     if (!u.transition) {
-      const pool = (high ? BOLD_T : e > 0.55 ? BOLD_T.concat(SOFT_T) : SOFT_T).filter((x) => x !== prevT);
+      const pool = cal.pool('transition', (high ? BOLD_T : e > 0.55 ? BOLD_T.concat(SOFT_T) : SOFT_T).filter((x) => x !== prevT));
       u.transition = pool[Math.floor(r() * pool.length)];
     }
     prevT = u.transition;
@@ -482,7 +489,7 @@ function assignMotion(plan, parsed, seed) {
     }
     prevScheme = u.scheme;
     if (!u.decor) {
-      const pool = (plan.decor ? [plan.decor] : high ? BOLD_D : e > 0.55 ? BOLD_D.concat(SOFT_D) : SOFT_D).filter((x) => x !== prevD || plan.decor);
+      const pool = plan.decor ? [plan.decor] : cal.pool('decor', (high ? BOLD_D : e > 0.55 ? BOLD_D.concat(SOFT_D) : SOFT_D).filter((x) => x !== prevD));
       u.decor = pool[Math.floor(r() * pool.length)];
     }
     prevD = u.decor;

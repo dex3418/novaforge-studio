@@ -6,6 +6,7 @@
 
 const { PALETTES, TEXTURES, TEMPLATES, TRANSITIONS, EMOTIONS, SCHEMES, DECORS } = require('./catalog');
 const { ICON_NAMES } = require('./icons');
+const calibration = require('./calibration');
 const { validatePlan, segmentRanges } = require('./plan');
 
 const MODELS = (process.env.GEMINI_MODEL ? [process.env.GEMINI_MODEL] : []).concat(['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-4-argon']);
@@ -56,7 +57,7 @@ OUTPUT SHAPE
  "scenes":[{"index":1,"emotion":"neutral","rateDelta":0,
    "beats":[{"fromSentence":0,"toSentence":2,"kind":"counter","emotion":"neutral","emphasis":["..."],"data":{...}}]}]}
 
-POST TITLE: ${parsed.title}
+${calibration.promptText()}${parsed.meta && parsed.meta.note ? `REQUEST FOR THIS VIDEO (from the user, follow it as far as the rules allow): ${parsed.meta.note}\n\n` : ''}POST TITLE: ${parsed.title}
 
 SCRIPT (sentences are numbered inside each scene):
 ${scenes.join('\n\n')}

@@ -30,6 +30,10 @@ on:
         description: 'What to build: carousel,reel,long (blank = all)'
         required: false
         default: ''
+      calibration:
+        description: 'Your ratings summary (sent by the box, JSON)'
+        required: false
+        default: ''
 
 jobs:
   render:
@@ -100,6 +104,7 @@ jobs:
         env:
           FILES: ${{ steps.pick.outputs.files }}
           ONLY: ${{ github.event.inputs.only }}
+          CALIBRATION: ${{ github.event.inputs.calibration }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_TTS_MODEL: ${{ secrets.GEMINI_TTS_MODEL }}
           GEMINI_MODEL: ${{ secrets.GEMINI_MODEL }}

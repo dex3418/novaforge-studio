@@ -99,7 +99,7 @@ async function build(file, only) {
       st.ms = Date.now() - t;
     }
     fs.writeFileSync(path.join(outDir, `${slug}-plan.json`), JSON.stringify(plan, null, 2));
-    report.add('4 Plan', 'ok', `${plan.source === 'ai' ? 'AI' : 'rules'} plan: ${kindCounts(plan)}`, [...variety(plan), describePlan(plan)]);
+    report.add('4 Plan', 'ok', `${plan.source === 'ai' ? 'AI' : 'rules'} plan: ${kindCounts(plan)}`, [require('./calibration').summary(), ...variety(plan), describePlan(plan)]);
 
     // 5 + 6 --------------------------------------------------------- outputs
     if (only.includes('carousel')) {

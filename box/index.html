@@ -3,50 +3,91 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Novaforge Studio</title>
+<meta name="theme-color" content="#ffffff">
+<title>vouc.hr studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800;900&family=Noto+Sans+Devanagari:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
-  :root{--bg:#0b1020;--card:#141b35;--line:#263056;--text:#f2f4fb;--muted:#9aa4bf;--accent:#ffb020;--ok:#3ecf8e;--bad:#ff6b6b}
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 system-ui,-apple-system,'Segoe UI',sans-serif}
-  .wrap{max-width:720px;margin:0 auto;padding:18px 16px 60px}
-  h1{font-size:22px;margin:4px 0 2px}
-  .sub{color:var(--muted);font-size:14px;margin-bottom:18px}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:16px}
-  label.t{display:block;font-size:13px;color:var(--muted);margin:0 0 6px}
-  input[type=text],select,textarea{width:100%;background:#0e1430;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:11px;font:inherit}
-  textarea{min-height:260px;resize:vertical;line-height:1.5}
-  .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+  /* Vouchr tokens (same as the website): magenta, green and blue sampled from the favicon */
+  :root{
+    --magenta:#cb3bcc;--green:#29b937;--blue:#018bba;
+    --magenta-d:#a428a5;--green-d:#1b8a2a;--blue-d:#00718f;
+    --bg:#ffffff;--soft:#f7f5fc;--text:#17132b;--mid:#4a4666;--light:#6e6890;--border:#e9e5f5;
+    --bad:#c62f3d;--radius:16px;
+    --font:"DM Sans","Noto Sans Devanagari",system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 var(--font);-webkit-font-smoothing:antialiased}
+  a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+  .band{height:16px;background-repeat:repeat-x;background-size:72px 16px;background-image:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2772%27 height=%2716%27%3E%3Cpath d=%27M12 1l9 7-9 7-9-7z%27 fill=%27%23cb3bcc%27/%3E%3Cpath d=%27M36 1l9 7-9 7-9-7z%27 fill=%27%2329b937%27/%3E%3Cpath d=%27M60 1l9 7-9 7-9-7z%27 fill=%27%23018bba%27/%3E%3C/svg%3E")}
+  .wrap{max-width:720px;margin:0 auto;padding:22px 16px 70px}
+  .top{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+  .wm{font-weight:800;letter-spacing:-0.03em;font-size:1.9rem;line-height:1}
+  .wm .v{color:var(--magenta)}.wm .d{color:var(--green)}.wm .h{color:var(--blue)}
+  .top .studio{font-weight:700;color:var(--mid);font-size:1.05rem}
+  .sub{color:var(--light);font-size:14px;margin:6px 0 18px}
+  .card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:18px;box-shadow:0 6px 22px rgba(23,19,43,.05)}
+  .card h2{font-size:1.05rem;font-weight:800;margin:0}
+  label.t{display:block;font-size:13px;font-weight:700;color:var(--mid);margin:0 0 6px}
+  input[type=text],select,textarea{width:100%;background:var(--soft);color:var(--text);border:1px solid var(--border);border-radius:12px;padding:12px;font:inherit}
+  textarea{min-height:260px;resize:vertical;line-height:1.55}
+  textarea.small{min-height:84px}
+  .row{display:flex;gap:12px;flex-wrap:wrap;margin-top:14px}
   .row>div{flex:1;min-width:160px}
   .pills{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
   .pill{position:relative}
   .pill input{position:absolute;opacity:0}
-  .pill span{display:block;padding:10px 14px;border:1px solid var(--line);border-radius:999px;background:#0e1430;color:var(--muted);user-select:none}
-  .pill input:checked+span{background:var(--accent);border-color:var(--accent);color:#1a1300;font-weight:700}
-  button{font:inherit;border:0;border-radius:12px;padding:13px 18px;cursor:pointer}
-  .go{background:var(--accent);color:#1a1300;font-weight:800;width:100%;margin-top:14px;font-size:17px}
+  .pill span{display:block;padding:10px 16px;min-height:44px;border:1px solid var(--border);border-radius:999px;background:#fff;color:var(--mid);font-weight:700;user-select:none}
+  .pill input:checked+span{background:var(--text);border-color:var(--text);color:#fff}
+  .pill input:focus-visible+span{outline:3px solid var(--blue);outline-offset:2px}
+  button{font:inherit;border:0;border-radius:14px;padding:12px 18px;cursor:pointer;min-height:44px}
+  .go{background:var(--magenta-d);color:#fff;font-weight:800;width:100%;margin-top:16px;font-size:17px;min-height:52px;transition:transform .2s,box-shadow .2s}
+  .go:hover{transform:translateY(-2px);box-shadow:0 10px 22px rgba(23,19,43,.14)}
   .go:disabled{opacity:.5}
-  .ghost{background:transparent;border:1px solid var(--line);color:var(--muted);padding:8px 12px;font-size:14px}
-  .msg{margin-top:12px;font-size:14px;min-height:20px}
-  .msg.ok{color:var(--ok)} .msg.bad{color:var(--bad)} .msg.warn{color:var(--accent)}
-  .stats{font-size:13px;color:var(--muted);margin-top:8px}
-  .run{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 0;border-top:1px solid var(--line)}
-  .run:first-child{border-top:0}
-  .run .n{font-weight:600;word-break:break-word}
-  .run .m{font-size:12px;color:var(--muted)}
-  .tag{font-size:12px;padding:3px 9px;border-radius:999px;border:1px solid var(--line);white-space:nowrap}
-  .tag.run{color:var(--accent);border-color:var(--accent)} .tag.done{color:var(--ok);border-color:var(--ok)} .tag.fail{color:var(--bad);border-color:var(--bad)}
-  a.btn{display:inline-block;background:var(--ok);color:#06210f;font-weight:700;border-radius:9px;padding:7px 12px;text-decoration:none;font-size:14px}
-  a.lnk{color:var(--muted);font-size:13px}
-  details{margin-top:12px;color:var(--muted);font-size:14px}
-  pre{white-space:pre-wrap;background:#0e1430;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:13px;color:#cdd3ea}
-  .setup{border-color:var(--accent)}
-  code{background:#0e1430;padding:2px 6px;border-radius:6px}
+  .ghost{background:#fff;border:1px solid var(--border);color:var(--text);padding:8px 14px;font-weight:700;font-size:14px}
+  .ghost:hover{border-color:var(--text)}
+  .msg{margin-top:12px;font-size:14px;min-height:20px;font-weight:500}
+  .msg.ok{color:var(--green-d)} .msg.bad{color:var(--bad)} .msg.warn{color:#7a5b00}
+  .stats{font-size:13px;color:var(--light);margin-top:8px}
+  .run{padding:14px 0;border-top:1px solid var(--border)}
+  .run:first-of-type{border-top:0}
+  .run .head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .run .n{font-weight:800;word-break:break-word}
+  .run .m{font-size:13px;color:var(--light)}
+  .run .acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+  .tag{font-size:12px;font-weight:800;padding:4px 10px;border-radius:999px;background:var(--soft);white-space:nowrap}
+  .tag.run{color:var(--blue-d)} .tag.done{color:var(--green-d)} .tag.fail{color:var(--bad)}
+  a.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;border-radius:12px;padding:8px 16px;text-decoration:none;font-weight:700;font-size:14px;border:2px solid transparent}
+  a.btn.dl{background:var(--green-d);color:#fff}
+  a.btn.rp{background:#fff;color:var(--blue-d);border-color:var(--blue-d)}
+  a.lnk{color:var(--blue-d);font-size:13px}
+  .rate{display:inline-flex;gap:6px}
+  .rate button{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--border);color:var(--mid);padding:8px 12px;font-weight:700;font-size:14px;border-radius:12px}
+  .rate button svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .rate button[aria-pressed=true].like{background:var(--green-d);border-color:var(--green-d);color:#fff}
+  .rate button[aria-pressed=true].neutral{background:var(--blue-d);border-color:var(--blue-d);color:#fff}
+  .rate button[aria-pressed=true].dislike{background:var(--bad);border-color:var(--bad);color:#fff}
+  .note{margin-top:10px;background:var(--soft);border-radius:12px;padding:12px}
+  .note .acts{margin-top:8px}
+  .note .said{font-size:13px;color:var(--mid);margin-bottom:6px}
+  details{margin-top:14px;color:var(--mid);font-size:14px}
+  summary{cursor:pointer;font-weight:700}
+  pre{white-space:pre-wrap;background:var(--soft);border:1px solid var(--border);border-radius:12px;padding:12px;font-size:13px;color:var(--mid)}
+  .setup{border:2px solid var(--magenta)}
+  code{background:var(--soft);padding:2px 6px;border-radius:6px}
+  .calrow{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+  .hint{font-size:13px;color:var(--light)}
 </style>
 </head>
 <body>
+<div class="band"></div>
 <div class="wrap">
-  <h1>Novaforge Studio</h1>
-  <div class="sub">Paste a script, choose what to make, press Start.</div>
+  <div class="top">
+    <span class="wm" aria-label="Vouchr"><span class="v">vouc</span><span class="d">.</span><span class="h">hr</span></span>
+    <span class="studio">studio</span>
+  </div>
+  <div class="sub">Paste a script, choose what to make, press Start. Rate each result so the next one gets better.</div>
 
   <div id="setup" class="card setup" hidden>
     <b>One-time setup needed</b>
@@ -147,10 +188,24 @@ Next section...
 
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-      <b>Recent runs</b><button class="ghost" id="refresh">Refresh</button>
+      <h2>Recent runs</h2><button class="ghost" id="refresh">Refresh</button>
     </div>
-    <div id="runs"><div class="m" style="color:var(--muted)">Loading...</div></div>
-    <div class="stats">A run usually takes 5 to 15 minutes. Files stay downloadable for 14 days.</div>
+    <div id="runs"><div class="hint">Loading...</div></div>
+    <div class="stats">A run usually takes 5 to 15 minutes. Files stay downloadable for 14 days. Rate a finished run so the studio learns what you like.</div>
+  </div>
+
+  <div class="card" id="calcard">
+    <h2>Calibration</h2>
+    <div class="hint" id="calsum" style="margin-top:4px">Loading...</div>
+    <div class="calrow">
+      <a class="btn rp" href="/api/calibration" target="_blank" rel="noopener">View calibration.md</a>
+      <a class="btn rp" href="/api/calibration?dl=1">Download</a>
+      <button class="ghost" id="calreset">Reset ratings</button>
+    </div>
+    <label class="t" for="notes">Your standing notes (sent to the AI director with every run)</label>
+    <textarea id="notes" class="small" placeholder="e.g. keep it calm, fewer flashy transitions, always use big numbers for money"></textarea>
+    <div class="calrow" style="margin-bottom:0"><button class="ghost" id="notesave">Save notes</button><span class="hint" id="notemsg" style="align-self:center"></span></div>
+    <div class="hint" style="margin-top:10px">Likes and dislikes rewrite <code>calibration.md</code> after every rating. Comments are only saved to a log and never change it. Stored on this phone in <code id="caldir">~/.novaforge-studio</code>, not in git.</div>
   </div>
 </div>
 
@@ -232,6 +287,12 @@ $('go').addEventListener('click', async () => {
   $('go').disabled = false;
 });
 
+const ICON = {
+  like: '<svg viewBox="0 0 24 24"><path d="M7 11v9H4v-9zM7 11l4-8c1.5 0 2.5 1 2.5 2.5V9H19a2 2 0 0 1 2 2.3l-1 6.5A2 2 0 0 1 18 19.5H7"/></svg>',
+  neutral: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>',
+  dislike: '<svg viewBox="0 0 24 24"><path d="M17 13V4h3v9zM17 13l-4 8c-1.5 0-2.5-1-2.5-2.5V15H5a2 2 0 0 1-2-2.3l1-6.5A2 2 0 0 1 6 4.5h11"/></svg>'
+};
+const LABEL = { like: 'Like', neutral: 'Okay', dislike: 'Dislike' };
 function ago(iso) {
   const s = Math.max(0, (Date.now() - new Date(iso)) / 1000);
   if (s < 60) return 'just now';
@@ -240,6 +301,45 @@ function ago(iso) {
   return Math.floor(s / 86400) + ' d ago';
 }
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+const POST = (url, body) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-NF-Box': '1' }, body: JSON.stringify(body) }).then(async r => { const j = await r.json(); if (!r.ok) throw new Error(j.error || 'Failed'); return j; });
+
+let RUNS = [], FB = { ratings: {}, comments: {}, n: 0, notes: '' };
+const open = {}, drafts = {}, notices = {};
+
+function runHtml(x) {
+  let tag, acts = '';
+  const done = x.status === 'completed';
+  if (!done) tag = `<span class="tag run">${x.status === 'queued' ? 'waiting' : 'working'}</span>`;
+  else if (x.conclusion === 'success') { tag = '<span class="tag done">done</span>'; acts = `<a class="btn dl" href="/api/download/${x.id}">Download</a><a class="btn rp" href="/api/report/${x.id}">Report</a>`; }
+  else { tag = `<span class="tag fail">${esc(x.conclusion || 'failed')}</span>`; acts = `<a class="btn rp" href="/api/report/${x.id}">Report</a>`; }
+  let fb = '';
+  if (done && x.conclusion === 'success') {
+    const cur = FB.ratings[x.id] || '';
+    const said = FB.comments[x.id] || '';
+    fb = `<div class="rate" role="group" aria-label="Rate this result">${['like', 'neutral', 'dislike'].map(k => `<button class="${k}" data-act="rate" data-id="${x.id}" data-v="${k}" aria-pressed="${cur === k}">${ICON[k]}${LABEL[k]}</button>`).join('')}</div>` +
+      `<button class="ghost" data-act="note" data-id="${x.id}">${open[x.id] ? 'Hide note' : said ? 'Note saved' : 'Add a note'}</button>`;
+    if (open[x.id]) {
+      fb += `<div class="note" style="flex-basis:100%">${said ? `<div class="said">Last note: ${esc(said)}</div>` : ''}<textarea class="small" data-draft="${x.id}" placeholder="What should change? e.g. slower start, fewer captions, less purple">${esc(drafts[x.id] || '')}</textarea><div class="acts"><button class="ghost" data-act="save" data-id="${x.id}">Save note</button><button class="ghost" data-act="redo" data-id="${x.id}">Redo with this note</button></div><div class="hint">Saving only logs the note. Redo sends the same script again with this note for the AI director.</div></div>`;
+    }
+  }
+  const n = notices[x.id] ? `<div class="msg ${notices[x.id].cls}" style="flex-basis:100%;margin:0">${esc(notices[x.id].text)}</div>` : '';
+  return `<div class="run"><div class="head"><div><div class="n">${esc(x.title)}</div><div class="m">${ago(x.created)} - <a class="lnk" target="_blank" rel="noopener" href="${esc(x.url)}">details</a></div></div>${tag}</div>${acts || fb || n ? `<div class="acts">${acts}${fb}${n}</div>` : ''}</div>`;
+}
+
+function drawRuns() {
+  if (document.activeElement && document.activeElement.matches && document.activeElement.matches('#runs textarea')) return;
+  $('runs').innerHTML = RUNS.length ? RUNS.map(runHtml).join('') : '<div class="hint">No runs yet.</div>';
+}
+
+function drawCal() {
+  $('calsum').textContent = FB.n ? `${FB.n} rating${FB.n === 1 ? '' : 's'} so far. They shape template, colour, texture and transition choices, and guide the AI director.` : 'No ratings yet. Rate a finished run below to start.';
+  if (document.activeElement !== $('notes')) $('notes').value = FB.notes || '';
+  if (FB.dir) $('caldir').textContent = FB.dir;
+}
+
+async function loadFeedback() {
+  try { FB = await (await fetch('/api/feedback')).json(); drawCal(); } catch (e) {}
+}
 
 let timer;
 async function loadRuns() {
@@ -249,16 +349,51 @@ async function loadRuns() {
     const r = await fetch('/api/runs');
     const j = await r.json();
     if (!r.ok) throw new Error(j.error || 'Failed');
-    $('runs').innerHTML = j.runs.length ? j.runs.map(x => {
-      let tag, extra = '';
-      if (x.status !== 'completed') { busy = true; tag = `<span class="tag run">${x.status === 'queued' ? 'waiting' : 'working'}</span>`; }
-      else if (x.conclusion === 'success') { tag = '<span class="tag done">done</span>'; extra = `<a class="btn" href="/api/download/${x.id}">Download</a> <a class="btn" href="/api/report/${x.id}">Report</a>`; }
-      else { tag = `<span class="tag fail">${esc(x.conclusion || 'failed')}</span>`; extra = `<a class="btn" href="/api/report/${x.id}">Report</a>`; }
-      return `<div class="run"><div><div class="n">${esc(x.title)}</div><div class="m">${ago(x.created)} - <a class="lnk" target="_blank" rel="noopener" href="${esc(x.url)}">details</a></div></div><div style="display:flex;gap:8px;align-items:center">${tag}${extra}</div></div>`;
-    }).join('') : '<div style="color:var(--muted)">No runs yet.</div>';
-  } catch (e) { $('runs').innerHTML = `<div style="color:var(--bad)">${esc(e.message)}</div>`; }
+    RUNS = j.runs;
+    busy = RUNS.some(x => x.status !== 'completed');
+    await loadFeedback();
+    drawRuns();
+  } catch (e) { $('runs').innerHTML = `<div class="msg bad">${esc(e.message)}</div>`; }
   timer = setTimeout(loadRuns, busy ? 8000 : 25000);
 }
+
+document.addEventListener('input', e => { const id = e.target.dataset && e.target.dataset.draft; if (id) drafts[id] = e.target.value; });
+$('runs').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-act]');
+  if (!b) return;
+  const id = b.dataset.id, run = RUNS.find(x => String(x.id) === id);
+  const tell = (text, cls) => { notices[id] = { text, cls }; drawRuns(); };
+  try {
+    if (b.dataset.act === 'rate') {
+      const v = FB.ratings[id] === b.dataset.v ? 'none' : b.dataset.v;
+      if (v === 'none') delete FB.ratings[id]; else FB.ratings[id] = v;
+      tell(v === 'none' ? '' : 'Saving...', '');
+      const j = await POST('/api/rate', { runId: id, title: run ? run.title : '', rating: v });
+      notices[id] = j.warn ? { text: j.warn, cls: 'warn' } : v === 'none' ? null : { text: 'Saved. calibration.md updated.', cls: 'ok' };
+      await loadFeedback(); drawRuns();
+    } else if (b.dataset.act === 'note') {
+      open[id] = !open[id]; drawRuns();
+    } else if (b.dataset.act === 'save') {
+      await POST('/api/comment', { runId: id, title: run ? run.title : '', text: drafts[id] || '' });
+      tell('Note saved to the log. It does not change calibration.md.', 'ok');
+      await loadFeedback(); drawRuns();
+    } else if (b.dataset.act === 'redo') {
+      tell('Sending again with your note...', '');
+      await POST('/api/redo', { runId: id, title: run ? run.title : '', created: run ? run.created : '', note: drafts[id] || '' });
+      drafts[id] = ''; open[id] = false;
+      tell('Started again with your note. It appears at the top in a few seconds.', 'ok');
+      setTimeout(loadRuns, 4000);
+    }
+  } catch (err) { tell(err.message, 'bad'); }
+});
+
+$('notesave').addEventListener('click', async () => {
+  try { await POST('/api/notes', { text: $('notes').value }); $('notemsg').textContent = 'Saved.'; await loadFeedback(); } catch (e) { $('notemsg').textContent = e.message; }
+});
+$('calreset').addEventListener('click', async () => {
+  if (!confirm('Delete all ratings and start the calibration from zero? Your notes stay.')) return;
+  try { await POST('/api/reset', {}); await loadFeedback(); drawRuns(); } catch (e) { alert(e.message); }
+});
 $('refresh').addEventListener('click', loadRuns);
 loadRuns();
 </script>

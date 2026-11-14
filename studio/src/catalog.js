@@ -22,15 +22,17 @@ const PALETTES = {
   sky: L({ label: 'Sky', bg: '#eaf6ff', bg2: '#c6e4ff', accent: '#1565d8', text: '#0a1f3d', muted: '#56708f', onAccent: '#ffffff' }),
   neon: D({ label: 'Neon green', bg: '#05060f', bg2: '#0d1b3a', accent: '#00f5a0', text: '#eafff7', muted: '#7fb8a4', onAccent: '#001a10' }),
   ember: D({ label: 'Ember', bg: '#1a0d06', bg2: '#3b1a0a', accent: '#ff9f1c', text: '#fff7ec', muted: '#c9a27a', onAccent: '#2b1400' }),
+  vouchr: L({ label: 'Vouchr light', bg: '#ffffff', bg2: '#f7f5fc', accent: '#a428a5', text: '#17132b', muted: '#6e6890', onAccent: '#ffffff' }),
+  vouchrnight: D({ label: 'Vouchr night', bg: '#17132b', bg2: '#2a2250', accent: '#cb3bcc', text: '#ffffff', muted: '#b4aed6', onAccent: '#ffffff' }),
   lilac: L({ label: 'Lilac', bg: '#f6f0ff', bg2: '#e2d4ff', accent: '#7c3aed', text: '#1f0f3d', muted: '#6f5a96', onAccent: '#ffffff' }),
 };
 
 // colours that look good together; a video walks through one family scene by scene
 const FAMILIES = {
-  night: ['navy', 'royal', 'neon', 'mono'],
+  night: ['navy', 'royal', 'neon', 'vouchrnight'],
   warm: ['saffron', 'ember', 'sand', 'sunset'],
   fresh: ['mint', 'ocean', 'forest', 'sky'],
-  soft: ['paper', 'rose', 'lilac', 'sand'],
+  soft: ['paper', 'vouchr', 'lilac', 'rose'],
   bold: ['bold', 'sunset', 'mono', 'neon'],
   india: ['saffron', 'navy', 'forest', 'paper'],
 };
