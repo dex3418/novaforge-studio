@@ -103,6 +103,7 @@ async function renderOne(compId, parsed, theme, plan, scenes, root, outFile, mus
     scenes,
     totalFrames: scenes.reduce((a, s) => a + s.frames, 0),
     musicFile: musicFile || null,
+    pics: (parsed.pictures || []).map((p) => p.file),
   };
   const composition = await selectComposition({ serveUrl, id: compId, inputProps });
   let last = -1;

@@ -29,8 +29,18 @@ VISUAL TYPES (kind) and their "data":
 - stats    {"items":[{"value":number,"prefix":"₹" or "","suffix":"%" or " crore" or "","label":"max 4 words"}, ... 2 to 4]}  several numbers in one beat shown as count-up cards. Every value must appear in the spoken text.
 - bars     {"items":[{"value":number,"label":"max 3 words"}, ... 2 to 5],"prefix":"","suffix":""}  compare amounts as horizontal bars. Values must appear in the text.
 - spot     {"icon":"one of: ${ICON_NAMES.join(', ')}","line":"max 12 words copied from the beat"}  a big icon with one line, for a concrete thing (money, time, place, document, phone, safety).
+- terminal {"lines":[{"cmd":"cat name.txt"},{"out":"a line copied from the beat, max 14 words"}, ...up to 8]}  a terminal window that types the lines. "cmd" lines are only short file or shell commands (letters, digits, dot, dash, slash, space; e.g. "cat hook.txt", "ls"). Only "out" lines carry script text. Good for steps, tech and developer topics, 1 to 4 lines of output.
+- photo    {"pic":0,"line":"max 14 words copied from the beat"}  a full-screen picture with the line over it. ONLY when PICTURES are available below. "pic" is the picture number.
+- profile  {"pic":0,"line":"max 14 words copied from the beat"}  a framed picture card with the speaker's name and role (filled in by the system). ONLY when PICTURES are available below; use it at most once, early, when the speaker introduces themself.
 - cta      {"text":"...","sub":"","button":"short handle or phrase"}  final call to action, last beat of the last scene only.
 `;
+
+function pictureText(parsed) {
+  const n = Array.isArray(parsed.pictures) ? parsed.pictures.length : 0;
+  const m = parsed.meta || {};
+  if (!n) return 'PICTURES: none available. Do not use photo or profile.\n\n';
+  return `PICTURES: ${n} available (numbered 0 to ${n - 1}).${m.person || m.brand ? ` The speaker is ${m.person || m.brand}${m.role ? ', ' + m.role : ''}.` : ' The speaker has no name set, so do not use profile.'} Use photo about every 3rd or 4th beat (more often if the template is gallery), cycling through the pictures; a photo beat should carry a short, strong line.\n\n`;
+}
 
 function buildPrompt(parsed) {
   const scenes = parsed.scenes.map((sc) => {
@@ -57,7 +67,7 @@ OUTPUT SHAPE
  "scenes":[{"index":1,"emotion":"neutral","rateDelta":0,
    "beats":[{"fromSentence":0,"toSentence":2,"kind":"counter","emotion":"neutral","emphasis":["..."],"data":{...}}]}]}
 
-${calibration.promptText()}${parsed.meta && parsed.meta.note ? `REQUEST FOR THIS VIDEO (from the user, follow it as far as the rules allow): ${parsed.meta.note}\n\n` : ''}POST TITLE: ${parsed.title}
+${pictureText(parsed)}${calibration.promptText()}${parsed.meta && parsed.meta.note ? `REQUEST FOR THIS VIDEO (from the user, follow it as far as the rules allow): ${parsed.meta.note}\n\n` : ''}POST TITLE: ${parsed.title}
 
 SCRIPT (sentences are numbered inside each scene):
 ${scenes.join('\n\n')}

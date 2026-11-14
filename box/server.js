@@ -80,8 +80,8 @@ function withMeta(text, meta) {
   const m = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
   let head = m ? m[1].split(/\r?\n/) : [];
   const rest = m ? text.slice(m[0].length) : text;
-  for (const k of ['voice', 'brand', 'handle', 'cta', 'engine', 'template', 'palette', 'texture', 'director', 'captions', 'note']) {
-    const v = String(meta[k] || '').replace(/[\r\n]+/g, ' ').trim().slice(0, k === 'note' ? 400 : 120);
+  for (const k of ['voice', 'brand', 'handle', 'cta', 'engine', 'template', 'palette', 'texture', 'director', 'captions', 'note', 'picture', 'person', 'role']) {
+    const v = String(meta[k] || '').replace(/[\r\n]+/g, ' ').trim().slice(0, k === 'note' || k === 'picture' ? 400 : 120);
     if (!v) continue;
     head = head.filter((l) => !new RegExp('^\\s*' + k + '\\s*:', 'i').test(l));
     head.push(`${k}: ${v}`);
@@ -120,7 +120,7 @@ async function dispatch(b, extra = {}) {
     body: JSON.stringify({
       ref: REF,
       inputs: {
-        script_text: withMeta(text, { voice, engine, template, palette, texture, director, captions, brand: b.brand, handle: b.handle, cta: b.cta, note: extra.note }),
+        script_text: withMeta(text, { voice, engine, template, palette, texture, director, captions, brand: b.brand, handle: b.handle, cta: b.cta, note: extra.note, picture: b.picture, person: b.person, role: b.role }),
         script_name: name,
         only: only.join(','),
         calibration: FB.compact(),
@@ -128,7 +128,7 @@ async function dispatch(b, extra = {}) {
     }),
   });
   if (r.status === 204) {
-    FB.recordDispatch({ name, body: { text, only, engine, voice, template, palette, texture, director, captions, brand: b.brand || '', handle: b.handle || '', cta: b.cta || '' } });
+    FB.recordDispatch({ name, body: { text, only, engine, voice, template, palette, texture, director, captions, brand: b.brand || '', handle: b.handle || '', cta: b.cta || '', picture: b.picture || '', person: b.person || '', role: b.role || '' } });
     return { code: 200, ok: true, name };
   }
   let msg = '';

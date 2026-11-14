@@ -117,6 +117,24 @@
       </div>
     </div>
 
+    <div class="row">
+      <div>
+        <label class="t" for="person">Your name (profile card)</label>
+        <input id="person" type="text" placeholder="e.g. Devashish Markam" autocomplete="off">
+      </div>
+      <div>
+        <label class="t" for="role">Role / tagline</label>
+        <input id="role" type="text" placeholder="e.g. Founder, Novaforge Labs" autocomplete="off">
+      </div>
+    </div>
+    <div class="row">
+      <div style="min-width:100%">
+        <label class="t" for="picture">Pictures (for picture templates)</label>
+        <input id="picture" type="text" placeholder="GitHub username, image links, or files in assets/pictures, separated by commas" autocomplete="off">
+        <div class="stats">e.g. <code>dex3418</code> uses your GitHub profile picture. Photos you commit to <code>studio/assets/pictures/</code> are used automatically. Pick the Founder or Gallery template to build around them.</div>
+      </div>
+    </div>
+
     <div class="row" style="margin-top:14px"><div style="min-width:100%">
       <label class="t" for="text">Script</label>
       <textarea id="text" placeholder="Paste your script here..."></textarea>
@@ -244,7 +262,7 @@ fetch('/api/config').then(r => r.json()).then(c => {
 });
 $('voice').addEventListener('change', () => { try { localStorage.setItem('nf_voice_' + $('engine').value, $('voice').value); } catch (e) {} });
 
-const SAVED = ['brand', 'handle', 'cta'];
+const SAVED = ['brand', 'handle', 'cta', 'person', 'role', 'picture'];
 SAVED.forEach(k => {
   try { const v = localStorage.getItem('nf_' + k); if (v) $(k).value = v; } catch (e) {}
   $(k).addEventListener('input', () => { try { localStorage.setItem('nf_' + k, $(k).value); } catch (e) {} });
@@ -277,7 +295,7 @@ $('go').addEventListener('click', async () => {
     const r = await fetch('/api/start', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-NF-Box': '1' },
-      body: JSON.stringify({ text: $('text').value, name: $('name').value, only, voice: $('voice').value, engine: $('engine').value, director: $('director').value, captions: $('captions').value, template: $('template').value, palette: $('palette').value, texture: $('texture').value, brand: $('brand').value, handle: $('handle').value, cta: $('cta').value })
+      body: JSON.stringify({ text: $('text').value, name: $('name').value, only, voice: $('voice').value, engine: $('engine').value, director: $('director').value, captions: $('captions').value, template: $('template').value, palette: $('palette').value, texture: $('texture').value, brand: $('brand').value, handle: $('handle').value, cta: $('cta').value, person: $('person').value, role: $('role').value, picture: $('picture').value })
     });
     const j = await r.json();
     if (!r.ok) throw new Error(j.error || 'Failed');

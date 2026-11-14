@@ -24,6 +24,9 @@ const PALETTES = {
   ember: D({ label: 'Ember', bg: '#1a0d06', bg2: '#3b1a0a', accent: '#ff9f1c', text: '#fff7ec', muted: '#c9a27a', onAccent: '#2b1400' }),
   vouchr: L({ label: 'Vouchr light', bg: '#ffffff', bg2: '#f7f5fc', accent: '#a428a5', text: '#17132b', muted: '#6e6890', onAccent: '#ffffff' }),
   vouchrnight: D({ label: 'Vouchr night', bg: '#17132b', bg2: '#2a2250', accent: '#cb3bcc', text: '#ffffff', muted: '#b4aed6', onAccent: '#ffffff' }),
+  devcyan: D({ label: 'Dev cyan', bg: '#070b12', bg2: '#0b1f3a', accent: '#00c2ff', text: '#e6edf5', muted: '#8ea0b4', onAccent: '#021018' }),
+  devmagenta: D({ label: 'Dev magenta', bg: '#0a0714', bg2: '#241038', accent: '#d65cf0', text: '#f3eaff', muted: '#a995c4', onAccent: '#1b0524' }),
+  devgreen: D({ label: 'Dev green', bg: '#06100c', bg2: '#0b2a1c', accent: '#2ee86b', text: '#e8fff0', muted: '#86b39a', onAccent: '#03140a' }),
   lilac: L({ label: 'Lilac', bg: '#f6f0ff', bg2: '#e2d4ff', accent: '#7c3aed', text: '#1f0f3d', muted: '#6f5a96', onAccent: '#ffffff' }),
 };
 
@@ -35,6 +38,8 @@ const FAMILIES = {
   soft: ['paper', 'vouchr', 'lilac', 'rose'],
   bold: ['bold', 'sunset', 'mono', 'neon'],
   india: ['saffron', 'navy', 'forest', 'paper'],
+  dev: ['devcyan', 'devmagenta', 'devgreen', 'vouchrnight'],
+  brand: ['vouchrnight', 'devcyan', 'devmagenta', 'vouchr'],
 };
 
 const TEXTURES = {
@@ -56,6 +61,7 @@ const TEXTURES = {
   stars: 'Starfield',
   bokeh: 'Soft bokeh',
   cross: 'Crosshatch',
+  circuit: 'Circuit board',
 };
 
 // Each template = a style pack. It suggests a colour family, some textures and which
@@ -79,11 +85,16 @@ const TEMPLATES = {
   lifestyle: { label: 'Lifestyle', family: 'soft', textures: ['waves', 'bokeh', 'grain', 'confetti'], energy: 'low' },
   review: { label: 'Review / Compare', family: 'india', textures: ['checks', 'cross', 'geo', 'dots'], energy: 'mid' },
   daily: { label: 'Daily update', family: 'fresh', textures: ['scan', 'stripes', 'grid', 'waves'], energy: 'mid' },
+  // developer / portfolio look (terminal window, circuit traces, framed picture)
+  terminal: { label: 'Terminal / Dev log', family: 'dev', textures: ['circuit', 'grid', 'scan', 'blueprint'], energy: 'mid', terminal: true },
+  circuit: { label: 'Circuit board / Embedded', family: 'dev', textures: ['circuit', 'hex', 'blueprint', 'mesh'], energy: 'high', terminal: true },
+  founder: { label: 'Founder story (with picture)', family: 'brand', textures: ['circuit', 'bokeh', 'mesh', 'grain'], energy: 'mid', pics: true, profile: true },
+  gallery: { label: 'Photo gallery (with pictures)', family: 'night', textures: ['grain', 'bokeh', 'mesh', 'dots'], energy: 'mid', pics: true, photoEvery: 2 },
 };
 
 const TRANSITIONS = ['fade', 'slide', 'wipe', 'zoom', 'flip', 'bounce', 'rise', 'drop', 'circle', 'spin', 'split', 'blinds', 'elastic', 'shake', 'swipeup'];
 const SCHEMES = ['base', 'pop', 'flip']; // colour change per beat: normal, accent background, light/dark flip
-const DECORS = ['none', 'orbs', 'sweep', 'rings', 'bars', 'sparks', 'waves', 'shapes', 'orbit', 'comets', 'confetti']; // animated background shapes (video)
+const DECORS = ['none', 'orbs', 'sweep', 'rings', 'bars', 'sparks', 'waves', 'shapes', 'orbit', 'comets', 'confetti', 'pulse']; // animated background shapes (video)
 const HEADERS = ['top', 'pill', 'bottom', 'side']; // where brand and handle sit
 const CSTYLES = ['chunk', 'pill', 'stack']; // caption look
 const ALIGNS = ['center', 'top', 'bottom'];
@@ -92,6 +103,7 @@ const ALIGNS = ['center', 'top', 'bottom'];
 const KINDS = [
   'caption', 'kinetic', 'counter', 'checklist', 'steps', 'quote',
   'qa', 'mythfact', 'compare', 'progress', 'alert', 'cta', 'keyword', 'stats', 'bars', 'spot',
+  'terminal', 'photo', 'profile',
 ];
 
 const EMOTIONS = ['neutral', 'excited', 'serious', 'curious', 'calm'];

@@ -179,6 +179,16 @@ function decide(sc, i, n) {
   return { kind: 'caption', data: {} };
 }
 
+// what the plan may use from outside the script: pictures and who is speaking
+const CTX = { pics: 0, person: '', role: '', meta: {} };
+function setContext(parsed) {
+  const m = (parsed && parsed.meta) || {};
+  CTX.meta = m;
+  CTX.pics = parsed && Array.isArray(parsed.pictures) ? parsed.pictures.length : 0;
+  CTX.person = String(m.person || m.brand || '').trim();
+  CTX.role = String(m.role || '').trim();
+}
+
 // ------------------------------------------------------------ seeded randomness
 // Every run draws a fresh seed (recorded in the plan and report), so the same topic
 // does not always get the same look. Put "seed: 123" in the script header to repeat a look.
@@ -221,11 +231,15 @@ const TEMPLATE_RULES = [
   ['lifestyle', /routine|habit|morning|health|\bhome\b|\bfood|travel|daily life/gi],
   ['review', /review|\bvs\b|compare|better|\bpros\b|\bcons\b|rating/gi],
   ['daily', /today|this week|\bupdate|latest|\bnews\b|report/gi],
+  ['terminal', /\bcode\b|terminal|command|developer|\bgit\b|\bapi\b|deploy|debug|\bbug|repo|github|script|stack/gi],
+  ['circuit', /embedded|hardware|\bchip|sensor|arduino|esp-?32|\biot\b|robot|circuit|microcontroller|raspberry|firmware/gi],
+  ['founder', /founder|my journey|i started|i built|dantewada|vouchr|novaforge|our team|startup story|my story/gi],
+  ['gallery', /photo|picture|gallery|moments|\bvisit|memories|behind the scenes|\bevent\b/gi],
 ];
 
-function pickTemplate(text, r) {
+function pickTemplate(text, r, hint = {}) {
   // your ratings count too: a liked template gets a bonus, a disliked one is dropped when there is a choice
-  const scored = TEMPLATE_RULES.map(([id, re]) => [id, (text.match(re) || []).length]).filter(([, n]) => n > 0).map(([id, n]) => [id, n + 2 * cal.score('template', id)]).sort((a, b) => b[1] - a[1]);
+  const scored = TEMPLATE_RULES.map(([id, re]) => [id, (text.match(re) || []).length + (hint.pics && id === 'founder' ? 2 : 0) + (hint.pics && id === 'gallery' ? 1 : 0)]).filter(([, n]) => n > 0).map(([id, n]) => [id, n + 2 * cal.score('template', id)]).sort((a, b) => b[1] - a[1]);
   const fine = scored.filter(([id]) => !cal.avoided('template', id));
   const list = fine.length ? fine : scored;
   if (!list.length || list[0][1] <= 0) {
@@ -302,6 +316,9 @@ function strings(kind, d) {
     case 'compare': return [d.left && d.left.text, d.right && d.right.text];
     case 'checklist': case 'steps': return (d.items || []).map((i) => i && i.text);
     case 'stats': case 'bars': return (d.items || []).map((i) => i && i.label);
+    case 'terminal': return (d.lines || []).map((l) => l && l.out);
+    case 'photo': return [d.line];
+    case 'profile': return [d.line];
     default: return [];
   }
 }
@@ -359,6 +376,27 @@ function finalize(kind, d, beatText) {
     o.prefix = isStr(o.prefix) ? String(o.prefix).slice(0, 3) : '';
     o.suffix = isStr(o.suffix) ? String(o.suffix).slice(0, 10) : '';
     spread(o.items, 'label');
+  }
+  if (kind === 'terminal') {
+    o.lines = o.lines.slice(0, 8).map((l) => (isStr(l.cmd) ? { cmd: String(l.cmd).slice(0, 40), frac: l.frac } : { out: cap(l.out, 14), frac: l.frac }));
+    let prev = -1;
+    o.lines.forEach((l, i) => {
+      let f = Number.isFinite(l.frac) ? l.frac : l.out ? locate(l.out, beatText) : null;
+      if (f == null) f = i / o.lines.length;
+      f = Math.max(f, prev + 0.02);
+      l.frac = Math.min(0.95, f);
+      prev = l.frac;
+    });
+  }
+  if (kind === 'photo') {
+    o.pic = Number.isInteger(Number(o.pic)) && Number(o.pic) >= 0 && Number(o.pic) < Math.max(1, CTX.pics) ? Number(o.pic) : 0;
+    o.line = isStr(o.line) ? cap(o.line, 16) : '';
+  }
+  if (kind === 'profile') {
+    o.pic = Number.isInteger(Number(o.pic)) && Number(o.pic) >= 0 && Number(o.pic) < Math.max(1, CTX.pics) ? Number(o.pic) : 0;
+    o.name = CTX.person; // name and role come from the header, never from the AI
+    o.role = CTX.role;
+    o.line = isStr(o.line) ? cap(o.line, 16) : '';
   }
   if (kind === 'spot') {
     o.line = cap(o.line, 14);
@@ -421,6 +459,7 @@ const BOLD_T = ['bounce', 'spin', 'drop', 'circle', 'shake', 'elastic', 'rise'];
 const SOFT_T = ['slide', 'wipe', 'zoom', 'split', 'blinds', 'swipeup', 'flip', 'fade'];
 const BOLD_D = ['sparks', 'rings', 'confetti', 'comets', 'bars', 'shapes'];
 const SOFT_D = ['orbs', 'sweep', 'waves', 'orbit', 'shapes'];
+const NO_SCHEME = new Set(['photo', 'profile', 'terminal']);
 const POP_OK = new Set(['counter', 'kinetic', 'alert', 'quote', 'progress', 'keyword', 'cta', 'mythfact', 'spot', 'stats']);
 const A_CAPTION = ['bottom', 'center', 'top'];
 const MID = { low: 0.32, mid: 0.48, high: 0.62 };
@@ -478,6 +517,10 @@ function assignMotion(plan, parsed, seed) {
       u.transition = pool[Math.floor(r() * pool.length)];
     }
     prevT = u.transition;
+    if (!u.scheme) {
+      let sch = 'base';
+      if (NO_SCHEME.has(u.kind)) u.scheme = 'base';
+    }
     if (!u.scheme) {
       let sch = 'base';
       const roll = r();
@@ -695,6 +738,60 @@ function ruleBeats(sc) {
 
 const SPLIT_KINDS = new Set(['counter', 'progress', 'alert', 'kinetic', 'caption', 'quote']);
 
+// picture and terminal beats (rules): swaps some plain caption / kinetic beats
+function enrich(scenes, parsed, tpl) {
+  const pics = CTX.pics;
+  const usePics = pics > 0 && (tpl.pics || !!parsed.meta.picture);
+  if (!usePics && !tpl.terminal) return;
+  const units = [];
+  scenes.forEach((s) => {
+    const sc = parsed.scenes.find((x) => x.index === s.index);
+    const segs = segmentRanges(sc.narration);
+    if (s.beats && s.beats.length > 1) s.beats.forEach((b) => units.push({ u: b, text: segs.slice(b.fromSentence, b.toSentence).map((x) => x.text).join(' ') || sc.narration, sc }));
+    else units.push({ u: s, text: sc.narration, sc });
+  });
+  if (units.length < 3) return;
+  const segText = (t) => segmentRanges(t).map((x) => x.text);
+  const slug = (h) => {
+    const x = String(h || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 18);
+    return x || 'note';
+  };
+  let photos = 0;
+  let terms = 0;
+  let profiled = false;
+  const every = tpl.photoEvery || 4;
+  let sinceP = 0;
+  let sinceT = 0;
+  units.forEach(({ u, text, sc }, k) => {
+    const plain = u.kind === 'caption' || u.kind === 'kinetic';
+    const wc = words(text).length;
+    sinceP++;
+    sinceT++;
+    if (!plain || k === 0 || wc < 5) return;
+    if (usePics && tpl.profile && !profiled && CTX.person && k >= 1) {
+      profiled = true;
+      u.kind = 'profile';
+      u.data = { pic: 0, line: cap(segText(text)[0] || text, 14) };
+      sinceP = 0;
+      return;
+    }
+    if (usePics && sinceP >= every && wc <= 40) {
+      u.kind = 'photo';
+      u.data = { pic: photos % pics, line: cap(text, 14) };
+      photos++;
+      sinceP = 0;
+      return;
+    }
+    if (tpl.terminal && sinceT >= 3 && wc >= 8 && wc <= 40) {
+      const outs = segText(text).slice(0, 4).map((x) => ({ out: cap(x, 14) }));
+      u.kind = 'terminal';
+      u.data = { lines: [{ cmd: `cat ${slug(sc.heading)}.txt` }, ...outs] };
+      terms++;
+      sinceT = 0;
+    }
+  });
+}
+
 function rulePlan(parsed, opts = {}) {
   const meta = parsed.meta || {};
   const seed = Number.isFinite(Number(meta.seed)) && meta.seed !== '' && meta.seed != null ? Number(meta.seed) : opts.seed != null ? opts.seed : Math.floor(Math.random() * 2147483647);
@@ -702,7 +799,8 @@ function rulePlan(parsed, opts = {}) {
   const n = parsed.scenes.length;
   const text = `${parsed.title} ${parsed.scenes.map((s) => `${s.heading} ${s.body}`).join(' ')}`;
 
-  const tid = TEMPLATES[meta.template] ? meta.template : pickTemplate(text, r);
+  setContext(parsed);
+  const tid = TEMPLATES[meta.template] ? meta.template : pickTemplate(text, r, { pics: CTX.pics > 0 && !!meta.picture });
   const t = TEMPLATES[tid];
 
   const scenes = parsed.scenes.map((sc, i) => {
@@ -717,6 +815,7 @@ function rulePlan(parsed, opts = {}) {
     };
   });
 
+  enrich(scenes, parsed, t);
   return validatePlan({ version: 3, source: 'rules', seed, template: tid, palette: PALETTES[meta.palette] ? meta.palette : FAMILIES[t.family][0], texture: TEXTURES[meta.texture] ? meta.texture : t.textures[0], transition: 'slide', scenes }, parsed);
 }
 
@@ -731,6 +830,9 @@ const CHECK = {
   stats: (d) => okItems(d.items, 2, 4, (i) => isFinite(Number(i.value)) && isStr(i.label)),
   bars: (d) => okItems(d.items, 2, 5, (i) => isFinite(Number(i.value)) && isStr(i.label)),
   spot: (d) => isStr(d.line),
+  terminal: (d) => okItems(d.lines, 1, 8, (l) => (isStr(l.cmd) && /^[\w.\-\/ ]{1,40}$/.test(String(l.cmd).trim())) || isStr(l.out)),
+  photo: (d) => CTX.pics > 0 && (d.pic == null || (Number.isInteger(Number(d.pic)) && Number(d.pic) >= 0 && Number(d.pic) < CTX.pics)),
+  profile: (d) => CTX.person.length > 0 && (d.pic == null || (Number.isInteger(Number(d.pic)) && Number(d.pic) >= 0 && Number(d.pic) < Math.max(1, CTX.pics))),
   keyword: (d) => isStr(d.word),
   quote: (d) => isStr(d.text),
   qa: (d) => isStr(d.q) && isStr(d.a),
@@ -744,6 +846,7 @@ const CHECK = {
 // Makes any plan (rules or AI) safe: unknown things are replaced, never trusted.
 // `fallback` = a validated rule plan; used wherever the given plan has nothing usable.
 function validatePlan(plan, parsed, fallback, diag) {
+  setContext(parsed);
   const p = plan && typeof plan === 'object' ? plan : {};
   const fb = fallback || null;
   const trust = p.source !== 'ai';
@@ -788,6 +891,14 @@ function validatePlan(plan, parsed, fallback, diag) {
         data = {};
       }
       beats = nb || (f && f.beats) || undefined;
+      // the carousel shows one visual per scene: let a picture / terminal beat represent a plain scene
+      if (beats && ['caption', 'kinetic', 'keyword'].includes(kind)) {
+        const pick = beats.find((x) => x.kind === 'profile') || beats.find((x) => x.kind === 'photo') || beats.find((x) => x.kind === 'terminal');
+        if (pick) {
+          kind = pick.kind;
+          data = JSON.parse(JSON.stringify(pick.data));
+        }
+      }
     }
     const emotion = EMOTIONS.includes(g.emotion) ? g.emotion : f ? f.emotion : 'neutral';
     const v = g.voice && typeof g.voice === 'object' ? g.voice : {};

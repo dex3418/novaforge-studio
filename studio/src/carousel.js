@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { renderScene, pageHtml } = require('./scenes');
+const { dataUri } = require('./pictures');
 
 const W = 1080;
 const H = 1350;
@@ -21,7 +22,7 @@ function buildSlides(parsed, theme, plan) {
   const lastIsCta = scenes.length && byIndex.get(scenes[scenes.length - 1].index).kind === 'cta';
   const total = scenes.length + 1 + (lastIsCta ? 0 : 1); // cover + scenes (+ closing)
 
-  const base = { mode: 'slide', w: W, h: H, plan, font: theme.font, brand, handle, total };
+  const base = { mode: 'slide', w: W, h: H, plan, font: theme.font, brand, handle, total, pics: (parsed.pictures || []).map((p) => dataUri(p.path)) };
   const slides = [];
 
   slides.push(

@@ -15,6 +15,7 @@ const { makeCarousel } = require('./carousel');
 const { rulePlan, describePlan } = require('./plan');
 const { direct } = require('./director');
 const { Report } = require('./report');
+const { preparePictures } = require('./pictures');
 
 const root = path.resolve(__dirname, '..');
 const theme = JSON.parse(fs.readFileSync(path.join(root, 'theme.json'), 'utf8'));
@@ -86,6 +87,14 @@ async function build(file, only) {
       return { status: st, summary: `${p.scenes.length} scenes, ${total} words (~${(total / 2.6 / 60).toFixed(1)} min spoken)`, details: d, value: p };
     });
     if (parsed.meta.caption) fs.writeFileSync(path.join(outDir, `${slug}-caption.txt`), parsed.meta.caption + '\n');
+
+    // 2b ------------------------------------------------------------ pictures
+    parsed.pictures = [];
+    const pics = await preparePictures(parsed, root);
+    if (pics.wanted) {
+      parsed.pictures = pics.pics;
+      report.add('2b Pictures', pics.warn ? (pics.pics.length ? 'warn' : 'warn') : 'ok', `${pics.pics.length} of ${pics.wanted} pictures ready`, pics.notes);
+    }
 
     // 3 + 4 --------------------------------------------------------- director and plan
     let plan = rulePlan(parsed);

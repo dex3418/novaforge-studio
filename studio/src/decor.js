@@ -115,6 +115,23 @@ function decorHtml(kind, pal, t, w, h, u, seed) {
       }
       return out;
     }
+    case 'pulse': {
+      // green current running along circuit traces (the portfolio's background)
+      const { traces } = require('./circuit');
+      const list = traces(5 + sd, w, h, 14, Math.round(Math.min(w, h) / 12));
+      const green = '#2ee86b';
+      let paths = '';
+      let pads = '';
+      list.forEach((l, i) => {
+        const col = i % 3 === 0 ? pal.accent : green;
+        const speed = [0.55, 0.3, 0.8][i % 3];
+        const off = 100 - (((t * speed + i * 0.37) % 1) * 130 - 15);
+        paths += `<path d="${l.d}" pathLength="100" stroke="${rgba(pal.accent, 0.16)}" stroke-width="${2 * u}"/>` +
+          `<path d="${l.d}" pathLength="100" stroke="${col}" stroke-width="${3.5 * u}" stroke-linecap="round" stroke-dasharray="9 91" stroke-dashoffset="${off}"/>`;
+        pads += `<circle cx="${l.end[0]}" cy="${l.end[1]}" r="${6 * u}" fill="${pal.bg}" stroke="${rgba(pal.accent, 0.4)}" stroke-width="${2 * u}"/>`;
+      });
+      return `<svg style="position:absolute;inset:0" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" fill="none" stroke-linejoin="round">${paths}${pads}</svg>`;
+    }
     default:
       return '';
   }

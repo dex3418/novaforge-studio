@@ -110,6 +110,7 @@ function makeCtx(o) {
     num: o.num || sc.index || 1,
     pageLabel: o.pageLabel || '',
     footLeft: o.footLeft || '',
+    pics: o.pics || [],
   };
   // seconds at which `frac` (0..1) of the narration has been spoken
   ctx.at = (frac) => {
@@ -541,6 +542,90 @@ const STAGES = {
     );
   },
 
+  // a terminal window that types the beat's lines (portfolio look)
+  terminal(ctx, sc) {
+    const u = ctx.u;
+    const lines = ((sc.data && sc.data.lines) || []).slice(0, 8);
+    if (!lines.length) throw new Error('no lines');
+    const { pal } = ctx;
+    const MONO = "'JetBrains Mono','DejaVu Sans Mono','Noto Sans Mono',ui-monospace,monospace,'Noto Sans Devanagari'";
+    const longest = Math.max(...lines.map((l) => String(l.out || l.cmd || '').length + (l.cmd ? 4 : 0)), 1);
+    const total = lines.reduce((a, l) => a + Math.ceil((String(l.out || l.cmd || '').length + 4) / (ctx.long ? 46 : 30)), 0);
+    const fs = Math.min(fit(longest, [[22, 56], [34, 48], [1e9, 42]]), fit(total, [[5, 60], [8, 48], [12, 40], [1e9, 34]])) * u * (ctx.long ? 0.9 : 1);
+    let lastTyping = -1;
+    const rows = lines.map((l, i) => {
+      const text = String(l.out != null ? l.out : l.cmd);
+      const t0 = ctx.video ? ctx.at(l.frac != null ? l.frac : i / lines.length) : 0;
+      const cps = l.cmd ? 34 : 70;
+      const n = ctx.video ? Math.max(0, Math.min(text.length, Math.floor((ctx.t - t0) * cps * ctx.speed))) : text.length;
+      if (ctx.video && ctx.t >= t0) lastTyping = i;
+      if (ctx.video && ctx.t < t0 && !(i === 0)) return '';
+      const shown = esc(text.slice(0, n));
+      return l.cmd
+        ? `<div style="margin-bottom:${14 * u}px"><span style="color:${pal.muted}">~</span> <span style="color:#2ee86b">$</span> <span style="color:${pal.accent}">${shown}</span>${n >= text.length ? '' : '<span></span>'}</div>`
+        : `<div style="margin-bottom:${14 * u}px;color:${pal.text};padding-left:${fs * 0.2}px">${shown}</div>`;
+    });
+    const blink = !ctx.video || Math.floor(ctx.t * 2) % 2 === 0;
+    const win = ctx.b(0, 0.7);
+    const dot = (c) => `<span style="display:inline-block;width:${22 * u}px;height:${22 * u}px;border-radius:50%;background:${c};margin-right:${14 * u}px"></span>`;
+    const title = esc(ctx.handle || ctx.brand || 'studio');
+    return (
+      `<div style="border-radius:${26 * u}px;overflow:hidden;background:${rgba(mix(pal.bg, '#000000', 0.45), 0.88)};border:${2 * u}px solid ${rgba(pal.accent, 0.3)};box-shadow:0 ${24 * u}px ${70 * u}px rgba(0,0,0,.45);transform:scale(${0.92 + 0.08 * Math.min(1, win)});opacity:${Math.min(1, win * 1.5)}">` +
+      `<div style="display:flex;align-items:center;padding:${22 * u}px ${28 * u}px;background:rgba(255,255,255,0.05);border-bottom:${2 * u}px solid rgba(255,255,255,0.07)">${dot('#cb3bcc')}${dot('#29b937')}${dot('#018bba')}<span style="margin-left:${10 * u}px;font-family:${MONO};font-size:${28 * u}px;color:${pal.muted}">${title}</span></div>` +
+      `<div style="padding:${34 * u}px ${34 * u}px ${24 * u}px;font-family:${MONO};font-size:${fs}px;line-height:1.35;word-break:break-word;overflow-wrap:anywhere">${rows.join('')}` +
+      `<div><span style="color:${pal.muted}">~</span> <span style="color:#2ee86b">$</span> <span style="display:inline-block;width:${fs * 0.55}px;height:${fs * 0.95}px;vertical-align:text-bottom;background:${pal.accent};opacity:${blink ? 0.9 : 0}"></span></div></div></div>`
+    );
+  },
+
+  // the text over a full-picture background (the picture itself is drawn by renderScene)
+  photo(ctx, sc) {
+    const u = ctx.u;
+    const d = sc.data || {};
+    if (!ctx.pics[Number(d.pic) || 0]) throw new Error('picture missing');
+    const line = String(d.line || '');
+    const size = fit(line.length, [[28, 96], [60, 78], [110, 62], [1e9, 50]]) * u * (ctx.long ? 0.85 : 1);
+    const p = ctx.a(0.15, 0.7);
+    return (
+      `<div style="height:${12 * u}px;width:${150 * u * p}px;background:${ctx.pal.accent};border-radius:${6 * u}px;margin-bottom:${30 * u}px"></div>` +
+      (line ? `<div style="font-size:${size}px;font-weight:800;line-height:1.14;color:#ffffff;text-shadow:0 ${4 * u}px ${28 * u}px rgba(0,0,0,.6);opacity:${p};transform:translateY(${(1 - p) * 40 * u}px)">${esc(line)}</div>` : '') +
+      '<div style="height:' + 26 * u + 'px"></div>'
+    );
+  },
+
+  // framed picture with name and role (portfolio profile card)
+  profile(ctx, sc) {
+    const u = ctx.u;
+    const d = sc.data || {};
+    const { pal } = ctx;
+    const src = ctx.pics[Number(d.pic) || 0];
+    const p = ctx.b(0.05, 0.8);
+    const size = (ctx.long ? 400 : 440) * u;
+    const arm = 74 * u;
+    const th = 7 * u;
+    const out = (1 - Math.min(1, p)) * 60 * u; // brackets slide in from outside
+    const corner = (css) => `<div style="position:absolute;width:${arm}px;height:${arm}px;${css}"></div>`;
+    const bc = `${th}px solid ${pal.accent}`;
+    const frame =
+      `<div style="position:relative;flex:none;width:${size}px;height:${size}px;transform:scale(${0.75 + 0.25 * Math.min(1, p)});opacity:${Math.min(1, p * 1.6)}">` +
+      `<div style="position:absolute;inset:${22 * u}px;border-radius:${30 * u}px;overflow:hidden;background:${pal.card}">${src ? `<img src="${esc(src)}" style="width:100%;height:100%;object-fit:cover">` : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:${size * 0.5}px;font-weight:800;color:${pal.accent}">${esc(String(d.name || ctx.brand || '?').charAt(0).toUpperCase())}</div>`}</div>` +
+      corner(`left:${-out}px;top:${-out}px;border-left:${bc};border-top:${bc};border-top-left-radius:${16 * u}px`) +
+      corner(`right:${-out}px;top:${-out}px;border-right:${bc};border-top:${bc};border-top-right-radius:${16 * u}px`) +
+      corner(`left:${-out}px;bottom:${-out}px;border-left:${bc};border-bottom:${bc};border-bottom-left-radius:${16 * u}px`) +
+      corner(`right:${-out}px;bottom:${-out}px;border-right:${bc};border-bottom:${bc};border-bottom-right-radius:${16 * u}px`) +
+      '</div>';
+    const MONO = "'JetBrains Mono','DejaVu Sans Mono',ui-monospace,monospace,'Noto Sans Devanagari'";
+    const a2 = ctx.a(0.35, 0.6);
+    const a3 = ctx.a(0.6, 0.6);
+    const text =
+      `<div style="min-width:0;opacity:${a2};transform:translateY(${(1 - a2) * 30 * u}px)">` +
+      `<div style="font-size:${fit(String(d.name || '').length, [[16, 84], [26, 68], [1e9, 54]]) * u}px;font-weight:800;line-height:1.1;letter-spacing:-0.02em">${esc(d.name || ctx.brand || '')}</div>` +
+      (d.role ? `<div style="margin-top:${14 * u}px;font-family:${MONO};font-size:${36 * u}px;color:${pal.accent}">${esc(d.role)}</div>` : '') +
+      (d.line ? `<div style="margin-top:${30 * u}px;font-size:${fit(String(d.line).length, [[60, 52], [120, 44], [1e9, 38]]) * u}px;line-height:1.3;color:${pal.text};opacity:${a3}">${esc(d.line)}</div>` : '') +
+      (ctx.handle ? `<div style="display:inline-block;margin-top:${30 * u}px;padding:${12 * u}px ${28 * u}px;border-radius:999px;border:${2 * u}px solid ${rgba(pal.accent, 0.5)};font-family:${MONO};font-size:${30 * u}px;color:${pal.muted};opacity:${a3}">${esc(ctx.handle)}</div>` : '') +
+      '</div>';
+    return `<div style="display:flex;flex-direction:${ctx.long ? 'row' : 'column'};gap:${(ctx.long ? 64 : 48) * u}px;align-items:${ctx.long ? 'center' : 'flex-start'}">${frame}${text}</div>`;
+  },
+
   // silent closing card (videos only)
   endcard(ctx, sc) {
     const u = ctx.u;
@@ -565,6 +650,23 @@ const STAGES = {
     );
   },
 };
+
+// full-frame picture with a slow zoom (Ken Burns) and a dark gradient for the text
+function photoBg(ctx, sc) {
+  const d = sc.data || {};
+  const src = ctx.pics[Number(d.pic) || 0];
+  if (!src) return '';
+  const prog = ctx.video ? Math.min(1, ctx.t / Math.max(1, ctx.sceneFrames / ctx.fps)) : 0.35;
+  const dir = ((sc.index || 0) + (Number(d.pic) || 0)) % 4;
+  const z = 1.06 + 0.1 * prog;
+  const dx = [-1, 1, 0, 0][dir] * 2.2 * (prog - 0.5);
+  const dy = [0, 0, -1, 1][dir] * 2.2 * (prog - 0.5);
+  const fade = ctx.video ? Math.min(1, ctx.t / 0.35) : 1;
+  return (
+    `<div style="position:absolute;inset:0;overflow:hidden;opacity:${fade}"><img src="${esc(src)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:translate(${dx}%,${dy}%) scale(${z})"></div>` +
+    '<div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.86) 0%,rgba(0,0,0,.5) 38%,rgba(0,0,0,.12) 70%,rgba(0,0,0,.35) 100%)"></div>'
+  );
+}
 
 function renderStage(ctx, sc) {
   const fn = STAGES[sc.kind] || STAGES.caption;
@@ -604,14 +706,15 @@ function renderScene(o) {
   const foot = video
     ? bottom
     : `<div style="display:flex;justify-content:space-between;font-size:${28 * u}px;color:${pal.muted};height:${40 * u}px"><span>${esc(ctx.footLeft)}</span><span>${esc(ctx.pageLabel)}</span></div>`;
-  const justify = { top: 'flex-start', bottom: 'flex-end', center: 'center' }[video ? sc.align : 'center'] || 'center';
+  const justify = sc.kind === 'photo' ? 'flex-end' : { top: 'flex-start', bottom: 'flex-end', center: 'center' }[video ? sc.align : 'center'] || 'center';
   const decor = video ? decorHtml(sc.decor || ctx.plan.decor || 'none', pal, ctx.t, w, h, u, sc.index || 0) : '';
   return (
     `<div class="nf" style="position:relative;width:${w}px;height:${h}px;overflow:hidden;font-family:${ctx.font};color:${pal.text};background:linear-gradient(160deg,${pal.bg} 0%,${pal.bg2} 100%)">` +
     `<div style="position:absolute;inset:0;${tx}"></div>` +
+    (sc.kind === 'photo' ? photoBg(ctx, sc) : '') +
     `<div style="position:absolute;width:${760 * u}px;height:${760 * u}px;border-radius:50%;top:${-260 * u}px;right:${-260 * u}px;background:radial-gradient(circle,${rgba(pal.accent, 0.2)} 0%,transparent 70%)"></div>` +
     decor +
-    (video && sc.icon && sc.kind !== 'spot' ? objectIcon(ctx, sc.icon) : '') +
+    (video && sc.icon && !['spot', 'photo', 'profile', 'terminal'].includes(sc.kind) ? objectIcon(ctx, sc.icon) : '') +
     side +
     `<div style="position:absolute;inset:0;padding:${P}px;display:flex;flex-direction:column">` +
     top +

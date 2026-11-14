@@ -94,6 +94,20 @@ function textureStyle(id, pal, t, px) {
       return `background-image:repeating-linear-gradient(45deg, rgba(${ink},0.06) 0, rgba(${ink},0.06) ${1.5 * u}px, transparent ${1.5 * u}px, transparent ${18 * u}px),repeating-linear-gradient(-45deg, rgba(${ink},0.06) 0, rgba(${ink},0.06) ${1.5 * u}px, transparent ${1.5 * u}px, transparent ${18 * u}px);background-position:${drift}px 0`;
     case 'rings':
       return `background-image:repeating-radial-gradient(circle at 100% 100%, ${rgba(pal.accent, 0.2)} 0, ${rgba(pal.accent, 0.2)} ${2 * u}px, transparent ${2 * u}px, transparent ${44 * u}px),repeating-radial-gradient(circle at 0% 0%, ${rgba(pal.accent, 0.1)} 0, ${rgba(pal.accent, 0.1)} ${2 * u}px, transparent ${2 * u}px, transparent ${52 * u}px)`;
+    case 'circuit': {
+      const { traces } = require('./circuit');
+      const S = 520;
+      const list = traces(11, S, S, 9, 40);
+      const a = pal.dark ? 0.2 : 0.16;
+      const col = pal.accent;
+      const svg =
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${S}" height="${S}" viewBox="0 0 ${S} ${S}"><g fill="none" stroke="${col}" stroke-opacity="${a}" stroke-width="2" stroke-linejoin="round">` +
+        list.map((l) => `<path d="${l.d}"/>`).join('') +
+        `</g><g fill="${pal.bg}" stroke="${col}" stroke-opacity="${a + 0.1}" stroke-width="2">` +
+        list.map((l) => `<circle cx="${l.end[0]}" cy="${l.end[1]}" r="6"/><circle cx="${l.start[0]}" cy="${l.start[1]}" r="4"/>`).join('') +
+        '</g></svg>';
+      return `background-image:${svgUrl(svg)};background-size:${S * u}px ${S * u}px;background-position:${-drift}px ${Math.round(drift / 2)}px`;
+    }
     default:
       return '';
   }

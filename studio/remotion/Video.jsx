@@ -1,5 +1,6 @@
 import React from 'react';
-import { AbsoluteFill, Audio, Sequence, staticFile, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
+import { AbsoluteFill, Audio, Sequence, staticFile, interpolate, useCurrentFrame, useVideoConfig, delayRender, continueRender } from 'remotion';
+import { useLayoutEffect, useRef } from 'react';
 import { renderScene, currentWordIndex } from '../src/scenes';
 
 // Cuts a scene into its beats (each with its own visual) using the real speech timing.
@@ -27,7 +28,7 @@ function beatFrames(scene) {
 }
 
 // One scene. All drawing is done by the shared scene library (same code as the carousel).
-const Scene = ({ scene, plan, theme, brand, handle, total, w, h }) => {
+const Scene = ({ scene, plan, theme, brand, handle, total, w, h, pics }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   let sc = scene;
@@ -67,13 +68,24 @@ const Scene = ({ scene, plan, theme, brand, handle, total, w, h }) => {
   const html = renderScene({
     mode: 'video', w, h, plan, scene: sc, frame: local, fps,
     sceneFrames, audioFrames, wordIdx, wordFrames,
-    font: theme.font, brand, handle, total, num: scene.index,
+    font: theme.font, brand, handle, total, num: scene.index, pics,
   });
+  // pictures inside the HTML must be decoded before the frame is captured
+  const ref = useRef(null);
+  const hasImg = html.includes('<img');
+  useLayoutEffect(() => {
+    if (!hasImg || !ref.current) return undefined;
+    const hd = delayRender('pictures');
+    const imgs = Array.from(ref.current.querySelectorAll('img'));
+    Promise.all(imgs.map((i) => (i.decode ? i.decode().catch(() => {}) : Promise.resolve()))).then(() => continueRender(hd), () => continueRender(hd));
+    return undefined;
+  }, [html, hasImg]);
   const fadeOut = scene.end ? 1 : interpolate(frame, [scene.frames - 5, scene.frames], [1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
-  return <AbsoluteFill style={{ opacity: fadeOut }} dangerouslySetInnerHTML={{ __html: html }} />;
+  return <AbsoluteFill ref={ref} style={{ opacity: fadeOut }} dangerouslySetInnerHTML={{ __html: html }} />;
 };
 
-export const Video = ({ scenes, plan, theme, brand, handle, musicFile }) => {
+export const Video = ({ scenes, plan, theme, brand, handle, musicFile, pics }) => {
+  const picUrls = (pics || []).map((p) => staticFile(p));
   const frame = useCurrentFrame();
   const { durationInFrames, width, height } = useVideoConfig();
   let from = 0;
@@ -84,7 +96,7 @@ export const Video = ({ scenes, plan, theme, brand, handle, musicFile }) => {
         const seq = (
           <Sequence key={s.index} from={from} durationInFrames={s.frames}>
             {s.audio ? <Audio src={staticFile(s.audio)} /> : null}
-            <Scene scene={s} plan={plan} theme={theme} brand={brand} handle={handle} total={scenes.length} w={width} h={height} />
+            <Scene scene={s} plan={plan} theme={theme} brand={brand} handle={handle} total={scenes.length} w={width} h={height} pics={picUrls} />
           </Sequence>
         );
         from += s.frames;

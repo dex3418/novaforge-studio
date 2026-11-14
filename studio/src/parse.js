@@ -174,6 +174,9 @@ function parseText(src, slug) {
       captions: (meta.captions || '').toLowerCase(),
       seed: (meta.seed || '').toString().trim(),
       note: (meta.note || '').toString().trim().slice(0, 400),
+      picture: (meta.picture || '').toString().trim().slice(0, 400),
+      person: (meta.person || '').toString().trim().slice(0, 60),
+      role: (meta.role || '').toString().trim().slice(0, 80),
     },
     scenes: out,
   };
