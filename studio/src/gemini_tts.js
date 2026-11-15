@@ -7,6 +7,7 @@
 const fs = require('fs');
 const { execFileSync } = require('child_process');
 
+const { POLISH } = require('./natural_polish');
 const RATE = 24000; // Gemini returns 16-bit mono PCM at 24 kHz
 const MODELS = (process.env.GEMINI_TTS_MODEL ? [process.env.GEMINI_TTS_MODEL] : []).concat([
   'gemini-3.8-flash-tts',
@@ -37,6 +38,7 @@ function toPcm(buf, mime) {
   return { pcm: buf, rate: m ? Number(m[1]) : RATE };
 }
 
+const BASE = 'Speak like a real person explaining something useful to a friend: natural rhythm, small pauses, light emphasis on the key words and numbers, never an announcer or a robot.';
 const TONE = {
   excited: 'in an excited, upbeat way',
   serious: 'in a serious, clear way',
@@ -44,17 +46,31 @@ const TONE = {
   calm: 'in a calm, gentle way',
 };
 
+// Split at whitespace after . ! ? or the Hindi danda; never inside 3.5 or after Dr. / Rs. / No.
 function sentences(text) {
-  const parts = String(text).match(/[^.!?।]+[.!?।]*\s*/g) || [text];
-  return parts.map((s) => s.trim()).filter(Boolean);
+  const parts = String(text).trim().split(/(?<=[.!?\u0964])\s+/);
+  const out = [];
+  for (const s of parts) {
+    if (out.length && /(?:^|\s)(?:Dr|Mr|Mrs|Ms|St|No|Rs|vs|Sr|Jr|Prof)\.$/i.test(out[out.length - 1])) out[out.length - 1] += ' ' + s;
+    else out.push(s);
+  }
+  return out.map((s) => s.trim()).filter(Boolean);
 }
 
-async function callOnce(model, key, text, voice, style) {
+function directionFor(style, delivery, si, n, text) {
+  const bits = [BASE];
   const tone = TONE[style] || (style && style !== 'neutral' ? `in a ${String(style).slice(0, 60)} way` : '');
+  if (delivery) bits.push(String(delivery).replace(/^say\s+/i, '').replace(/^./, (c) => c.toUpperCase()).slice(0, 160).replace(/[.\s]*$/, '.'));
+  else if (tone) bits.push(`Speak ${tone}.`);
+  if (/\?\s*$/.test(text)) bits.push('This is a question: let the end lift.');
+  else if (si === n - 1) bits.push('This is the last line: slow slightly and land it with a settled ending.');
+  else if (si === 0) bits.push('This opens the scene: start warm and with interest.');
+  return bits.join(' ');
+}
+
+async function callOnce(model, key, text, voice, direction) {
   const legacy = isLegacy(model);
-  const reqPart = legacy
-    ? { text: tone ? `Say ${tone}: ${text}` : text }
-    : tone ? { text, speech_metadata: { style: `Speak ${tone}.` } } : { text };
+  const reqPart = legacy ? { text: `Say in this style (${direction}): ${text}` } : { text, speech_metadata: { style: direction } };
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
@@ -79,12 +95,12 @@ async function callOnce(model, key, text, voice, style) {
   return toPcm(Buffer.from(data.inlineData.data, 'base64'), data.inlineData.mimeType);
 }
 
-async function oneSentence(key, text, voice, style, state) {
+async function oneSentence(key, text, voice, direction, state) {
   let lastErr;
   for (const model of state.models) {
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
-        const out = await callOnce(model, key, text, voice, style);
+        const out = await callOnce(model, key, text, voice, direction);
         state.models = [model, ...state.models.filter((m) => m !== model)]; // keep the one that works
         return out;
       } catch (e) {
@@ -98,7 +114,7 @@ async function oneSentence(key, text, voice, style, state) {
 }
 
 // tempo: 1 = normal. Returns { timing }.
-async function geminiSynth(text, outFile, { voice, style, tempo }) {
+async function geminiSynth(text, outFile, { voice, style, tempo, delivery }) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error('GEMINI_API_KEY is not set');
   const state = { models: MODELS.slice() };
@@ -106,20 +122,27 @@ async function geminiSynth(text, outFile, { voice, style, tempo }) {
   const marks = [];
   let t = 0;
   let rate = RATE;
-  for (const s of sentences(text)) {
-    const out = await oneSentence(key, s, voice, style, state);
+  const list = sentences(text);
+  for (let si = 0; si < list.length; si++) {
+    const s = list[si];
+    const out = await oneSentence(key, s, voice, directionFor(style, delivery, si, list.length, s), state);
     const pcm = out.pcm;
     rate = out.rate;
     const dur = pcm.length / 2 / rate;
     marks.push({ text: s, start: t, end: t + dur });
     chunks.push(pcm);
     t += dur;
+    if (si < list.length - 1) {
+      const gap = /\?\s*$/.test(s) ? 0.3 : 0.22; // a breath between sentences
+      chunks.push(Buffer.alloc(Math.round(gap * rate) * 2));
+      t += gap;
+    }
   }
   const raw = outFile.replace(/\.mp3$/i, '') + '.pcm';
   fs.writeFileSync(raw, Buffer.concat(chunks));
   const args = ['-y', '-v', 'error', '-f', 's16le', '-ar', String(rate), '-ac', '1', '-i', raw];
   const k = tempo && Math.abs(tempo - 1) > 0.005 ? tempo : 1;
-  if (k !== 1) args.push('-filter:a', `atempo=${k.toFixed(3)}`);
+  args.push('-filter:a', (k !== 1 ? `atempo=${k.toFixed(3)},` : '') + POLISH);
   args.push('-b:a', '128k', outFile);
   execFileSync('ffmpeg', args);
   fs.unlinkSync(raw);

@@ -117,8 +117,10 @@ const VOICES = {
     { id: 'en-IN-NeerjaExpressiveNeural', label: 'Neerja Expressive - Indian English' },
     { id: 'en-US-AvaMultilingualNeural', label: 'Ava - multilingual (test first)' },
     { id: 'en-US-AndrewMultilingualNeural', label: 'Andrew - multilingual (test first)' },
+    { id: 'en-US-EmmaMultilingualNeural', label: 'Emma - multilingual (test first)' },
+    { id: 'en-US-BrianMultilingualNeural', label: 'Brian - multilingual (test first)' },
   ],
-  gemini: ['Kore', 'Puck', 'Charon', 'Zephyr', 'Fenrir', 'Leda', 'Aoede', 'Sulafat'].map((n) => ({
+  gemini: ['Kore', 'Puck', 'Charon', 'Zephyr', 'Fenrir', 'Leda', 'Aoede', 'Sulafat', 'Achird', 'Sadaltager', 'Callirrhoe', 'Orus', 'Gacrux', 'Algieba'].map((n) => ({
     id: n,
     label: n + ' (Gemini)',
   })),

@@ -58,6 +58,8 @@ function speakable(t) {
     .replace(/https?:\/\/(?:www\.)?([^\s/)]+)[^\s)]*/gi, (_, host) => host.replace(/\./g, ' dot '))
     .replace(new RegExp(SYMB + NUM + UNIT + '\\s*[\u2011\u2010\u2013\u2014-]\\s*(?:\u20B9|Rs\\.?)?\\s?' + NUM + UNIT, 'gi'), (m, a, u1, b, u2) => `${a}${unit(u1 || u2) && !u1 ? '' : unit(u1)} to ${b}${unit(u2)} rupees`)
     .replace(new RegExp(SYMB + NUM + UNIT, 'gi'), (m, n, u) => `${n}${unit(u)} rupees`)
+    .replace(/(?<=[^\d\s])\s+[\u2013\u2014-]\s+(?=[^\d\s])/g, ', ') // a spaced dash between words is a breath
+    .replace(/\.{3,}|\u2026/g, ', ')
     .replace(/\u2248/g, ' about ')
     .replace(/\s?\u00D7\s?/g, ' by ')
     .replace(/\u2011|\u2010/g, '-')

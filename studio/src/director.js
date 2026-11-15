@@ -66,7 +66,7 @@ RULES
 3. PACING: open strong (first 2 beats are bold visuals), keep the middle moving with a bold visual every 3rd or 4th beat, and build energy toward the end. Long scenes need MORE beats with different kinds, never one long caption.
 4. NEVER invent anything. Every number, name and phrase you put in "data" must come from the spoken text of that scene or from the author's notes for it. You may trim and pick, not add. If nothing fits, use caption with data {}.
 5. Use a counter only when the beat's key point is one number (or one range). Use checklist/steps only when the beat really lists items.
-6. For each scene also give "emotion" (one of ${EMOTIONS.join(', ')}) and "rateDelta" (-10 to 10, speaking speed change in percent). Excited +5, serious -5.
+6. For each scene also give "emotion" (one of ${EMOTIONS.join(', ')}) and "rateDelta" (-10 to 10, speaking speed change in percent). Excited +5, serious -5. Also give "voice":{"style":"..."}: at most 14 words telling a human narrator HOW to say this scene (warm, conversational, slows down on the numbers, quicker on the list, lets the last line land). Never repeat the same style for every scene.
 7. Pick one "template" (${Object.keys(TEMPLATES).join(', ')}) and "palette" (${Object.keys(PALETTES).join(', ')}) and "texture" (${Object.keys(TEXTURES).join(', ')}) for the post. Colours and textures are independent of the template: you may also set "palette" and "texture" per scene to change the look as the video goes on, and "icon" per beat.
 8. YOU decide the motion for EVERY beat (do not leave it to the system): "transition" (one of ${TRANSITIONS.join(', ')}), "scheme" (${SCHEMES.join(', ')}: pop = accent-colour background for a punchy beat, flip = light/dark swap, base = normal), "decor" (${DECORS.join(', ')}), "cstyle" (chunk, pill, stack: caption look, only matters for captions), "icon" (one of the icon names, only when a concrete object is mentioned). Match the energy of the words: bold transitions (bounce, spin, drop, circle, shake, elastic) and pop colours for strong moments, soft ones (slide, wipe, zoom, fade, split) for calm explanation. Never repeat the same transition twice in a row, use at least 6 different transitions in a long video, and change the colour scheme at least every 4th beat.
 9. Optional "emphasis": up to 6 words/numbers from the beat to highlight.
@@ -75,7 +75,7 @@ RULES
 
 OUTPUT SHAPE
 {"template":"..","palette":"..","texture":"..","caption":"..",
- "scenes":[{"index":1,"palette":"..","texture":"..","emotion":"neutral","rateDelta":0,
+ "scenes":[{"index":1,"palette":"..","texture":"..","emotion":"neutral","rateDelta":0,"voice":{"style":".."},
    "beats":[{"fromSentence":0,"toSentence":2,"kind":"counter","transition":"..","scheme":"..","decor":"..","icon":"..","emotion":"neutral","emphasis":["..."],"data":{...}}]}]}
 
 ${pictureText(parsed)}${calibration.promptText()}${parsed.meta && parsed.meta.note ? `REQUEST FOR THIS VIDEO (from the user, follow it as far as the rules allow): ${parsed.meta.note}\n\n` : ''}POST TITLE: ${parsed.title}

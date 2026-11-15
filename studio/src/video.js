@@ -38,6 +38,8 @@ async function makeAudio(parsed, plan, root) {
       voice: parsed.meta.voice,
       rate,
       style: parsed.meta.style || p.emotion || '',
+      emotion: p.emotion || 'neutral',
+      delivery: (p.voice && p.voice.style) || '',
     });
     const dur = durationSeconds(file);
     const words = s.narration.split(/\s+/).filter(Boolean);
@@ -55,7 +57,7 @@ async function makeAudio(parsed, plan, root) {
       emphasis: p.emphasis,
       beats: p.beats || null,
       transition: p.transition, scheme: p.scheme, decor: p.decor, cstyle: p.cstyle, align: p.align, icon: p.icon, palette: p.palette, texture: p.texture,
-      voiceInfo: { engine: r.engine, voice: r.voice, rate, timing: r.timing ? r.timing.kind : 'estimated', note: r.note || '' },
+      voiceInfo: { engine: r.engine, voice: r.voice, rate, timing: r.timing ? r.timing.kind : 'estimated', natural: !!r.natural, note: r.note || '' },
       audio: `${parsed.slug}/scene-${s.index}.mp3`,
       audioFrames: Math.ceil(dur * FPS),
       frames: Math.ceil((dur + PAD_SECONDS) * FPS),
