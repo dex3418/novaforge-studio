@@ -91,7 +91,10 @@ export const Video = ({ scenes, plan, theme, brand, handle, musicFile, pics }) =
   const { durationInFrames, width, height } = useVideoConfig();
   let from = 0;
   return (
-    <AbsoluteFill style={{ background: theme.bg, fontFamily: theme.font }}>
+    <AbsoluteFill
+      style={{ background: theme.bg, fontFamily: theme.font }}
+      durationInFrames={90}
+    >
       {musicFile ? <Audio src={staticFile(musicFile)} volume={0.08} loop /> : null}
       {scenes.map((s) => {
         const seq = (
