@@ -6,6 +6,9 @@
 // World: 1000 units tall, W units wide (W follows the frame shape). Ground is around y=760.
 // People are drawn facing right in local units (feet at 0,0, ~370 tall) and flipped to face left.
 
+const CHARS = require('./characters');
+const { assetPerson } = require('./character_art');
+
 const r1 = (n) => Math.round(n * 10) / 10;
 const sin = Math.sin;
 const PI = Math.PI;
@@ -187,6 +190,9 @@ function mouth(kind, open) {
 
 // a = { id, name, look, x (world), y, facing 1|-1, pose, expr, mouth 0..1, walk (phase), scale, t, alpha }
 function person(a) {
+  // a character with real artwork in the registry is drawn from that artwork, never redrawn
+  const asset = CHARS.get(a.id);
+  if (asset) return assetPerson(a, asset, heightOf(a.art === 'chibi' || a.art === 'webtoon' ? a.art : 'flat'));
   const l = lookFor(a);
   const t = a.t || 0;
   const ang = poseAngles(a.pose, t + (hashStr(a.id || a.name || '') % 50) / 10, a.walk || 0);
