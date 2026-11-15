@@ -215,6 +215,7 @@ function parseText(src, slug) {
       mode: (meta.mode || '').toLowerCase(),
       cast: (meta.cast || '').toString().slice(0, 700),
       setting: (meta.setting || '').toLowerCase(),
+      art: (meta.art || '').toLowerCase(),
     },
     cast,
     scenes: out,

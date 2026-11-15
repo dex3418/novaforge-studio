@@ -19,6 +19,8 @@ function stageSvg(d, o) {
   const seed = o.seed || 0;
   const pl = A.place(d.setting, d.time, W, t, seed);
   const accent = o.accent || '#cb3bcc';
+  const art = o.art === 'chibi' || o.art === 'webtoon' ? o.art : 'flat';
+  const propLine = art === 'chibi' ? ' stroke="#4a2f3a" stroke-width="3" stroke-linejoin="round"' : art === 'webtoon' ? ' stroke="#33252c" stroke-width="1.8" stroke-linejoin="round"' : '';
   const cast = o.cast || {};
 
   // who is speaking right now (narrator = nobody on screen speaks)
@@ -65,7 +67,7 @@ function stageSvg(d, o) {
     const face = x1 < x0 ? -1 : 1;
     const s = p.scale || 1;
     const body = fn({ t, scale: s, night, spin: face < 0 ? -spin : spin, color: p.color, seed: i * 1.7 });
-    const g = `<g transform="translate(${r1(x)} ${y}) scale(${face} 1)">${body}</g>`;
+    const g = `<g transform="translate(${r1(x)} ${y}) scale(${face} 1)"><g${propLine}>${body}</g></g>`;
     (mover || p.layer === 'front' ? front : back).push(g);
   });
 
@@ -91,7 +93,7 @@ function stageSvg(d, o) {
     if (still && pose === 'idle' && a.speaks) pose = 'talk';
     return {
       id: a.id, name: ch.name, look: ch.look, x, y: FEET + ((i * 17) % 34), facing,
-      pose, expr: a.expr || 'neutral', mouth: isSp ? mouth : 0, walk: t * 9.5 + i, scale: (a.scale || 1) * 1.0, t: t + i * 0.7,
+      pose, art, expr: a.expr || 'neutral', mouth: isSp ? mouth : 0, walk: t * 9.5 + i, scale: (a.scale || 1) * 1.0, t: t + i * 0.7,
       alpha: still ? 1 : clamp((t + 0.02) / 0.18), isSp,
     };
   });
@@ -103,7 +105,7 @@ function stageSvg(d, o) {
   const many = acts.length > 1 || (d.actors || []).length > 1;
   acts.forEach((a) => {
     if (!many || !(a.isSp || (still && (d.actors || []).find((x) => x.id === a.id && x.speaks)))) return;
-    const s = (a.look && a.look.age === 'child' ? 0.68 : 1) * (a.scale || 1);
+    const s = (a.look && a.look.age === 'child' ? 0.68 : 1) * (a.scale || 1) * (A.heightOf(art) / 398);
     const label = String(a.name || '').slice(0, 14);
     const wd = 34 + label.length * 17;
     tags += `<g transform="translate(${r1(a.x)} ${r1(a.y - 398 * s - 34)})"><rect x="${-wd / 2}" y="-26" width="${wd}" height="46" rx="23" fill="${accent}"/><text x="0" y="7" text-anchor="middle" font-size="28" font-weight="800" fill="#fff" font-family="${esc(o.font || 'sans-serif')}">${esc(label)}</text></g>`;
@@ -111,20 +113,32 @@ function stageSvg(d, o) {
   let bub = '';
   if (d.icon && ICONS[d.icon] && acts.length) {
     const who = acts.find((a) => a.id === d.iconOf) || acts[0];
-    const s = who.look && who.look.age === 'child' ? 0.68 : 1;
+    const s = (who.look && who.look.age === 'child' ? 0.68 : 1) * (A.heightOf(art) / 398);
     bub = A.bubble(who.x + 90, who.y - 500 * s, ICONS[d.icon], t, accent);
   }
   const birdsSvg = !night && d.setting !== 'office' && d.setting !== 'home' && d.setting !== 'street' ? A.birds(W, t) : '';
 
   const scene =
-    layer(0.25, pl.far + birdsSvg) +
+    (art === 'webtoon' ? `<g filter="url(#bl${seed})">${layer(0.25, pl.far + birdsSvg)}</g>` : layer(0.25, pl.far + birdsSvg)) +
     layer(0.55, pl.mid + back.join('')) +
     layer(1, pl.ground + front.join('') + actorSvg + bub + tags);
   const tint = night ? `<rect x="0" y="0" width="${W}" height="1000" fill="#0a1030" opacity=".22"/>` : d.time === 'dusk' ? `<rect x="0" y="0" width="${W}" height="1000" fill="#ff7a3c" opacity=".08"/>` : '';
+  let extra = '';
+  let css = '';
+  if (art === 'webtoon') {
+    css = 'filter:saturate(.94) contrast(1.05);';
+    extra += `<defs><radialGradient id="vg${seed}" cx="50%" cy="48%" r="75%"><stop offset="60%" stop-color="#1a0f2e" stop-opacity="0"/><stop offset="100%" stop-color="#1a0f2e" stop-opacity=".34"/></radialGradient></defs><rect x="0" y="0" width="${W}" height="1000" fill="url(#vg${seed})"/>`;
+    for (let i = 0; i < 9; i++) extra += `<circle cx="${r1(((i * 211) % 1000) / 1000 * W)}" cy="${r1(120 + ((i * 137) % 520))}" r="${6 + (i % 4) * 5}" fill="#fff" opacity="${r1((0.1 + 0.08 * Math.sin(t * 1.4 + i)) * 100) / 100}"/>`;
+  } else if (art === 'chibi') {
+    css = 'filter:saturate(1.22) brightness(1.04);';
+    const star = (x, y, s, ph) => `<path transform="translate(${r1(x)} ${r1(y)}) scale(${r1(s * (0.8 + 0.2 * Math.sin(t * 3 + ph)) * 100) / 100}) rotate(${r1(Math.sin(t + ph) * 15)})" d="M0 -14 L4 -4 L14 0 L4 4 L0 14 L-4 4 L-14 0 L-4 -4Z" fill="#fff" opacity=".9"/>`;
+    for (let i = 0; i < 7; i++) extra += star(((i * 173 + 90) % 1000) / 1000 * W, 90 + ((i * 97) % 420), 0.8 + (i % 3) * 0.35, i * 1.7);
+  }
+  const blurDefs = art === 'webtoon' ? `<filter id="bl${seed}"><feGaussianBlur stdDeviation="3.2"/></filter>` : '';
   const fade = still ? 1 : clamp(t / 0.3);
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} 1000" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0;width:100%;height:100%;opacity:${r1(fade * 100) / 100}">` +
-    `<defs>${pl.defs}</defs>${scene}${tint}</svg>`
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} 1000" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0;width:100%;height:100%;opacity:${r1(fade * 100) / 100};${css}">` +
+    `<defs>${pl.defs}${blurDefs}</defs>${scene}${tint}${extra}</svg>`
   );
 }
 

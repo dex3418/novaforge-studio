@@ -157,24 +157,44 @@ function person(a) {
   const top = l.top;
   const blink = (t % 3.4) < 0.12 ? 0.12 : 1;
   const eyeDx = 4;
+  const art = a.art === 'chibi' || a.art === 'webtoon' ? a.art : 'flat';
+  const browCol = l.hairColor === HAIR[4] ? '#8a8378' : '#2a2024';
+  const iris = ['#6b4a2e', '#3f6f8f', '#5a7a4a', '#7a4a8a', '#8a5a3a'][hashStr(a.name || a.id || '') % 5];
+  const eyeY = art === 'chibi' ? -340 : -350;
+  const mouthSvg = art === 'chibi' ? `<g transform="translate(0 -318) scale(0.72) translate(0 318)">${mouth(ex.mouth, a.mouth || 0)}</g>` : mouth(ex.mouth, a.mouth || 0);
+  const browsSvg = art === 'webtoon'
+    ? `<path d="M-31 ${-372 + ex.brow[2]} Q-20 ${-379 - ex.brow[0] / 3 + ex.brow[2]} -8 ${-373 - ex.brow[0] / 3 + ex.brow[2]}" stroke="${browCol}" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M8 ${-373 - ex.brow[1] / 3 + ex.brow[2]} Q20 ${-379 - ex.brow[1] / 3 + ex.brow[2]} 31 ${-372 + ex.brow[2]}" stroke="${browCol}" stroke-width="3" fill="none" stroke-linecap="round"/>`
+    : `<path d="M-30 ${-370 + ex.brow[2]} L-10 ${-370 - ex.brow[0] / 3 + ex.brow[2]}" stroke="${browCol}" stroke-width="${art === 'chibi' ? 4 : 5}" stroke-linecap="round"/><path d="M10 ${-370 - ex.brow[1] / 3 + ex.brow[2]} L30 ${-370 + ex.brow[2]}" stroke="${browCol}" stroke-width="${art === 'chibi' ? 4 : 5}" stroke-linecap="round"/>`;
+  let eyesSvg;
+  if (art === 'chibi') {
+    const ry = r1(16 * blink + 1);
+    eyesSvg = [-19, 19].map((x) => `<ellipse cx="${x}" cy="${eyeY}" rx="13" ry="${ry}" fill="#2a2024"/>` + (blink > 0.5 ? `<ellipse cx="${x + eyeDx * 0.6}" cy="${eyeY + 5}" rx="9" ry="9" fill="${iris}"/><circle cx="${x + 5}" cy="${eyeY - 6}" r="5" fill="#fff"/><circle cx="${x - 5}" cy="${eyeY + 6}" r="2.4" fill="#fff"/>` : '')).join('');
+  } else if (art === 'webtoon') {
+    const ry = r1(9 * blink + 0.8);
+    eyesSvg = [-17, 17].map((x, i) => `<ellipse cx="${x}" cy="${eyeY}" rx="11" ry="${ry}" fill="#fff"/>` + (blink > 0.5 ? `<circle cx="${x + eyeDx}" cy="${eyeY}" r="7" fill="${iris}"/><circle cx="${x + eyeDx}" cy="${eyeY}" r="3.4" fill="#1c1418"/><circle cx="${x + eyeDx + 2.5}" cy="${eyeY - 3}" r="2" fill="#fff"/>` : '') + `<path d="M${x - 12} ${eyeY - 2} Q${x} ${eyeY - ry - 4} ${x + 12} ${eyeY - 2}" stroke="#1c1418" stroke-width="3.2" fill="none" stroke-linecap="round"/><path d="M${x + (i ? 12 : -12)} ${eyeY - 2} l${i ? 5 : -5} -4" stroke="#1c1418" stroke-width="2.6" stroke-linecap="round"/>`).join('') +
+      '<path d="M1 -338 Q4 -333 0 -331" stroke="#a8765a" stroke-width="2" fill="none" stroke-linecap="round" opacity=".7"/>';
+  } else {
+    eyesSvg = `<ellipse cx="-17" cy="-350" rx="9" ry="${r1(10 * blink)}" fill="#fff"/><ellipse cx="17" cy="-350" rx="9" ry="${r1(10 * blink)}" fill="#fff"/>` +
+      `<circle cx="${-17 + eyeDx}" cy="-350" r="${r1(5 * blink + 0.5)}" fill="#2a2024"/><circle cx="${17 + eyeDx}" cy="-350" r="${r1(5 * blink + 0.5)}" fill="#2a2024"/>`;
+  }
+  const blush = (l.gender === 'f' || a.expr === 'happy' || art === 'chibi')
+    ? `<circle cx="-28" cy="${art === 'chibi' ? -320 : -326}" r="${art === 'chibi' ? 10 : 7}" fill="#ff7a8a" opacity="${art === 'chibi' ? 0.38 : 0.22}"/><circle cx="28" cy="${art === 'chibi' ? -320 : -326}" r="${art === 'chibi' ? 10 : 7}" fill="#ff7a8a" opacity="${art === 'chibi' ? 0.38 : 0.22}"/>` : '';
+  const face = browsSvg + eyesSvg +
+    (l.glasses ? `<circle cx="-17" cy="${eyeY}" r="${art === 'chibi' ? 20 : 15}" fill="none" stroke="#2a2024" stroke-width="3.5"/><circle cx="17" cy="${eyeY}" r="${art === 'chibi' ? 20 : 15}" fill="none" stroke="#2a2024" stroke-width="3.5"/><path d="M-2 ${eyeY} L2 ${eyeY}" stroke="#2a2024" stroke-width="3.5"/>` : '') +
+    blush + (l.moustache && art !== 'chibi' ? `<path d="M-16 -330 Q0 -340 16 -330 Q0 -326 -16 -330Z" fill="${l.hairColor}"/>` : '') + mouthSvg +
+    (art === 'webtoon' ? `<path d="M-30 -312 Q0 -296 30 -312 Q0 -304 -30 -312Z" fill="#000" opacity=".07"/><path d="M-22 -392 Q0 -402 24 -390" stroke="#fff" stroke-width="5" fill="none" opacity=".3" stroke-linecap="round"/>` : '');
+  const neckY = art === 'chibi' ? -302 * 0.56 : art === 'webtoon' ? -302 * 1.1 : -302;
+  const headScale = art === 'chibi' ? 1.8 : art === 'webtoon' ? 1.0 : 1;
+  const headFit = art === 'flat' ? '' : `translate(0 ${r1(neckY)}) scale(${headScale}) translate(0 302)`;
   const head =
-    `<g transform="translate(0 ${r1(ang.bob * 0.3)}) rotate(${r1(ang.tilt)} 0 -300)${l.age === 'child' ? ' translate(0 -300) scale(1.18) translate(0 300)' : ''}">` +
+    `<g transform="${headFit} translate(0 ${r1(ang.bob * 0.3)}) rotate(${r1(ang.tilt)} 0 -300)${l.age === 'child' ? ' translate(0 -300) scale(1.18) translate(0 300)' : ''}">` +
     hairBack(l) +
     `<rect x="-12" y="-312" width="24" height="30" fill="${shade(l.skin, -0.08)}"/>` +
     `<circle cx="-43" cy="-342" r="9" fill="${l.skin}"/><circle cx="43" cy="-342" r="9" fill="${l.skin}"/>` +
     `<ellipse cx="0" cy="-343" rx="44" ry="48" fill="${l.skin}"/>` +
     (l.beard ? `<path d="M-42 -334 C-40 -290 40 -290 42 -334 C30 -312 -30 -312 -42 -334Z" fill="${l.hairColor}"/>` : '') +
     hairFront(l) +
-    // brows
-    `<path d="M-30 ${-370 + ex.brow[2]} L-10 ${-370 - ex.brow[0] / 3 + ex.brow[2]}" stroke="${l.hairColor === HAIR[4] ? '#8a8378' : '#2a2024'}" stroke-width="5" stroke-linecap="round"/>` +
-    `<path d="M10 ${-370 - ex.brow[1] / 3 + ex.brow[2]} L30 ${-370 + ex.brow[2]}" stroke="${l.hairColor === HAIR[4] ? '#8a8378' : '#2a2024'}" stroke-width="5" stroke-linecap="round"/>` +
-    // eyes
-    `<ellipse cx="-17" cy="-350" rx="9" ry="${r1(10 * blink)}" fill="#fff"/><ellipse cx="17" cy="-350" rx="9" ry="${r1(10 * blink)}" fill="#fff"/>` +
-    `<circle cx="${-17 + eyeDx}" cy="-350" r="${r1(5 * blink + 0.5)}" fill="#2a2024"/><circle cx="${17 + eyeDx}" cy="-350" r="${r1(5 * blink + 0.5)}" fill="#2a2024"/>` +
-    (l.glasses ? '<circle cx="-17" cy="-350" r="15" fill="none" stroke="#2a2024" stroke-width="3.5"/><circle cx="17" cy="-350" r="15" fill="none" stroke="#2a2024" stroke-width="3.5"/><path d="M-2 -350 L2 -350" stroke="#2a2024" stroke-width="3.5"/>' : '') +
-    (l.gender === 'f' || a.expr === 'happy' ? '<circle cx="-28" cy="-326" r="7" fill="#e86a6a" opacity=".22"/><circle cx="28" cy="-326" r="7" fill="#e86a6a" opacity=".22"/>' : '') +
-    (l.moustache ? `<path d="M-16 -330 Q0 -340 16 -330 Q0 -326 -16 -330Z" fill="${l.hairColor}"/>` : '') +
-    mouth(ex.mouth, a.mouth || 0) +
+    face +
     '</g>';
 
   let body;
@@ -202,13 +222,14 @@ function person(a) {
   const frontArm = arm(44, ang.aR, sleeveCol, l.skin, sleeve);
 
   const flip = a.facing < 0 ? -1 : 1;
+  const bodyT = art === 'chibi' ? 'scale(1.12 0.56)' : art === 'webtoon' ? 'scale(0.9 1.1)' : '';
+  const outlineOpen = art === 'flat' ? '<g>' : `<g stroke="${art === 'chibi' ? '#4a2f3a' : '#33252c'}" stroke-width="${art === 'chibi' ? 3.4 : 2.2}" stroke-linejoin="round" stroke-linecap="round">`;
   const sh = `<ellipse cx="0" cy="6" rx="${r1(70 * sc)}" ry="${r1(13 * sc)}" fill="#000" opacity=".16"/>`;
   return (
     `<g opacity="${a.alpha == null ? 1 : a.alpha}">` +
     `<g transform="translate(${r1(a.x)} ${r1(a.y)})">${sh}` +
     `<g transform="translate(0 ${r1(-ang.jump)}) scale(${r1(flip * sc * 1000) / 1000} ${r1(sc * 1000) / 1000}) translate(0 ${r1(ang.bob)}) rotate(${r1(lean)} 0 0)">` +
-    backArm + body + frontArm + head +
-    '</g></g></g>'
+    outlineOpen + `<g transform="${bodyT}">` + backArm + body + frontArm + '</g>' + head + '</g></g></g></g>'
   );
 }
 
@@ -409,4 +430,6 @@ function birds(W, t) {
   return o;
 }
 
-module.exports = { person, PROPS, MOVERS, place, birds, bubble, lookFor, EXPR, POSES, SETTINGS, TIMES, COLORS, SKIN, HAIR, TOPS, hashStr, ease, clamp, shade, esc, SKY };
+function heightOf(art) { return art === 'chibi' ? 350 : art === 'webtoon' ? 440 : 398; }
+
+module.exports = { heightOf, person, PROPS, MOVERS, place, birds, bubble, lookFor, EXPR, POSES, SETTINGS, TIMES, COLORS, SKIN, HAIR, TOPS, hashStr, ease, clamp, shade, esc, SKY };

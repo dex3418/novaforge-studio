@@ -233,6 +233,7 @@ function applyStory(plan, parsed, helpers = {}) {
   if (!isStoryMeta(meta) && !cast.length) return;
   const ids = cast.map((c) => c.id);
   assignVoices(cast, meta.engine === 'gemini' ? 'gemini' : 'edge', meta.voice, parsed.scenes.flatMap((s) => s.lines || []));
+  plan.art = ['chibi', 'webtoon'].includes(String(meta.art || '').toLowerCase()) ? String(meta.art).toLowerCase() : 'flat';
   plan.cast = cast.map((c) => ({ id: c.id, name: c.name, look: c.look, voice: c.voice }));
   const defaultSetting = A.SETTINGS.includes(meta.setting) ? meta.setting : 'village';
   const words = (t) => String(t).split(/\s+/).filter(Boolean);

@@ -697,7 +697,7 @@ function storyBg(ctx, sc) {
   const starts = ctx.wordFrames && ctx.wordFrames.length === n && n ? ctx.wordFrames.map((f) => f / ctx.fps) : null;
   const svg = stageSvg(sc.data || {}, {
     w: ctx.w, h: ctx.h, still: !ctx.video, t: ctx.t, beatSec: ctx.sceneFrames / ctx.fps,
-    speakers: sc.speakers, wordStarts: starts, wordIdx: ctx.wordIdx, cast, accent: ctx.pal.accent, font: ctx.font, seed: sc.index || 0,
+    speakers: sc.speakers, wordStarts: starts, wordIdx: ctx.wordIdx, cast, accent: ctx.pal.accent, font: ctx.font, seed: sc.index || 0, art: ctx.plan.art,
   });
   return svg + '<div style="position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,.28) 0%,rgba(0,0,0,0) 16%,rgba(0,0,0,0) 62%,rgba(0,0,0,.45) 100%)"></div>';
 }
