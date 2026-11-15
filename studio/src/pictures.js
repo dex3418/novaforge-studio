@@ -66,7 +66,7 @@ async function preparePictures(parsed, root) {
   if (!list.length) return out;
   const dir = path.join(root, 'public', 'pics');
   fs.mkdirSync(dir, { recursive: true });
-  for (const f of fs.readdirSync(dir)) if (f.startsWith(parsed.slug + '-')) fs.unlinkSync(path.join(dir, f));
+  for (const f of fs.readdirSync(dir)) if (f.startsWith(parsed.slug + '-') || f.startsWith('.thumb-' + parsed.slug + '-')) fs.unlinkSync(path.join(dir, f));
   const tmp = path.join(dir, `.${parsed.slug}-tmp`);
   for (const s of list) {
     try {
@@ -78,7 +78,14 @@ async function preparePictures(parsed, root) {
       }
       const name = `${parsed.slug}-${out.pics.length}.jpg`;
       shrink(inp, path.join(dir, name));
-      out.pics.push({ file: `pics/${name}`, path: path.join(dir, name), label: s.label });
+      let thumb = '';
+      try {
+        thumb = path.join(dir, `.thumb-${name}`);
+        execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', path.join(dir, name), '-vf', "scale='min(512,iw)':-2", '-frames:v', '1', '-q:v', '5', thumb], { stdio: 'pipe' });
+      } catch (e) {
+        thumb = '';
+      }
+      out.pics.push({ file: `pics/${name}`, path: path.join(dir, name), thumb, label: s.label });
       out.notes.push(`picture ${out.pics.length - 1}: ${s.label}`);
     } catch (e) {
       out.warn = true;

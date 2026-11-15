@@ -105,6 +105,11 @@ function parseText(src, slug) {
   for (const raw of body.split(/\r?\n/)) {
     const line = raw.trimEnd();
     if (/^\s*([-*_])\1{2,}\s*$/.test(line)) continue; // horizontal rules
+    const dir = line.match(/^\s*<!--\s*dir:\s*(.*?)\s*-->\s*$/);
+    if (dir) {
+      if (cur) (cur.direction = cur.direction || []).push(dir[1]); // the author's own notes for this scene, only shown to the AI director
+      continue;
+    }
     const h3 = line.match(/^#{3,}\s+(.+)/);
     const h2 = line.match(/^##\s+(.+)/);
     const h1 = line.match(/^#\s+(.+)/);
@@ -151,6 +156,7 @@ function parseText(src, slug) {
       heading: s.heading,
       body: bodyText,
       narration: speakable(narration),
+      direction: (s.direction || []).slice(0, 8),
       isTitle,
     };
   });

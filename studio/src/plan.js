@@ -573,7 +573,7 @@ function normalizeBeats(g, sc, trust, diag) {
   }
 
   const ws = words(sc.narration);
-  const src = `${sc.heading} ${sc.body} ${sc.narration}`;
+  const src = `${sc.heading} ${sc.body} ${sc.narration} ${(sc.direction || []).join(' ')}`; // the author's own notes count as source text too
   const mk = (a, z, kind, data, extra) => {
     const from = rng_[a].from;
     const to = rng_[z - 1].to;
@@ -869,7 +869,7 @@ function validatePlan(plan, parsed, fallback, diag) {
   parsed.scenes.forEach((sc, i) => {
     const g = given.find((x) => x && Number(x.index) === sc.index) || given[i] || {};
     const f = fb ? fb.scenes.find((x) => x.index === sc.index) : null;
-    const src = `${sc.heading} ${sc.body} ${sc.narration}`;
+    const src = `${sc.heading} ${sc.body} ${sc.narration} ${(sc.direction || []).join(' ')}`; // the author's own notes count as source text too
 
     const nb = normalizeBeats(g, sc, trust, diag);
     let kind;

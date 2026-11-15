@@ -17,7 +17,7 @@ function buildPrompt(raw) {
 
 TASK: keep ONLY the words a narrator says out loud, split into scenes.
 
-REMOVE (never include): on-screen text, visual / shot / b-roll / focus / overlay directions, labels such as "Spoken:" "Voiceover:" "On-screen:", timestamps, [bracket notes], title options, outlines, tables, descriptions, checklists, sources, editor notes, and hashtags (hashtags go in "caption").
+REMOVE from "spoken" (never include there): on-screen text, visual / shot / b-roll / focus / overlay directions, labels such as "Spoken:" "Voiceover:" "On-screen:", timestamps, [bracket notes], title options, outlines, tables, descriptions, checklists, sources, editor notes, and hashtags (hashtags go in "caption").
 
 STRICT RULES
 1. Copy every spoken line EXACTLY as written. Never reword, translate, shorten, add, fix or invent anything. You may only remove labels, numbering and surrounding quote marks.
@@ -26,9 +26,10 @@ STRICT RULES
 4. "title": the first title option if the script offers any, otherwise "".
 5. "caption": the post caption or hashtags if present, otherwise "".
 6. If nothing in the text is meant to be spoken, return an empty "scenes" list.
+7. KEEP THE AUTHOR'S PRODUCTION NOTES FOR THE DIRECTOR: for each scene, copy into "direction" up to 6 short lines the author wrote for that part that are NOT spoken: on-screen text, text overlays, visual / b-roll / shot ideas, graphics ideas, mood or pacing notes. Copy them exactly as written (you may remove labels such as "On-screen:"). A different tool uses them to choose graphics; they are never spoken. Leave "direction" empty when the script has none. Never put spoken words there and never invent notes.
 
 OUTPUT SHAPE
-{"title":"","scenes":[{"heading":"Hook","spoken":["first spoken paragraph","next one if any"]}],"caption":""}
+{"title":"","scenes":[{"heading":"Hook","spoken":["first spoken paragraph","next one if any"],"direction":["on-screen text or visual note"]}],"caption":""}
 
 SCRIPT:
 <<<
@@ -90,7 +91,15 @@ function validate(raw, src) {
       }
     }
     const heading = String((sc && sc.heading) || '').replace(/[#\r\n*]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 40) || `Scene ${i + 1}`;
-    scenes.push({ heading, paras });
+    // the author's own production notes: kept only when they really come from the original
+    const direction = (Array.isArray(sc && sc.direction) ? sc.direction : [])
+      .map((d) => String(d || '').replace(/\s+/g, ' ').replace(/-->/g, '').trim().slice(0, 200))
+      .filter((d) => {
+        const w = words(d);
+        return w.length && w.filter((x) => !known.has(x)).length / w.length <= 0.3;
+      })
+      .slice(0, 6);
+    scenes.push({ heading, paras, direction });
   });
   if (!scenes.length) throw new Error('no spoken text found');
   if (total < 5) throw new Error('too little spoken text');
@@ -102,7 +111,7 @@ function validate(raw, src) {
 
 function toStudio(v) {
   const stats = { notes: 0, timestamps: 0, tables: 0, dropped: [] };
-  const scenes = v.scenes.map((s) => ({ h: s.heading, paras: s.paras.map((p) => tidy(p, stats)).filter(Boolean) })).filter((s) => s.paras.length);
+  const scenes = v.scenes.map((s) => ({ h: s.heading, paras: s.paras.map((p) => tidy(p, stats)).filter(Boolean), dir: s.direction || [] })).filter((s) => s.paras.length);
   let title = v.title ? tidy(v.title, stats) : '';
   if (!title && scenes.length) {
     const first = scenes[0].paras[0] || '';
@@ -110,9 +119,9 @@ function toStudio(v) {
   }
   const lines = [];
   if (title) lines.push('---', `title: ${title}`, '---', '');
-  for (const s of scenes) lines.push(`## ${s.h}`, ...s.paras.flatMap((p) => [p, '']));
+  for (const s of scenes) lines.push(`## ${s.h}`, ...s.dir.map((d) => `<!--dir: ${d}-->`), ...s.paras.flatMap((p) => [p, '']));
   if (v.caption) lines.push('### Caption', v.caption, '');
-  return { text: lines.join('\n').trim() + '\n', scenes: scenes.length };
+  return { text: lines.join('\n').trim() + '\n', scenes: scenes.length, notes: scenes.reduce((n, s) => n + s.dir.length, 0) };
 }
 
 // Returns { ok, text, model, scenes, note }. Never throws.
@@ -128,7 +137,7 @@ async function aiClean(raw, opts = {}) {
         const answer = parseJson(await (opts.call || callModel)(model, key, prompt));
         const v = validate(raw, answer);
         const out = toStudio(v);
-        return { ok: true, text: out.text, model, scenes: out.scenes, wordsChecked: v.total };
+        return { ok: true, text: out.text, model, scenes: out.scenes, notes: out.notes, wordsChecked: v.total };
       } catch (e) {
         tried.push(`${model}: ${String(e.message).slice(0, 140)}`);
         const s = e.status;
@@ -166,6 +175,7 @@ async function prepareScript(raw, opts = {}) {
   const ai = await aiClean(raw, opts);
   if (ai.ok) {
     details.push(`AI cleaner model: ${ai.model}, ${ai.wordsChecked} words checked against your original`);
+    if (ai.notes) details.push(`${ai.notes} production notes (on-screen text, visual ideas) kept for the AI director`);
     return { text: ai.text, status: 'ok', summary: `AI cleaned your script to ${ai.scenes} scenes (spoken text only)`, details };
   }
   ruleDetails();

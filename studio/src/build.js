@@ -106,6 +106,9 @@ async function build(file, only) {
       plan = r.plan;
       const st = report.add('3 AI director', r.status, r.note, r.details);
       st.ms = Date.now() - t;
+      if (r.caption && !parsed.meta.caption) {
+        fs.writeFileSync(path.join(outDir, `${slug}-caption.txt`), r.caption + '\n\n(draft written by the AI director; you had no caption in your script)\n');
+      }
     }
     fs.writeFileSync(path.join(outDir, `${slug}-plan.json`), JSON.stringify(plan, null, 2));
     report.add('4 Plan', 'ok', `${plan.source === 'ai' ? 'AI' : 'rules'} plan: ${kindCounts(plan)}`, [require('./calibration').summary(), ...variety(plan), describePlan(plan)]);
