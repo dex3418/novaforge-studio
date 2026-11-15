@@ -124,6 +124,40 @@ async function synth(text, outFile, o = {}) {
   return { ...r, engine: 'edge' };
 }
 
+
+// Several people in one scene: each line is spoken by that person's own voice, then joined.
+// lines: [{ who, narration, tone }]; voiceOf(who) -> voice id ('' = the narrator voice).
+// Returns { timing, engine, voice, natural } like synth, with marks for the whole scene.
+async function synthLines(lines, outFile, o, voiceOf) {
+  const parts = [];
+  const marks = [];
+  let kind = 'word';
+  let t = 0;
+  const list = [];
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    const f = outFile.replace(/\.mp3$/i, '') + `.line${i}.mp3`;
+    const r = await synth(l.narration, f, { ...o, voice: voiceOf(l.who) || o.voice, emotion: /worr|sad/.test(l.tone || '') ? 'serious' : /happy|excit/.test(l.tone || '') ? 'excited' : /ask|curious/.test(l.tone || '') ? 'curious' : o.emotion });
+    const dur = durationSeconds(f);
+    const pause = i < lines.length - 1 ? (l.who === lines[i + 1].who ? 0.18 : 0.32) : 0;
+    if (!r.timing) kind = 'none';
+    else {
+      if (r.timing.kind !== 'word' && kind === 'word') kind = r.timing.kind;
+      for (const m of r.timing.marks) marks.push({ text: m.text, start: t + m.start, end: t + Math.min(m.end, dur) });
+    }
+    list.push({ f, pause, engine: r.engine, voice: r.voice });
+    t += dur + pause;
+  }
+  const filter = list.map((x, i) => `[${i}:a]aresample=44100,apad=pad_dur=${x.pause.toFixed(3)}[a${i}]`).join(';') + ';' + list.map((_, i) => `[a${i}]`).join('') + `concat=n=${list.length}:v=0:a=1[out]`;
+  const args = ['-y', '-v', 'error'];
+  list.forEach((x) => args.push('-i', x.f));
+  args.push('-filter_complex', filter, '-map', '[out]', '-ac', '1', '-b:a', '128k', outFile);
+  execFileSync('ffmpeg', args);
+  list.forEach((x) => { try { fs.unlinkSync(x.f); } catch (e) { /* ignore */ } });
+  const eng = list.find((x) => x.engine === 'edge') ? 'edge' : list[0].engine;
+  return { timing: kind === 'none' || !marks.length ? null : { kind, marks }, engine: eng, voice: list.map((x) => x.voice).join('+'), natural: true };
+}
+
 function durationSeconds(file) {
   const out = execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file], { encoding: 'utf8' });
   const d = parseFloat(out.trim());
@@ -131,4 +165,4 @@ function durationSeconds(file) {
   return d;
 }
 
-module.exports = { synth, durationSeconds };
+module.exports = { synth, synthLines, durationSeconds };

@@ -103,7 +103,7 @@ const ALIGNS = ['center', 'top', 'bottom'];
 const KINDS = [
   'caption', 'kinetic', 'counter', 'checklist', 'steps', 'quote',
   'qa', 'mythfact', 'compare', 'progress', 'alert', 'cta', 'keyword', 'stats', 'bars', 'spot',
-  'terminal', 'photo', 'profile',
+  'terminal', 'photo', 'profile', 'story',
 ];
 
 const EMOTIONS = ['neutral', 'excited', 'serious', 'curious', 'calm'];

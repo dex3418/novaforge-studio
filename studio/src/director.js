@@ -15,6 +15,7 @@
 const { PALETTES, TEXTURES, TEMPLATES, TRANSITIONS, EMOTIONS, SCHEMES, DECORS } = require('./catalog');
 const { ICON_NAMES } = require('./icons');
 const calibration = require('./calibration');
+const { wordSpeakers } = require('./story');
 const { validatePlan, segmentRanges } = require('./plan');
 
 const MODELS = (process.env.GEMINI_MODEL ? [process.env.GEMINI_MODEL] : []).concat(['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-4-argon']);
@@ -40,6 +41,7 @@ VISUAL TYPES (kind) and their "data":
 - terminal {"lines":[{"cmd":"cat name.txt"},{"out":"a line copied from the beat, max 14 words"}, ...up to 8]}  a terminal window that types the lines. "cmd" lines are only short file or shell commands (letters, digits, dot, dash, slash, space; e.g. "cat hook.txt", "ls"). Only "out" lines carry script text. Good for steps, tech and developer topics, 1 to 4 lines of output.
 - photo    {"pic":0,"line":"max 14 words copied from the beat"}  a full-screen picture with the line over it. ONLY when PICTURES are available below. "pic" is the picture number.
 - profile  {"pic":0,"line":"max 14 words copied from the beat"}  a framed picture card with the speaker's name and role (filled in by the system). ONLY when PICTURES are available below; use it at most once, early, when the speaker introduces themself.
+- story    {"setting":"village|street|field|office|home","time":"day|dusk|night","actors":[{"id":"cast id","x0":0.3,"x1":0.3,"facing":1,"pose":"idle|walk|talk|point|wave|think|worried|celebrate|listen|shrug","expr":"neutral|happy|sad|worried|surprised|angry|thinking","speaks":true}],"props":[{"type":"tree|bush|house|hut|car|bus|tractor|school|hospital|shop|office|bank|board|lamp|bench|desk","x":0.9,"x1":0.1,"scale":0.9,"layer":"back|front"}],"camera":{"z0":1,"z1":1.15,"fx0":0.5,"fx1":0.5,"shake":false},"icon":"optional icon name","iconOf":"cast id"}  ONLY in story mode (see STORY below). A drawn scene with people, places and objects. Positions x are 0 (left) to 1 (right) of the screen; an actor enters from off-screen with x0 below 0 or above 1. Cars, buses and tractors move from x to x1. Text is never written in "data": the spoken line is shown as subtitles by the system.
 - cta      {"text":"...","sub":"","button":"short handle or phrase"}  final call to action, last beat of the last scene only.
 `;
 
@@ -50,9 +52,19 @@ function pictureText(parsed) {
   return `PICTURES: ${n} available (numbered 0 to ${n - 1}).${m.person || m.brand ? ` The speaker is ${m.person || m.brand}${m.role ? ', ' + m.role : ''}.` : ' The speaker has no name set, so do not use profile.'} Use photo about every 3rd or 4th beat (more often if the template is gallery), cycling through the pictures; a photo beat should carry a short, strong line.\n\n`;
 }
 
+function storyText(parsed) {
+  const cast = parsed.cast || [];
+  if (!cast.length && !(parsed.meta && parsed.meta.mode === 'story')) return '';
+  const who = cast.map((c) => `  ${c.id} = ${c.name} (${[c.look.gender === 'f' ? 'woman' : c.look.gender === 'm' ? 'man' : '', c.look.age || '', c.look.outfit || '', c.look.hair || ''].filter(Boolean).join(', ') || 'person'})`).join('\n');
+  return `STORY MODE. The video is a story told with drawn characters. CAST (use these ids only):
+${who || '  (no cast: use no actors)'}
+Lines tagged [name] are spoken by that character, untagged lines by the narrator (not drawn). Make about 4 of every 5 beats kind "story": show who is speaking (put them on screen with "speaks": true, others listen), where it happens (setting, time of day), and what is around (props from the library that the line mentions). Use a different pose or expression whenever the feeling changes, move people between beats (walk in, walk across, turn to each other), vary the camera (wide, close on the speaker with z1 up to 1.3 and fx at the speaker, pull back, small shake only for a shock), and keep the same setting through a scene unless the story moves. Use counter/stats/bars/spot/kinetic only when the line is really about a number or a key fact. Never invent a character who is not in the CAST. Keep actors within 2 or 3 per beat.\n\n`;
+}
+
 function buildPrompt(parsed) {
   const scenes = parsed.scenes.map((sc) => {
-    const ss = segmentRanges(sc.narration).map((r, i) => `    ${i}: ${r.text}`);
+    const sp = sc.lines ? wordSpeakers(sc) : null;
+    const ss = segmentRanges(sc.narration).map((r, i) => `    ${i}: ${sp && sp[r.from] && sp[r.from] !== 'narrator' ? `[${sp[r.from]}] ` : ''}${r.text}`);
     const notes = (sc.direction || []).map((x) => `    note: ${x}`);
     return `SCENE ${sc.index} (heading: ${sc.heading || '-'})\n${ss.join('\n')}${notes.length ? `\n  AUTHOR'S NOTES for this scene (not spoken; use them to choose visuals, and their on-screen text may appear on screen):\n${notes.join('\n')}` : ''}`;
   });
@@ -78,7 +90,7 @@ OUTPUT SHAPE
  "scenes":[{"index":1,"palette":"..","texture":"..","emotion":"neutral","rateDelta":0,"voice":{"style":".."},
    "beats":[{"fromSentence":0,"toSentence":2,"kind":"counter","transition":"..","scheme":"..","decor":"..","icon":"..","emotion":"neutral","emphasis":["..."],"data":{...}}]}]}
 
-${pictureText(parsed)}${calibration.promptText()}${parsed.meta && parsed.meta.note ? `REQUEST FOR THIS VIDEO (from the user, follow it as far as the rules allow): ${parsed.meta.note}\n\n` : ''}POST TITLE: ${parsed.title}
+${pictureText(parsed)}${storyText(parsed)}${calibration.promptText()}${parsed.meta && parsed.meta.note ? `REQUEST FOR THIS VIDEO (from the user, follow it as far as the rules allow): ${parsed.meta.note}\n\n` : ''}POST TITLE: ${parsed.title}
 
 SCRIPT (sentences are numbered inside each scene):
 ${scenes.join('\n\n')}
@@ -121,7 +133,7 @@ function parseJson(text) {
 
 // ---------------------------------------------------------------- review (the checker)
 
-const BOLD = new Set(['counter', 'stats', 'bars', 'spot', 'checklist', 'steps', 'qa', 'mythfact', 'compare', 'progress', 'alert', 'kinetic', 'keyword', 'quote', 'terminal', 'photo', 'profile', 'cta']);
+const BOLD = new Set(['counter', 'stats', 'bars', 'spot', 'checklist', 'steps', 'qa', 'mythfact', 'compare', 'progress', 'alert', 'kinetic', 'keyword', 'quote', 'terminal', 'photo', 'profile', 'story', 'cta']);
 
 // units of a plan: every beat of a multi-beat scene, or the scene itself
 function planUnits(plan) {
@@ -156,7 +168,7 @@ function review(plan, raw, parsed, diag) {
     });
     if (worst >= 3) issues.push(`${worst} captions in a row somewhere (at most 2)`);
     let same = 0;
-    for (let i = 1; i < n; i++) if (U[i].b.kind === U[i - 1].b.kind && U[i].b.kind !== 'caption') same++;
+    for (let i = 1; i < n; i++) if (U[i].b.kind === U[i - 1].b.kind && U[i].b.kind !== 'caption' && U[i].b.kind !== 'story') same++;
     if (same / n > 0.3) issues.push(`the same visual kind repeats back to back ${same} times: alternate kinds`);
     if (U.slice(0, 2).some((u) => !BOLD.has(u.b.kind))) issues.push('the first two beats must be bold visuals, not captions');
   }
@@ -184,7 +196,7 @@ function review(plan, raw, parsed, diag) {
     for (let i = 1; i < tr.length; i++) if (tr[i] === tr[i - 1]) rep++;
     if (rep > 1) issues.push(`the same transition is used twice in a row ${rep} times`);
     const sch = R.map((u) => u.b.scheme).filter(Boolean);
-    if (sch.length >= 6 && new Set(sch).size < 2) issues.push('the colour scheme never changes: use pop and flip on some beats');
+    if (sch.length >= 6 && new Set(sch).size < 2 && !U.some((u) => u.b.kind === 'story')) issues.push('the colour scheme never changes: use pop and flip on some beats');
     const sc = (Array.isArray(raw.scenes) ? raw.scenes : []).filter((s) => s && typeof s === 'object');
     if (sc.length >= 4) {
       if (new Set(sc.map((s) => s.palette).filter(Boolean)).size < 2) issues.push('every scene has the same palette (or none): give scenes their own palette');

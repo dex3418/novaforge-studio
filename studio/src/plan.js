@@ -9,6 +9,7 @@
 const { FAMILIES, PALETTES, TEXTURES, TEMPLATES, TRANSITIONS, SCHEMES, DECORS, HEADERS, CSTYLES, ALIGNS, KINDS, EMOTIONS } = require('./catalog');
 const { ICONS, pickIcon } = require('./icons');
 const cal = require('./calibration');
+const story = require('./story');
 
 const hash = (s) => {
   let h = 0;
@@ -459,7 +460,7 @@ const BOLD_T = ['bounce', 'spin', 'drop', 'circle', 'shake', 'elastic', 'rise'];
 const SOFT_T = ['slide', 'wipe', 'zoom', 'split', 'blinds', 'swipeup', 'flip', 'fade'];
 const BOLD_D = ['sparks', 'rings', 'confetti', 'comets', 'bars', 'shapes'];
 const SOFT_D = ['orbs', 'sweep', 'waves', 'orbit', 'shapes'];
-const NO_SCHEME = new Set(['photo', 'profile', 'terminal']);
+const NO_SCHEME = new Set(['photo', 'profile', 'terminal', 'story']);
 const POP_OK = new Set(['counter', 'kinetic', 'alert', 'quote', 'progress', 'keyword', 'cta', 'mythfact', 'spot', 'stats']);
 const A_CAPTION = ['bottom', 'center', 'top'];
 const MID = { low: 0.32, mid: 0.48, high: 0.62 };
@@ -808,7 +809,8 @@ function rulePlan(parsed, opts = {}) {
     const emotion = emotionOf(`${sc.heading} ${sc.body}`);
     const emphasis = [...new Set((`${sc.heading} ${sc.body}`.match(/[^\s]*\d[^\s]*/g) || []).map((x) => x.replace(/[^\p{L}\p{N}]/gu, '')))].filter(Boolean);
     const long = words(sc.narration).length > 24;
-    const beats = SPLIT_KINDS.has(d.kind) && (long || d.kind === 'caption') ? ruleBeats(sc) : null;
+    const storyMode = story.isStoryMeta(meta) || (parsed.cast && parsed.cast.length > 0);
+    const beats = (storyMode && words(sc.narration).length > 14) || (SPLIT_KINDS.has(d.kind) && (long || d.kind === 'caption')) ? ruleBeats(sc) : null;
     return {
       index: sc.index, kind: d.kind, data: d.data, emotion, emphasis, beats,
       voice: { rateDelta: RATE_DELTA[emotion], style: STYLE[emotion] },
@@ -841,6 +843,7 @@ const CHECK = {
   progress: (d) => isFinite(Number(d.value)) && Number(d.value) >= 0 && Number(d.value) <= 100,
   alert: (d) => isStr(d.text),
   cta: (d) => isStr(d.text),
+  story: (d) => !!d && typeof d === 'object',
 };
 
 // Makes any plan (rules or AI) safe: unknown things are replaced, never trusted.
@@ -919,6 +922,7 @@ function validatePlan(plan, parsed, fallback, diag) {
       },
     });
   });
+  story.applyStory(out, parsed, { pickIcon, segmentRanges });
   assignMotion(out, parsed, seed);
   return out;
 }

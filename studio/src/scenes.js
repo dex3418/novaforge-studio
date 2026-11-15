@@ -57,6 +57,8 @@ const fit = (n, steps) => {
   for (const [m, v] of steps) if (n < m) return v;
   return steps[steps.length - 1][1];
 };
+const { stageSvg } = require('./story_stage');
+
 const norm = (w) => String(w).toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
 
 // ---------------------------------------------------------------- timing
@@ -638,6 +640,24 @@ const STAGES = {
     );
   },
 
+  // ---- story: drawn people, props and places (the art is the background; this is the subtitle box)
+  story(ctx, sc) {
+    const u = ctx.u;
+    const box = `background:rgba(255,255,255,.93);box-shadow:0 ${8 * u}px ${30 * u}px rgba(0,0,0,.25);border-radius:${34 * u}px;padding:${26 * u}px ${34 * u}px;color:#17132b`;
+    if (ctx.video) {
+      const size = (ctx.long ? 56 : 52) * u;
+      return `<div style="${box};font-size:${size}px;font-weight:800;line-height:1.28;min-height:${size * 1.6}px">${captionLine(ctx, size, ctx.long ? 9 : 6, '#17132b')}</div><div style="height:${30 * u}px"></div>`;
+    }
+    const cast = {};
+    (ctx.plan.cast || []).forEach((c) => { cast[c.id] = c.name; });
+    const lines = (sc.lines && sc.lines.length ? sc.lines : String(sc.body || '').split(/\n\n/).map((t) => ({ who: 'narrator', text: t }))).slice(0, 3);
+    const size = 40 * u;
+    const html = lines
+      .map((l) => `<p style="margin:${6 * u}px 0;font-weight:${l.who === 'narrator' ? 600 : 800}">${l.who !== 'narrator' ? `<span style="color:${ctx.pal.accent}">${esc(cast[l.who] || l.who)}:</span> ` : ''}${esc(String(l.text).slice(0, 150))}</p>`)
+      .join('');
+    return `<div style="${box};font-size:${size}px;line-height:1.3">${html}</div><div style="height:${20 * u}px"></div>`;
+  },
+
   // ---- slide-only
   cover(ctx, sc) {
     const u = ctx.u;
@@ -666,6 +686,20 @@ function photoBg(ctx, sc) {
     `<div style="position:absolute;inset:0;overflow:hidden;opacity:${fade}"><img src="${esc(src)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:translate(${dx}%,${dy}%) scale(${z})"></div>` +
     '<div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.86) 0%,rgba(0,0,0,.5) 38%,rgba(0,0,0,.12) 70%,rgba(0,0,0,.35) 100%)"></div>'
   );
+}
+
+
+// full-frame drawn scene for story beats, plus a soft shade at the top and bottom for the text
+function storyBg(ctx, sc) {
+  const cast = {};
+  (ctx.plan.cast || []).forEach((c) => { cast[c.id] = c; });
+  const n = ctx.words.length;
+  const starts = ctx.wordFrames && ctx.wordFrames.length === n && n ? ctx.wordFrames.map((f) => f / ctx.fps) : null;
+  const svg = stageSvg(sc.data || {}, {
+    w: ctx.w, h: ctx.h, still: !ctx.video, t: ctx.t, beatSec: ctx.sceneFrames / ctx.fps,
+    speakers: sc.speakers, wordStarts: starts, wordIdx: ctx.wordIdx, cast, accent: ctx.pal.accent, font: ctx.font, seed: sc.index || 0,
+  });
+  return svg + '<div style="position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,.28) 0%,rgba(0,0,0,0) 16%,rgba(0,0,0,0) 62%,rgba(0,0,0,.45) 100%)"></div>';
 }
 
 function renderStage(ctx, sc) {
@@ -706,15 +740,16 @@ function renderScene(o) {
   const foot = video
     ? bottom
     : `<div style="display:flex;justify-content:space-between;font-size:${28 * u}px;color:${pal.muted};height:${40 * u}px"><span>${esc(ctx.footLeft)}</span><span>${esc(ctx.pageLabel)}</span></div>`;
-  const justify = sc.kind === 'photo' ? 'flex-end' : { top: 'flex-start', bottom: 'flex-end', center: 'center' }[video ? sc.align : 'center'] || 'center';
+  const justify = sc.kind === 'photo' || sc.kind === 'story' ? 'flex-end' : { top: 'flex-start', bottom: 'flex-end', center: 'center' }[video ? sc.align : 'center'] || 'center';
   const decor = video ? decorHtml(sc.decor || ctx.plan.decor || 'none', pal, ctx.t, w, h, u, sc.index || 0) : '';
   return (
     `<div class="nf" style="position:relative;width:${w}px;height:${h}px;overflow:hidden;font-family:${ctx.font};color:${pal.text};background:linear-gradient(160deg,${pal.bg} 0%,${pal.bg2} 100%)">` +
     `<div style="position:absolute;inset:0;${tx}"></div>` +
     (sc.kind === 'photo' ? photoBg(ctx, sc) : '') +
+    (sc.kind === 'story' ? storyBg(ctx, sc) : '') +
     `<div style="position:absolute;width:${760 * u}px;height:${760 * u}px;border-radius:50%;top:${-260 * u}px;right:${-260 * u}px;background:radial-gradient(circle,${rgba(pal.accent, 0.2)} 0%,transparent 70%)"></div>` +
     decor +
-    (video && sc.icon && !['spot', 'photo', 'profile', 'terminal'].includes(sc.kind) ? objectIcon(ctx, sc.icon) : '') +
+    (video && sc.icon && !['spot', 'photo', 'profile', 'terminal', 'story'].includes(sc.kind) ? objectIcon(ctx, sc.icon) : '') +
     side +
     `<div style="position:absolute;inset:0;padding:${P}px;display:flex;flex-direction:column">` +
     top +

@@ -22,6 +22,7 @@
 // If a scene has no body text, its heading is spoken instead.
 
 const fs = require('fs');
+const story = require('./story');
 const path = require('path');
 
 function parseFrontmatter(src) {
@@ -99,6 +100,9 @@ function normalizeSlide(s) {
 function parseText(src, slug) {
   const { meta, body } = parseFrontmatter(src);
   let title = meta.title || '';
+  const storyMode = story.isStoryMeta(meta);
+  const cast = storyMode ? story.parseCast(meta.cast) : [];
+  const loose = storyMode && /^(?:story|stories)$/i.test(String(meta.mode || '')) ;
   const scenes = [];
   const caption = [];
   let cur = null;
@@ -127,7 +131,15 @@ function parseText(src, slug) {
     } else if (capMode && line.trim()) {
       caption.push(line.trim());
     } else if (cur && line.trim()) {
-      cur.paras.push(line.trim().replace(/^[>\-*\u2022]\s+/, ''));
+      let para = line.trim().replace(/^[>\-*\u2022]\s+/, '');
+      if (storyMode) {
+        const sl = story.speakerLine(para, cast, loose);
+        if (sl) {
+          if (sl.isNew && !cast.find((c) => c.id === sl.id) && sl.id !== story.NARRATOR) cast.push({ id: sl.id, name: sl.name, look: {}, voice: '', explicit: {} });
+          para = `\u0001${sl.id}\u0003${sl.tone}\u0002${sl.text}`;
+        }
+      }
+      cur.paras.push(para);
     }
   }
 
@@ -136,6 +148,13 @@ function parseText(src, slug) {
   scenes.forEach(normalizeSlide);
   scenes.forEach((s) => {
     s.paras = s.paras.map(clean).filter(Boolean);
+    if (storyMode) {
+      s.lines = s.paras.map((x) => {
+        const m = x.match(/^\u0001([^\u0003]*)\u0003([^\u0002]*)\u0002([\s\S]*)$/);
+        return m ? { who: m[1] === 'narrator' ? 'narrator' : m[1], tone: m[2], text: m[3] } : { who: 'narrator', tone: '', text: x };
+      });
+      s.paras = s.lines.map((l) => l.text);
+    }
   });
 
   let titleFromScene = false;
@@ -153,11 +172,19 @@ function parseText(src, slug) {
     } else {
       narration = bodyText ? s.paras.join(' ') : s.heading;
     }
+    let lines;
+    if (storyMode && s.lines && s.lines.length) {
+      lines = s.lines.map((l) => ({ who: l.who, tone: l.tone, text: l.text, narration: speakable(l.text) }));
+      if (isTitle && bodyText) lines.unshift({ who: 'narrator', tone: '', text: s.heading, narration: speakable(/[.!?]$/.test(s.heading) ? s.heading : s.heading + '.') });
+      if (!bodyText) lines = [{ who: 'narrator', tone: '', text: s.heading, narration: speakable(s.heading) }];
+      narration = lines.map((l) => l.text).join(' ');
+    }
     return {
       index: i + 1,
       heading: s.heading,
       body: bodyText,
-      narration: speakable(narration),
+      narration: lines ? lines.map((l) => l.narration).join(' ') : speakable(narration),
+      ...(lines ? { lines } : {}),
       direction: (s.direction || []).slice(0, 8),
       isTitle,
     };
@@ -185,7 +212,11 @@ function parseText(src, slug) {
       picture: (meta.picture || '').toString().trim().slice(0, 400),
       person: (meta.person || '').toString().trim().slice(0, 60),
       role: (meta.role || '').toString().trim().slice(0, 80),
+      mode: (meta.mode || '').toLowerCase(),
+      cast: (meta.cast || '').toString().slice(0, 700),
+      setting: (meta.setting || '').toLowerCase(),
     },
+    cast,
     scenes: out,
   };
 }

@@ -5,7 +5,8 @@
 
 const fs = require('fs');
 const path = require('path');
-const { synth, durationSeconds } = require('./tts');
+const { wordSpeakers } = require('./story');
+const { synth, synthLines, durationSeconds } = require('./tts');
 const { wordStartTimes } = require('./align');
 
 const FPS = 30;
@@ -33,14 +34,18 @@ async function makeAudio(parsed, plan, root) {
     const file = path.join(dir, `scene-${s.index}.mp3`);
     console.log(`  voice scene ${s.index}/${parsed.scenes.length} (${p.kind}, ${p.emotion})`);
     const rate = fmtRate(pct(parsed.meta.rate) + ((p.voice && p.voice.rateDelta) || 0));
-    const r = await synth(s.narration, file, {
+    const so = {
       engine,
       voice: parsed.meta.voice,
       rate,
       style: parsed.meta.style || p.emotion || '',
       emotion: p.emotion || 'neutral',
       delivery: (p.voice && p.voice.style) || '',
-    });
+    };
+    const castVoice = {};
+    (plan.cast || []).forEach((c) => { castVoice[c.id] = c.voice; });
+    const many = s.lines && plan.cast && plan.cast.length && s.lines.some((l) => l.who !== 'narrator');
+    const r = many ? await synthLines(s.lines, file, so, (who) => (who === 'narrator' ? '' : castVoice[who] || '')) : await synth(s.narration, file, so);
     const dur = durationSeconds(file);
     const words = s.narration.split(/\s+/).filter(Boolean);
     const starts = wordStartTimes(words, r.timing);
@@ -51,6 +56,7 @@ async function makeAudio(parsed, plan, root) {
       heading: s.heading,
       body: s.body,
       narration: s.narration,
+      wordSpeakers: s.lines ? wordSpeakers(s) : null,
       kind: p.kind,
       data: p.data,
       emotion: p.emotion,

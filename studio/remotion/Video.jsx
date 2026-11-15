@@ -31,7 +31,7 @@ function beatFrames(scene) {
 const Scene = ({ scene, plan, theme, brand, handle, total, w, h, pics }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  let sc = scene;
+  let sc = scene.wordSpeakers ? { ...scene, speakers: scene.wordSpeakers } : scene;
   let local = frame;
   let sceneFrames = scene.frames;
   let audioFrames = scene.audioFrames;
@@ -50,6 +50,7 @@ const Scene = ({ scene, plan, theme, brand, handle, total, w, h, pics }) => {
       emotion: p.beat.emotion || scene.emotion,
       emphasis: p.beat.emphasis && p.beat.emphasis.length ? p.beat.emphasis : scene.emphasis,
       narration: p.words.join(' '),
+      speakers: scene.wordSpeakers ? scene.wordSpeakers.slice(p.beat.from, p.beat.to) : undefined,
       heading: k === 0 ? scene.heading : '',
       transition: p.beat.transition || scene.transition,
       scheme: p.beat.scheme || scene.scheme,

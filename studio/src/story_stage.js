@@ -1,0 +1,131 @@
+'use strict';
+// Draws one story beat as a full-frame SVG: place + props + cast + camera.
+// d = beat data from the storyboard (see story.js), o = how to draw it right now.
+
+const A = require('./story_art');
+const { ICONS } = require('./icons');
+
+const { clamp, ease, esc } = A;
+const r1 = (n) => Math.round(n * 10) / 10;
+const lerp = (a, b, p) => a + (b - a) * p;
+const FEET = 735;
+
+function stageSvg(d, o) {
+  const W = r1((1000 * o.w) / o.h);
+  const still = !!o.still;
+  const t = still ? 2.2 : o.t || 0;
+  const dur = Math.max(0.8, o.beatSec || 3);
+  const night = d.time === 'night';
+  const seed = o.seed || 0;
+  const pl = A.place(d.setting, d.time, W, t, seed);
+  const accent = o.accent || '#cb3bcc';
+  const cast = o.cast || {};
+
+  // who is speaking right now (narrator = nobody on screen speaks)
+  let speaker = '';
+  let mouth = 0;
+  if (!still && o.speakers && o.speakers.length) {
+    const i = Math.min(o.wordIdx || 0, o.speakers.length - 1);
+    speaker = o.speakers[i] || '';
+    const ws = o.wordStarts && o.wordStarts[i];
+    const we = o.wordStarts && o.wordStarts[i + 1] != null ? o.wordStarts[i + 1] : ws + 0.4;
+    if (ws != null && t >= ws && t < Math.min(we, ws + 0.55)) mouth = 0.3 + 0.7 * Math.abs(Math.sin((t - ws) * 17));
+  }
+
+  // camera
+  const cam = d.camera || {};
+  const q = ease(t / dur);
+  const land = 1;
+  const z = lerp(cam.z0 || 1, cam.z1 || cam.z0 || 1, q) * land;
+  const fx = lerp(cam.fx0 == null ? 0.5 : cam.fx0, cam.fx1 == null ? (cam.fx0 == null ? 0.5 : cam.fx0) : cam.fx1, q) * W;
+  const fy = still ? 600 : 520; // slides: lift the scene so the text box does not cover the legs
+  const shake = cam.shake && !still ? Math.max(0, 1 - t / 0.6) * 9 : 0;
+  const sx = shake ? Math.sin(t * 52) * shake : 0;
+  const sy = shake ? Math.cos(t * 44) * shake * 0.6 : 0;
+  const layer = (k, inner) => {
+    const zk = 1 + (z - 1) * k;
+    const fxk = W / 2 + (fx - W / 2) * k;
+    return `<g transform="translate(${r1(W / 2 + sx * k)} ${r1(500 + sy * k)}) scale(${r1(zk * 1000) / 1000}) translate(${r1(-fxk)} ${-fy})">${inner}</g>`;
+  };
+
+  // props
+  const back = [];
+  const front = [];
+  (d.props || []).forEach((p, i) => {
+    const fn = A.PROPS[p.type];
+    if (!fn) return;
+    const mover = A.MOVERS.has(p.type);
+    const x0 = (p.x == null ? 0.5 : p.x) * W;
+    const x1 = (p.x1 == null ? p.x == null ? 0.5 : p.x : p.x1) * W;
+    const pp = still ? 0.65 : mover ? clamp((t - 0.05) / (dur * 0.95)) : 1;
+    const x = lerp(x0, x1, mover ? pp : 1);
+    const spin = mover ? (x - x0) / 34 : 0;
+    const road = d.setting === 'street' ? pl.groundTop + 215 : pl.groundTop + 190;
+    const y = mover ? road : p.layer === 'front' ? FEET + 20 : pl.groundTop + 36 + (i % 2) * 8;
+    const face = x1 < x0 ? -1 : 1;
+    const s = p.scale || 1;
+    const body = fn({ t, scale: s, night, spin: face < 0 ? -spin : spin, color: p.color, seed: i * 1.7 });
+    const g = `<g transform="translate(${r1(x)} ${y}) scale(${face} 1)">${body}</g>`;
+    (mover || p.layer === 'front' ? front : back).push(g);
+  });
+
+  // actors
+  const acts = (d.actors || []).map((a, i) => {
+    const ch = cast[a.id] || { id: a.id, name: a.id };
+    const x0 = a.x0 == null ? 0.5 : a.x0;
+    const x1 = a.x1 == null ? x0 : a.x1;
+    const dist = Math.abs(x1 - x0);
+    const wd = clamp(dist * 3.0, 0.55, 1.8);
+    const p = still ? 1 : ease((t - (a.delay || 0.12)) / wd);
+    const moving = dist > 0.02 && (still ? true : p < 1);
+    const x = lerp(x0, x1, p) * W;
+    let facing = a.facing || (x1 >= x0 ? 1 : -1);
+    if (dist > 0.02) facing = x1 >= x0 ? 1 : -1;
+    if (!moving && a.faceTo != null) facing = a.faceTo >= lerp(x0, x1, 1) ? 1 : -1;
+    let pose = moving ? 'walk' : a.pose === 'walk' ? 'idle' : a.pose || 'idle';
+    const isSp = !!speaker && speaker === a.id;
+    if (!moving && !still && speaker && speaker !== 'narrator') {
+      if (isSp && (pose === 'idle' || pose === 'listen')) pose = 'talk';
+      else if (!isSp && pose === 'idle' && (d.actors || []).length > 1) pose = 'listen';
+    }
+    if (still && pose === 'idle' && a.speaks) pose = 'talk';
+    return {
+      id: a.id, name: ch.name, look: ch.look, x, y: FEET + ((i * 17) % 34), facing,
+      pose, expr: a.expr || 'neutral', mouth: isSp ? mouth : 0, walk: t * 9.5 + i, scale: (a.scale || 1) * 1.0, t: t + i * 0.7,
+      alpha: still ? 1 : clamp((t + 0.02) / 0.18), isSp,
+    };
+  });
+  acts.sort((a, b) => a.y - b.y || a.x - b.x);
+
+  const actorSvg = acts.map((a) => A.person(a)).join('');
+  // name tags over the speaker (only when more than one character is on screen)
+  let tags = '';
+  const many = acts.length > 1 || (d.actors || []).length > 1;
+  acts.forEach((a) => {
+    if (!many || !(a.isSp || (still && (d.actors || []).find((x) => x.id === a.id && x.speaks)))) return;
+    const s = (a.look && a.look.age === 'child' ? 0.68 : 1) * (a.scale || 1);
+    const label = String(a.name || '').slice(0, 14);
+    const wd = 34 + label.length * 17;
+    tags += `<g transform="translate(${r1(a.x)} ${r1(a.y - 398 * s - 34)})"><rect x="${-wd / 2}" y="-26" width="${wd}" height="46" rx="23" fill="${accent}"/><text x="0" y="7" text-anchor="middle" font-size="28" font-weight="800" fill="#fff" font-family="${esc(o.font || 'sans-serif')}">${esc(label)}</text></g>`;
+  });
+  let bub = '';
+  if (d.icon && ICONS[d.icon] && acts.length) {
+    const who = acts.find((a) => a.id === d.iconOf) || acts[0];
+    const s = who.look && who.look.age === 'child' ? 0.68 : 1;
+    bub = A.bubble(who.x + 90, who.y - 500 * s, ICONS[d.icon], t, accent);
+  }
+  const birdsSvg = !night && d.setting !== 'office' && d.setting !== 'home' && d.setting !== 'street' ? A.birds(W, t) : '';
+
+  const scene =
+    layer(0.25, pl.far + birdsSvg) +
+    layer(0.55, pl.mid + back.join('')) +
+    layer(1, pl.ground + front.join('') + actorSvg + bub + tags);
+  const tint = night ? `<rect x="0" y="0" width="${W}" height="1000" fill="#0a1030" opacity=".22"/>` : d.time === 'dusk' ? `<rect x="0" y="0" width="${W}" height="1000" fill="#ff7a3c" opacity=".08"/>` : '';
+  const fade = still ? 1 : clamp(t / 0.3);
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} 1000" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0;width:100%;height:100%;opacity:${r1(fade * 100) / 100}">` +
+    `<defs>${pl.defs}</defs>${scene}${tint}</svg>`
+  );
+}
+
+module.exports = { stageSvg };
