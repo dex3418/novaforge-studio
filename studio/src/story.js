@@ -134,6 +134,15 @@ const PROPKEYS = [
   ['bench', /\bbench\b|\bsit\b|बैठ/i], ['desk', /\bdesk\b|counter|table|मेज|कंप्यूटर|computer/i], ['lamp', /\blamp\b|\blight\b|streetlight|बत्ती/i],
 ];
 const TONE = {
+  laugh: /haha|lol|laugh|funny|joke|हँस|हंस|मज़ाक|मजाक/i,
+  cry: /\bcry|crying|tears|रो\b|रोने|आँसू|आंसू/i,
+  sleep: /sleep|नींद|सोया|सो गया|सो गई/i,
+  tired: /tired|exhaust|थक/i,
+  love: /\blove|प्यार|पसंद/i,
+  thumbs: /\bok\b|okay|perfect|well done|सही|बढ़िया|शाबाश/i,
+  peace: /\bpeace\b|victory|selfie|smile please/i,
+  refuse: /refuse|\bnever\b|\bno way\b|नहीं चाहिए|कभी नहीं|मना/i,
+  fist: /let's go|lets go|determined|we can|ready\b|चलो|हिम्मत|जीतेंगे|तैयार/i,
   celebrate: /congrat|success|won\b|selected|passed|yay|हुर्रे|बधाई|सफल|चयन|जीत|great news|hurray/i,
   worried: /worr|problem|lost|loan|debt|late\b|trouble|scam|fraud|चिंता|परेशान|दिक्कत|मुश्किल|डर/i,
   wave: /\bhello\b|\bhi\b|namaste|नमस्ते|bye\b|welcome|स्वागत/i,
@@ -207,13 +216,23 @@ function toneOf(text, tone) {
   const t = `${tone || ''} ${text}`;
   let pose = 'idle';
   let expr = 'neutral';
-  if (has(TONE.celebrate, t)) { pose = 'celebrate'; expr = 'happy'; }
+  if (has(TONE.laugh, t)) { expr = 'laugh'; pose = 'talk'; }
+  else if (has(TONE.cry, t)) { expr = 'cry'; }
+  else if (has(TONE.sleep, t)) { expr = 'sleep'; }
+  else if (has(TONE.tired, t)) { expr = 'tired'; pose = 'shrug'; }
+  else if (has(TONE.love, t)) { expr = 'love'; }
+  else if (has(TONE.refuse, t)) { pose = 'crossed'; expr = 'angry'; }
+  else if (has(TONE.fist, t)) { pose = 'fist'; expr = 'happy'; }
+  else if (has(TONE.thumbs, t)) { pose = 'thumbsup'; expr = 'happy'; }
+  else if (has(TONE.peace, t)) { pose = 'peace'; expr = 'wink'; }
+  else if (has(TONE.celebrate, t)) { pose = 'celebrate'; expr = 'happy'; }
   else if (has(TONE.worried, t)) { pose = 'worried'; expr = 'worried'; }
   else if (has(TONE.wave, t)) { pose = 'wave'; expr = 'happy'; }
   else if (has(TONE.shrug, t)) { pose = 'shrug'; expr = 'thinking'; }
   else if (has(TONE.point, t) && !/\?/.test(text)) { pose = 'point'; }
   else if (has(TONE.think, t) || /\?\s*$/.test(text)) { pose = 'think'; expr = 'thinking'; }
-  if (has(TONE.angry, t)) expr = 'angry';
+  if (['laugh', 'cry', 'sleep', 'tired', 'love', 'wink'].includes(expr)) { /* keep the strong feeling */ }
+  else if (has(TONE.angry, t)) expr = 'angry';
   else if (has(TONE.sad, t)) expr = 'sad';
   else if (has(TONE.surprised, t)) expr = 'surprised';
   else if (expr === 'neutral' && has(TONE.happy, t)) expr = 'happy';

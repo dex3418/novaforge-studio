@@ -134,7 +134,8 @@ function stageSvg(d, o) {
     const star = (x, y, s, ph) => `<path transform="translate(${r1(x)} ${r1(y)}) scale(${r1(s * (0.8 + 0.2 * Math.sin(t * 3 + ph)) * 100) / 100}) rotate(${r1(Math.sin(t + ph) * 15)})" d="M0 -14 L4 -4 L14 0 L4 4 L0 14 L-4 4 L-14 0 L-4 -4Z" fill="#fff" opacity=".9"/>`;
     for (let i = 0; i < 7; i++) extra += star(((i * 173 + 90) % 1000) / 1000 * W, 90 + ((i * 97) % 420), 0.8 + (i % 3) * 0.35, i * 1.7);
   }
-  const blurDefs = art === 'webtoon' ? `<filter id="bl${seed}"><feGaussianBlur stdDeviation="3.2"/></filter>` : '';
+  const stkDefs = art === 'chibi' ? '<filter id="nfStk" x="-30%" y="-30%" width="160%" height="160%"><feMorphology in="SourceAlpha" operator="dilate" radius="7" result="d"/><feFlood flood-color="#ffffff"/><feComposite in2="d" operator="in" result="w"/><feMerge><feMergeNode in="w"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' : '';
+  const blurDefs = (art === 'webtoon' ? `<filter id="bl${seed}"><feGaussianBlur stdDeviation="3.2"/></filter>` : '') + stkDefs;
   const fade = still ? 1 : clamp(t / 0.3);
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} 1000" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0;width:100%;height:100%;opacity:${r1(fade * 100) / 100};${css}">` +
