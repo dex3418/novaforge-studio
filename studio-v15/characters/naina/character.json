@@ -1,0 +1,34 @@
+{
+  "character_id": "naina",
+  "name": "Naina",
+  "version": 1,
+  "notes": "Source art in source/ is never edited. Run `npm run characters` (in studio/) to rebuild the cleaned, baked data used by the renderer.",
+  "angles": {
+    "front":          { "file": "naina_01_front_rigged.svg",         "faces": 0,  "clean": { "remove_above_y": 30 } },
+    "front_left_45":  { "file": "naina_02_front_left_45_rigged.svg", "faces": -1, "clean": { "remove_above_y": 30 } },
+    "left_profile":   { "file": "naina_03_left_profile_rigged.svg",  "faces": -1, "clean": { "remove_above_y": 30, "remove_left_x": 35 } },
+    "back_left_45":   { "file": "naina_04_back_left_45_rigged.svg",  "faces": 0,  "clean": { "remove_left_x": 14 } },
+    "back":           { "file": "naina_05_back_rigged.svg",          "faces": 0,  "clean": {} },
+    "back_right_45":  { "file": "naina_06_back_right_45_rigged.svg", "faces": 0,  "clean": {} },
+    "right_profile":  { "file": "naina_07_right_profile_rigged.svg", "faces": 1,  "clean": {} },
+    "front_right_45": { "file": "naina_08_front_right_45_rigged.svg","faces": 1,  "clean": {} }
+  },
+  "poses": ["idle", "walk", "talk", "listen", "think", "celebrate", "worried"],
+  "pose_fallback": {
+    "point": "talk", "wave": "talk", "peace": "talk", "thumbsup": "talk",
+    "shrug": "idle", "crossed": "listen", "fist": "celebrate"
+  },
+  "pose_angle": {
+    "idle": "three_quarter", "walk": "profile", "talk": "three_quarter", "listen": "three_quarter",
+    "think": "three_quarter", "celebrate": "front", "worried": "three_quarter"
+  },
+  "rig": {
+    "head_tilt": {
+      "max_deg": 5,
+      "angles": ["front", "front_left_45", "left_profile", "right_profile", "front_right_45"],
+      "note": "Back views are excluded: tilting the head there exposes white gaps in the hair."
+    }
+  },
+  "expressions": ["neutral"],
+  "locked_features": ["face_shape", "hairstyle", "clothing", "body_proportions", "colour_palette"]
+}
