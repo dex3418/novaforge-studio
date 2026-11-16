@@ -16,10 +16,14 @@ on:
         description: 'Gemini API key (leave empty to use the GEMINI_API_KEY secret)'
         required: false
         default: ''
+      only:
+        description: 'Kinds to test, comma separated: image,imagen,tts,text,embed (empty = all)'
+        required: false
+        default: 'image,imagen,tts,text'
       max_tests:
         description: 'Max models to test (each is one tiny request)'
         required: false
-        default: '80'
+        default: '40'
 
 permissions:
   contents: read
@@ -39,6 +43,7 @@ jobs:
           TYPED_KEY: ${{ github.event.inputs.api_key }}
           SECRET_KEY: ${{ secrets.GEMINI_API_KEY }}
           MAX: ${{ github.event.inputs.max_tests }}
+          ONLY: ${{ github.event.inputs.only }}
         run: |
           KEY="${TYPED_KEY:-$SECRET_KEY}"
           if [ -z "$KEY" ]; then echo "No key: type one in the box or add the GEMINI_API_KEY repo secret."; exit 2; fi
