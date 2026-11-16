@@ -187,6 +187,20 @@ test('backing: head tilt moves the under-layer and the art together', () => {
   assert.strictEqual((s.match(/<g transform="rotate\(-5 /g) || []).length, 2, 'head group tilted in both layers');
 });
 
+test('face: mouth shapes appear only while speaking, on angles with a mouth spec, and follow the head tilt', () => {
+  const still = A.person({ ...base, angle: 'front', mouth: 0 });
+  const talk = A.person({ ...base, angle: 'front', mouth: 0.9, t: 0.02 });
+  assert.ok(talk.length > still.length && talk.includes(naina.face.skin), 'overlay added with skin patch');
+  assert.ok(!still.includes(naina.face.skin), 'no overlay at mouth 0');
+  assert.ok(!A.person({ ...base, angle: 'back', mouth: 0.9 }).includes(naina.face.skin), 'no overlay where no mouth is drawn');
+  const shapes = new Set();
+  for (let i = 0; i < 12; i++) shapes.add(A.person({ ...base, angle: 'front_left_45', mouth: 0.9, t: i / 9 + 0.01 }).slice(-260));
+  assert.ok(shapes.size >= 3, 'several distinct mouth shapes over time');
+  const tilted = A.person({ ...base, pose: 'think', angle: 'front', mouth: 0.9 });
+  assert.ok(/<g transform="rotate\(-5 [^"]+"><ellipse/.test(tilted), 'overlay inside tilt group');
+  for (const g of Object.keys(naina.face.mouth)) assert.ok(naina.angles[g], g);
+});
+
 test('stage: a story beat with naina (asset) and ramu (procedural) draws together with name tags', () => {
   const svg = stageSvg(
     { setting: 'village', time: 'day', actors: [{ id: 'naina', x0: 0.25, x1: 0.25, pose: 'talk', expr: 'neutral', speaks: true }, { id: 'ramu', x0: 0.75, x1: 0.75, pose: 'listen', expr: 'neutral' }], props: [], camera: { z0: 1, z1: 1.05, fx0: 0.5 } },

@@ -66,6 +66,25 @@ function motion(pose, t, walk, mouth, facing) {
   return m;
 }
 
+// Mouth shapes drawn over the art's fixed smile while the character speaks (mouth 0 = the art as drawn).
+// A skin patch hides the drawn smile, then one of four shapes is chosen deterministically from time.
+const VISEMES = ['A', 'E', 'O', 'M', 'A', 'E'];
+function mouthOverlay(face, angle, mouth, t) {
+  const spec = face && face.mouth && face.mouth[angle];
+  if (!spec || !(mouth > 0.05)) return '';
+  const { cx, cy, w } = spec;
+  const v = VISEMES[Math.floor(t * 9) % VISEMES.length];
+  const o = clamp(mouth, 0, 1);
+  const ink = '#3A1E1B', lip = '#8C4A3C';
+  const patch = `<ellipse cx="${cx}" cy="${cy}" rx="${r1(w * 0.72)}" ry="${r1(w * 0.34)}" fill="${face.skin}"/>`;
+  let shape;
+  if (v === 'M') shape = `<path d="M${r1(cx - w * 0.28)} ${cy} Q${cx} ${r1(cy + 3)} ${r1(cx + w * 0.28)} ${cy}" fill="none" stroke="${lip}" stroke-width="3.2" stroke-linecap="round"/>`;
+  else if (v === 'E') shape = `<ellipse cx="${cx}" cy="${cy}" rx="${r1(w * 0.3)}" ry="${r1(2 + 4 * o)}" fill="${ink}" stroke="${lip}" stroke-width="2.4"/>`;
+  else if (v === 'O') shape = `<ellipse cx="${cx}" cy="${r1(cy + 1)}" rx="${r1(w * 0.13 + 2 * o)}" ry="${r1(4 + 7 * o)}" fill="${ink}" stroke="${lip}" stroke-width="2.4"/>`;
+  else shape = `<path d="M${r1(cx - w * 0.24)} ${cy - 2} Q${cx} ${r1(cy - 3)} ${r1(cx + w * 0.24)} ${cy - 2} Q${cx} ${r1(cy + 5 + 12 * o)} ${r1(cx - w * 0.24)} ${cy - 2}Z" fill="${ink}" stroke="${lip}" stroke-width="2.4" stroke-linejoin="round"/>`;
+  return patch + shape;
+}
+
 // a = { id, x, y, facing 1|-1, pose, expr, mouth 0..1, walk (phase), scale, t, alpha, look, angle? }
 // baseH = standing height for the current art style (story_art.heightOf)
 function assetPerson(a, ch, baseH) {
@@ -89,8 +108,11 @@ function assetPerson(a, ch, baseH) {
     const [px, py] = art.pivots.head;
     slots.head = `transform="rotate(${r1(deg)} ${px} ${py})"`;
   }
+  // overlay follows the head tilt so it stays on the face
+  const face = mouthOverlay(ch.face, angle, a.mouth || 0, t);
+  const faceG = face ? (slots.head ? `<g ${slots.head}>${face}</g>` : `<g>${face}</g>`) : '';
   const fill = (src) => src.replace(/\{\{([\w-]+)\}\}/g, (_, key) => slots[key] || '');
-  const markup = fill(under(ch, angle, art)) + fill(art.svg);
+  const markup = fill(under(ch, angle, art)) + fill(art.svg) + faceG;
 
   const shadow = `<ellipse cx="0" cy="6" rx="${r1(70 * sc)}" ry="${r1(13 * sc)}" fill="#000" opacity=".16"/>`;
   const body =
