@@ -109,7 +109,10 @@ function buildOne(id) {
   if (typeof backing !== 'number' || backing < 0 || backing > 12) throw new Error(`${id}: backing must be a number from 0 to 12`);
   const head = (spec.rig && spec.rig.head_tilt) || { max_deg: 0, angles: [] };
   for (const a of head.angles || []) if (!angles[a]) throw new Error(`${id}: rig.head_tilt lists unknown angle ${a}`);
+  const face = spec.face || null;
+  if (face) for (const a of Object.keys(face.mouth || {})) if (!angles[a]) throw new Error(`${id}: face.mouth lists unknown angle ${a}`);
   return {
+    face,
     id, name: spec.name || id, version: spec.version || 1, backing,
     poses, pose_fallback: spec.pose_fallback || {}, pose_angle: spec.pose_angle || {},
     expressions: spec.expressions && spec.expressions.length ? spec.expressions : ['neutral'],
