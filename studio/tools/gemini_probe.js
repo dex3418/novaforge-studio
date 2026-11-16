@@ -9,6 +9,7 @@ const KEY = process.env.GEMINI_KEY || '';
 const BASE = 'https://generativelanguage.googleapis.com/v1beta';
 if (!KEY) { console.error('No key given.'); process.exit(2); }
 
+const only = (process.env.ONLY || '').split(',').map((x) => x.trim()).filter(Boolean);
 const max = Number((process.argv[process.argv.indexOf('--max') + 1]) || 80);
 const scrub = (s) => String(s).split(KEY).join('***');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -38,6 +39,23 @@ function kinds(m) {
   if (/live|native-audio/i.test(id) || meth.includes('bidiGenerateContent')) k.push('live');
   if (!k.length && meth.includes('generateContent')) k.push('text');
   return k;
+}
+
+// 429 can mean "too fast" (wait and retry) or "this model has no free quota" (limit 0). Wait for the retry
+// time Google suggests, up to 3 tries, and only call it unavailable when the limit is 0 or it keeps failing.
+async function withRetry(fn) {
+  let r;
+  for (let i = 0; i < 4; i++) {
+    r = await fn();
+    if (r.status !== 429) return r;
+    const raw = JSON.stringify(r.json || {});
+    if (/limit:\s*0\b/.test(raw) || /"quotaValue":\s*"0"/.test(raw)) { r.err = `NOT ON YOUR PLAN (quota 0): ${r.err}`.slice(0, 160); return r; }
+    const m = /"retryDelay":\s*"(\d+(?:\.\d+)?)s"/.exec(raw);
+    const wait = Math.min(65, m ? Math.ceil(Number(m[1])) + 1 : 20);
+    if (i < 3) { console.log(`   rate limited, waiting ${wait}s then retrying`); await sleep(wait * 1000); }
+  }
+  r.err = `RATE LIMITED (still after retries): ${r.err}`.slice(0, 160);
+  return r;
 }
 
 async function probe(id, kind) {
@@ -89,13 +107,14 @@ function got(kind, r) {
   let tested = 0;
   for (const j of jobs) {
     if (['live', 'video'].includes(j.kind)) { rows.push({ ...j, result: 'listed (not tested here)' }); continue; }
+    if (only.length && !only.includes(j.kind)) { rows.push({ ...j, result: 'skipped (not selected)' }); continue; }
     if (tested >= max) { rows.push({ ...j, result: 'skipped (limit)' }); continue; }
     tested++;
-    const r = await probe(j.id, j.kind);
+    const r = await withRetry(() => probe(j.id, j.kind));
     const ok = r.status === 200;
     rows.push({ ...j, http: r.status, ok, ms: r.ms, result: ok ? got(j.kind, r) : r.err });
     console.log(`${ok ? 'WORKS ' : 'fails '} ${j.kind.padEnd(6)} ${j.id.padEnd(46)} HTTP ${r.status}  ${rows[rows.length - 1].result}`);
-    await sleep(1500); // stay under free-tier per-minute limits
+    await sleep(4500); // free tiers allow only a few requests a minute
   }
 
   const works = (k) => rows.filter((x) => x.kind === k && x.ok && /returned/.test(x.result)).map((x) => x.id);
