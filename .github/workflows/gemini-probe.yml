@@ -1,0 +1,52 @@
+name: gemini-probe
+
+# Tap "Run workflow". It lists every Gemini model your key can see and really tries them
+# (text, image, Imagen, speech/TTS, embeddings), then prints which ones WORK.
+#
+# Key: leave "api_key" empty to use the repo secret GEMINI_API_KEY (recommended, nothing is typed anywhere).
+# If you do type a key into the box, GitHub shows run inputs on the run page, so use it only for a throw-away
+# key and delete that key afterwards.
+
+run-name: gemini-probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_key:
+        description: 'Gemini API key (leave empty to use the GEMINI_API_KEY secret)'
+        required: false
+        default: ''
+      max_tests:
+        description: 'Max models to test (each is one tiny request)'
+        required: false
+        default: '80'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Probe models
+        working-directory: studio
+        env:
+          TYPED_KEY: ${{ github.event.inputs.api_key }}
+          SECRET_KEY: ${{ secrets.GEMINI_API_KEY }}
+          MAX: ${{ github.event.inputs.max_tests }}
+        run: |
+          KEY="${TYPED_KEY:-$SECRET_KEY}"
+          if [ -z "$KEY" ]; then echo "No key: type one in the box or add the GEMINI_API_KEY repo secret."; exit 2; fi
+          echo "::add-mask::$KEY"
+          GEMINI_KEY="$KEY" node tools/gemini_probe.js --max "${MAX:-80}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gemini_probe
+          path: studio/gemini_probe.json
+          if-no-files-found: ignore
