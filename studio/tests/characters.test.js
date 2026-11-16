@@ -168,6 +168,25 @@ test('head tilt is applied only on verified angles and stays within max_deg', ()
   assert.ok(!/<g transform="rotate\(-?[\d.]+ [\d.]+ [\d.]+\)"/.test(back.replace(/translate[^>]*>/, '')), 'back view must not tilt');
 });
 
+test('backing: an under-layer of colour-matched strokes is drawn beneath the art, and 0 turns it off', () => {
+  const on = A.person({ ...base, angle: 'front' });
+  const strokes = (on.match(/stroke="#[0-9A-Fa-f]{6}" stroke-width="6"/g) || []).length;
+  const paths = (naina.angles.front.svg.match(/<path /g) || []).length;
+  assert.strictEqual(strokes, paths, 'one stroked copy of every path');
+  assert.ok(on.indexOf('stroke-width="6"') < on.indexOf('<path d=', on.lastIndexOf('stroke-width="6"')), 'under-layer comes first');
+  assert.strictEqual(naina.backing, 6);
+  const keep = naina.backing;
+  try {
+    naina.backing = 0;
+    assert.ok(!/stroke-width/.test(A.person({ ...base, angle: 'front' })), 'no strokes when backing is 0');
+  } finally { naina.backing = keep; }
+});
+
+test('backing: head tilt moves the under-layer and the art together', () => {
+  const s = A.person({ ...base, pose: 'think', angle: 'front' });
+  assert.strictEqual((s.match(/<g transform="rotate\(-5 /g) || []).length, 2, 'head group tilted in both layers');
+});
+
 test('stage: a story beat with naina (asset) and ramu (procedural) draws together with name tags', () => {
   const svg = stageSvg(
     { setting: 'village', time: 'day', actors: [{ id: 'naina', x0: 0.25, x1: 0.25, pose: 'talk', expr: 'neutral', speaks: true }, { id: 'ramu', x0: 0.75, x1: 0.75, pose: 'listen', expr: 'neutral' }], props: [], camera: { z0: 1, z1: 1.05, fx0: 0.5 } },

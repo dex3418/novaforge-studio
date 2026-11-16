@@ -11,6 +11,22 @@ const r1 = (n) => Math.round(n * 10) / 10;
 const sin = Math.sin;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
+// Traced artwork has hairline gaps between its shapes, so the scene shows through the character.
+// The backing is a copy of the artwork drawn UNDER it, with every shape stroked in its own colour, which
+// closes those gaps with the neighbouring colours. The art on top is unchanged. width 0 turns it off.
+const underCache = new Map();
+function under(ch, angle, art) {
+  const w = ch.backing;
+  if (!w) return '';
+  const key = `${ch.id}|${angle}|${w}`;
+  let u = underCache.get(key);
+  if (u === undefined) {
+    u = art.svg.replace(/fill="(#[0-9A-Fa-f]{6})"/g, (_, c) => `fill="${c}" stroke="${c}" stroke-width="${w}" stroke-linejoin="round"`);
+    underCache.set(key, u);
+  }
+  return u;
+}
+
 // motion for one pose at time t (seconds). walk is the walk-cycle phase, mouth is 0..1 while speaking.
 function motion(pose, t, walk, mouth, facing) {
   const m = { bob: sin(t * 1.9) * 2, lean: 0, sway: sin(t * 0.9) * 0.5, jump: 0, sy: 1, tilt: 0 };
@@ -73,7 +89,8 @@ function assetPerson(a, ch, baseH) {
     const [px, py] = art.pivots.head;
     slots.head = `transform="rotate(${r1(deg)} ${px} ${py})"`;
   }
-  const markup = art.svg.replace(/\{\{([\w-]+)\}\}/g, (_, key) => slots[key] || '');
+  const fill = (src) => src.replace(/\{\{([\w-]+)\}\}/g, (_, key) => slots[key] || '');
+  const markup = fill(under(ch, angle, art)) + fill(art.svg);
 
   const shadow = `<ellipse cx="0" cy="6" rx="${r1(70 * sc)}" ry="${r1(13 * sc)}" fill="#000" opacity=".16"/>`;
   const body =

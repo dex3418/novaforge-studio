@@ -105,10 +105,12 @@ function buildOne(id) {
   for (const [from, to] of Object.entries(spec.pose_fallback || {})) {
     if (!poses.includes(to)) throw new Error(`${id}: pose_fallback ${from} -> ${to}, but ${to} is not a supported pose`);
   }
+  const backing = spec.backing == null ? 6 : spec.backing;
+  if (typeof backing !== 'number' || backing < 0 || backing > 12) throw new Error(`${id}: backing must be a number from 0 to 12`);
   const head = (spec.rig && spec.rig.head_tilt) || { max_deg: 0, angles: [] };
   for (const a of head.angles || []) if (!angles[a]) throw new Error(`${id}: rig.head_tilt lists unknown angle ${a}`);
   return {
-    id, name: spec.name || id, version: spec.version || 1,
+    id, name: spec.name || id, version: spec.version || 1, backing,
     poses, pose_fallback: spec.pose_fallback || {}, pose_angle: spec.pose_angle || {},
     expressions: spec.expressions && spec.expressions.length ? spec.expressions : ['neutral'],
     locked_features: spec.locked_features || [],

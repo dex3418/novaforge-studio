@@ -14,7 +14,7 @@ After changing anything here, rebuild and test (from `studio/`):
 
 ```
 npm run characters   # cleans the art and bakes src/characters_data.js
-npm test             # 16 checks, no extra packages
+npm test             # 18 checks, no extra packages
 npm run sheet naina  # writes out/naina_sheet.svg/.png: every pose and angle, drawn by the real renderer
 ```
 
@@ -25,6 +25,8 @@ npm run sheet naina  # writes out/naina_sheet.svg/.png: every pose and angle, dr
 - `poses`: poses the character performs. `pose_fallback`: what an unsupported pose becomes (reported once, never silent).
 - `pose_angle`: `front`, `three_quarter` or `profile` per pose; facing left/right picks the matching angle.
 - `expressions`: expressions that exist in the artwork. Others fall back to the first one (reported).
+- `backing`: width (0 to 12, default 6) of a colour-matched layer drawn under the art. Traced art has hairline gaps
+  that let the scene show through; the backing closes them. 0 turns it off.
 - `rig.head_tilt`: angles where the head group may tilt (only angles that were checked visually).
 
 To add a character: create `characters/<id>/`, add `character.json` and the SVGs, run `npm run characters`.

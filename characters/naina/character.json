@@ -2,6 +2,7 @@
   "character_id": "naina",
   "name": "Naina",
   "version": 1,
+  "backing": 6,
   "notes": "Source art in source/ is never edited. Run `npm run characters` (in studio/) to rebuild the cleaned, baked data used by the renderer.",
   "angles": {
     "front":          { "file": "naina_01_front_rigged.svg",         "faces": 0,  "clean": { "remove_above_y": 30 } },
