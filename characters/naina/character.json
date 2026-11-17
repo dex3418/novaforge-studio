@@ -1,7 +1,7 @@
 {
   "character_id": "naina",
   "name": "Naina",
-  "version": 2,
+  "version": 3,
   "backing": 6,
   "notes": "Source art in source/ is never edited. Run `npm run characters` (in studio/) to rebuild the cleaned, baked data used by the renderer.",
   "angles": {
@@ -66,12 +66,22 @@
   ],
   "pose_fallback": {
     "point": "talk",
-    "wave": "talk",
-    "peace": "talk",
-    "thumbsup": "talk",
     "shrug": "idle",
     "crossed": "listen",
-    "fist": "celebrate"
+    "fist": "celebrate",
+    "happy": "laugh",
+    "mad": "angry",
+    "sad": "worried",
+    "surprised": "shocked",
+    "scared": "panic",
+    "sleep": "sleepy",
+    "embarrassed": "blush",
+    "thinking": "think_hand",
+    "heart": "finger_heart",
+    "door": "enter_door",
+    "exit": "step_out",
+    "call": "phone",
+    "texting": "phone"
   },
   "pose_angle": {
     "idle": "three_quarter",
@@ -122,6 +132,188 @@
         "cx": 240,
         "cy": 318,
         "w": 56
+      }
+    }
+  },
+  "variants": {
+    "walk": {
+      "front": {
+        "file": "library/walking_poses/naina_walk_01_front.svg",
+        "faces": 0
+      },
+      "front_left_45": {
+        "file": "library/walking_poses/naina_walk_02_front_left_45.svg",
+        "faces": -1
+      },
+      "left_profile": {
+        "file": "library/walking_poses/naina_walk_03_left_profile.svg",
+        "faces": -1
+      },
+      "back_left_45": {
+        "file": "library/walking_poses/naina_walk_04_back_left_45.svg",
+        "faces": -1
+      },
+      "back": {
+        "file": "library/walking_poses/naina_walk_05_back.svg",
+        "faces": 0
+      },
+      "back_right_45": {
+        "file": "library/walking_poses/naina_walk_06_back_right_45.svg",
+        "faces": 1
+      },
+      "right_profile": {
+        "file": "library/walking_poses/naina_walk_07_right_profile.svg",
+        "faces": 1
+      },
+      "front_right_45": {
+        "file": "library/walking_poses/naina_walk_08_front_right_45.svg",
+        "faces": 1
+      }
+    },
+    "phone": {
+      "any": {
+        "file": "library/action_poses/naina_pose_01_checking_phone_front.svg",
+        "faces": 0,
+        "stand_h": 606
+      }
+    },
+    "phone_45": {
+      "any": {
+        "file": "library/action_poses/naina_pose_02_checking_phone_45.svg",
+        "faces": 0,
+        "stand_h": 590
+      }
+    },
+    "startled": {
+      "any": {
+        "file": "library/action_poses/naina_pose_03_startled_turn.svg",
+        "faces": 0,
+        "stand_h": 574
+      }
+    },
+    "defensive": {
+      "any": {
+        "file": "library/action_poses/naina_pose_04_defensive_hold.svg",
+        "faces": 0,
+        "stand_h": 587
+      }
+    },
+    "sit_car_3q": {
+      "any": {
+        "file": "library/action_poses/naina_pose_05_sitting_car_3_4.svg",
+        "faces": 0,
+        "stand_h": 577
+      }
+    },
+    "sit_car_side": {
+      "any": {
+        "file": "library/action_poses/naina_pose_06_sitting_car_side.svg",
+        "faces": 0,
+        "stand_h": 526
+      }
+    },
+    "step_out": {
+      "any": {
+        "file": "library/action_poses/naina_pose_07_stepping_out.svg",
+        "faces": 0
+      }
+    },
+    "enter_door": {
+      "any": {
+        "file": "library/action_poses/naina_pose_08_entering_door.svg",
+        "faces": 0,
+        "stand_h": 551
+      }
+    },
+    "wave": {
+      "any": {
+        "file": "library/action_poses/naina_pose_09_relieved_wave.svg",
+        "faces": 0,
+        "stand_h": 555
+      }
+    },
+    "laugh": {
+      "any": {
+        "file": "library/expressions/naina_expr_01_laughing.svg",
+        "faces": 0,
+        "stand_h": 871
+      }
+    },
+    "angry": {
+      "any": {
+        "file": "library/expressions/naina_expr_02_angry.svg",
+        "faces": 0,
+        "stand_h": 864
+      }
+    },
+    "annoyed": {
+      "any": {
+        "file": "library/expressions/naina_expr_03_annoyed.svg",
+        "faces": 0,
+        "stand_h": 867
+      }
+    },
+    "think_hand": {
+      "any": {
+        "file": "library/expressions/naina_expr_04_thinking.svg",
+        "faces": 0,
+        "stand_h": 880
+      }
+    },
+    "sleepy": {
+      "any": {
+        "file": "library/expressions/naina_expr_05_sleepy.svg",
+        "faces": 0,
+        "stand_h": 884
+      }
+    },
+    "finger_heart": {
+      "any": {
+        "file": "library/expressions/naina_expr_06_finger_heart.svg",
+        "faces": 0,
+        "stand_h": 874
+      }
+    },
+    "shocked": {
+      "any": {
+        "file": "library/expressions/naina_expr_07_shocked.svg",
+        "faces": 0,
+        "stand_h": 900
+      }
+    },
+    "thumbsup": {
+      "any": {
+        "file": "library/expressions/naina_expr_08_thumbs_up.svg",
+        "faces": 0,
+        "stand_h": 909
+      }
+    },
+    "peace": {
+      "any": {
+        "file": "library/expressions/naina_expr_09_peace_wink.svg",
+        "faces": 0,
+        "stand_h": 893
+      }
+    },
+    "panic": {
+      "any": {
+        "file": "library/expressions/naina_expr_10_panicked_sweat.svg",
+        "faces": 0,
+        "stand_h": 893
+      }
+    },
+    "blush": {
+      "any": {
+        "file": "library/expressions/naina_expr_11_blushing.svg",
+        "faces": 0,
+        "stand_h": 870
+      }
+    },
+    "determined": {
+      "any": {
+        "file": "library/expressions/naina_expr_12_determined.svg",
+        "faces": 0,
+        "stand_h": 874
       }
     }
   }

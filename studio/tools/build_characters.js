@@ -94,6 +94,72 @@ function buildAngle(id, angle, spec) {
   };
 }
 
+// A "variant" is a complete, flat drawing of one pose (no rig groups). Its paths already carry their own
+// outline stroke, so no backing layer is needed. Feet anchor = middle of the lowest part of the drawing.
+function buildVariant(id, pose, key, spec) {
+  const file = path.join(CHAR_DIR, id, spec.file);
+  if (!fs.existsSync(file)) throw new Error(`${id}/${pose}/${key}: missing file ${spec.file}`);
+  const src = fs.readFileSync(file, 'utf8');
+  const vb = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(src);
+  if (!vb) throw new Error(`${id}/${pose}/${key}: no viewBox`);
+  const paths = [];
+  const re = /<path\b[^>]*>/g;
+  let m;
+  while ((m = re.exec(src))) {
+    const d = /\sd="([^"]+)"/.exec(m[0]);
+    const b = d && pathBox(d[1]);
+    if (b) paths.push({ tag: m[0], b });
+  }
+  if (!paths.length) throw new Error(`${id}/${pose}/${key}: no paths`);
+  // tracing leftovers: a flat "label bar" along the top of the sheet, and thin slivers cut off at a side edge.
+  // Only whole paths are dropped; the source file is untouched.
+  const VW = Number(vb[1]);
+  const VH = Number(vb[2]);
+  const junk = (p) => {
+    const w = p.b.x1 - p.b.x0;
+    const h = p.b.y1 - p.b.y0;
+    const banner = (h < 40 && w > 50 && p.b.y1 < VH * 0.1) || p.b.y1 < 6;
+    const sliver = w < 16 && h > 20 && (p.b.x0 <= 3 || p.b.x1 >= VW - 3);
+    return banner || sliver;
+  };
+  // junk can also hide inside a big outline path as one of its sub-shapes, so test each M...Z piece too
+  let removed = 0;
+  const kept = [];
+  for (const p of paths) {
+    if (junk(p)) { removed++; continue; }
+    const dm = /\sd="([^"]+)"/.exec(p.tag);
+    const pieces = dm[1].split(/(?=M)/).filter((x) => x.trim());
+    if (pieces.length > 1) {
+      const good = pieces.filter((piece) => { const b = pathBox(piece); return !b || !junk({ b }); });
+      if (good.length !== pieces.length) {
+        removed += pieces.length - good.length;
+        const nd = good.join('');
+        p.tag = p.tag.replace(dm[1], nd);
+        p.b = pathBox(nd) || p.b;
+      }
+    }
+    kept.push(p);
+  }
+  paths.length = 0;
+  paths.push(...kept);
+  const box = { x0: Math.min(...paths.map((p) => p.b.x0)), y0: Math.min(...paths.map((p) => p.b.y0)), x1: Math.max(...paths.map((p) => p.b.x1)), y1: Math.max(...paths.map((p) => p.b.y1)) };
+  const low = paths.filter((p) => p.b.y1 >= box.y1 - (box.y1 - box.y0) * 0.06);
+  const fx0 = Math.min(...low.map((p) => p.b.x0));
+  const fx1 = Math.max(...low.map((p) => p.b.x1));
+  // shorter numbers: 12.0 -> 12 (keeps the baked file small)
+  const svg = paths.map((p) => p.tag.replace(/(\d)\.0(?!\d)/g, '$1')).join('');
+  if (/\bid="/.test(svg)) throw new Error(`${id}/${pose}/${key}: unexpected ids in markup`);
+  return {
+    faces: spec.faces || 0,
+    w: Number(vb[1]), h: Number(vb[2]),
+    bbox: { x0: r1(box.x0), y0: r1(box.y0), x1: r1(box.x1), y1: r1(box.y1) },
+    anchor: r1((fx0 + fx1) / 2),
+    stand_h: spec.stand_h || null,
+    removed,
+    svg,
+  };
+}
+
 function buildOne(id) {
   const spec = JSON.parse(fs.readFileSync(path.join(CHAR_DIR, id, 'character.json'), 'utf8'));
   if (spec.character_id !== id) throw new Error(`${id}: character_id is "${spec.character_id}"`);
@@ -103,8 +169,18 @@ function buildOne(id) {
   const poses = spec.poses || ['idle'];
   if (!poses.includes('idle')) throw new Error(`${id}: pose "idle" is required (it is the fallback)`);
   for (const [from, to] of Object.entries(spec.pose_fallback || {})) {
-    if (!poses.includes(to)) throw new Error(`${id}: pose_fallback ${from} -> ${to}, but ${to} is not a supported pose`);
+    if (!poses.includes(to) && !(spec.variants || {})[to]) throw new Error(`${id}: pose_fallback ${from} -> ${to}, but ${to} is not a supported pose`);
   }
+  const variants = {};
+  for (const [pose, keys] of Object.entries(spec.variants || {})) {
+    variants[pose] = {};
+    for (const [key, v] of Object.entries(keys)) {
+      if (key !== 'any' && !angles[key]) throw new Error(`${id}: variant ${pose} uses unknown angle ${key}`);
+      variants[pose][key] = buildVariant(id, pose, key, v);
+    }
+  }
+  const allPoses = [...poses];
+  for (const p of Object.keys(variants)) if (!allPoses.includes(p)) allPoses.push(p);
   const backing = spec.backing == null ? 6 : spec.backing;
   if (typeof backing !== 'number' || backing < 0 || backing > 12) throw new Error(`${id}: backing must be a number from 0 to 12`);
   const head = (spec.rig && spec.rig.head_tilt) || { max_deg: 0, angles: [] };
@@ -114,7 +190,7 @@ function buildOne(id) {
   return {
     face,
     id, name: spec.name || id, version: spec.version || 1, backing,
-    poses, pose_fallback: spec.pose_fallback || {}, pose_angle: spec.pose_angle || {},
+    poses: allPoses, variants, pose_fallback: spec.pose_fallback || {}, pose_angle: spec.pose_angle || {},
     expressions: spec.expressions && spec.expressions.length ? spec.expressions : ['neutral'],
     locked_features: spec.locked_features || [],
     rig: { head_tilt: { max_deg: head.max_deg || 0, angles: head.angles || [] } },

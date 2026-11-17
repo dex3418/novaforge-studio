@@ -93,7 +93,7 @@ test('every supported pose x facing x art style renders valid, balanced SVG', ()
       }
     }
   }
-  assert.strictEqual(n, 42);
+  assert.strictEqual(n, naina.poses.length * 2 * 3);
 });
 
 test('every angle can be drawn explicitly (angle override)', () => {
@@ -118,7 +118,8 @@ test('unknown pose, unknown expression and unknown angle fall back and never thr
 test('declared fallbacks: wave/point -> talk, shrug -> idle (and each is reported)', () => {
   quiet(() => {
     CH.drainWarnings();
-    assert.strictEqual(CH.resolvePose(naina, 'wave'), 'talk');
+    assert.strictEqual(CH.resolvePose(naina, 'wave'), 'wave', 'wave is now a real drawn pose');
+    assert.strictEqual(CH.resolvePose(naina, 'happy'), 'laugh');
     assert.strictEqual(CH.resolvePose(naina, 'point'), 'talk');
     assert.strictEqual(CH.resolvePose(naina, 'shrug'), 'idle');
     assert.strictEqual(CH.resolvePose(naina, 'walk'), 'walk');
@@ -155,7 +156,7 @@ test('identity: drawn height matches the art style height at every angle and pos
   // feet are at y=700 and the scale makes the artwork exactly heightOf(art) tall
   for (const g of Object.keys(naina.angles)) {
     const s = A.person({ ...base, angle: g, t: 0, art: 'chibi' });
-    const k = Number(/scale\(([\d.]+)\) translate/.exec(s)[1]);
+    const k = Number(/scale\(([\d.]+) [\d.]+\) translate/.exec(s)[1]);
     const a = naina.angles[g];
     assert.ok(Math.abs(k * (a.bbox.y1 - a.bbox.y0) - A.heightOf('chibi')) < 0.5, g);
   }
@@ -199,6 +200,73 @@ test('face: mouth shapes appear only while speaking, on angles with a mouth spec
   const tilted = A.person({ ...base, pose: 'think', angle: 'front', mouth: 0.9 });
   assert.ok(/<g transform="rotate\(-5 [^"]+"><ellipse/.test(tilted), 'overlay inside tilt group');
   for (const g of Object.keys(naina.face.mouth)) assert.ok(naina.angles[g], g);
+});
+
+test('pose drawings: every variant renders at every facing, walk follows facing, busts hang and fade', () => {
+  for (const [pose, set] of Object.entries(naina.variants)) {
+    for (const key of Object.keys(set)) {
+      for (const facing of [1, -1]) {
+        const s = A.person({ ...base, pose, facing, angle: key === 'any' ? undefined : key });
+        assert.ok(s.startsWith('<g opacity=') && !/NaN|undefined|\{\{/.test(s), `${pose}/${key}/${facing}`);
+        assert.strictEqual((s.match(/<g[ >]/g) || []).length, (s.match(/<\/g>/g) || []).length, `unbalanced ${pose}/${key}`);
+      }
+    }
+  }
+  // walk uses the drawn walking frames: facing right -> right profile art, left -> left profile art
+  const r = A.person({ ...base, pose: 'walk', facing: 1, t: 0 });
+  const l = A.person({ ...base, pose: 'walk', facing: -1, t: 0 });
+  assert.notStrictEqual(r, l);
+  assert.ok(r.includes(naina.variants.walk.right_profile.svg.slice(0, 120)));
+  assert.ok(l.includes(naina.variants.walk.left_profile.svg.slice(0, 120)));
+  // a bust (laugh) is faded out at the bottom and has no ground shadow
+  const bust = A.person({ ...base, pose: 'laugh' });
+  assert.ok(/<mask id="fade-naina-laugh"/.test(bust) && !/opacity="\.16"/.test(bust));
+  // a full figure (wave) keeps its ground shadow and has no mask
+  const full = A.person({ ...base, pose: 'wave' });
+  assert.ok(/opacity="\.16"/.test(full) && !/<mask/.test(full));
+});
+
+test('pose drawings: a drawing that faces the other way is mirrored around its feet', () => {
+  const v = naina.variants.wave.any;
+  const keep = v.faces;
+  try {
+    v.faces = 1;
+    const same = A.person({ ...base, pose: 'wave', facing: 1 });
+    const flipped = A.person({ ...base, pose: 'wave', facing: -1 });
+    assert.ok(!/scale\(-/.test(same), 'no mirror when it already faces the right way');
+    assert.ok(/scale\(-[\d.]+ [\d.]+\) translate/.test(flipped), 'mirrored when it faces the wrong way');
+  } finally { v.faces = keep; }
+});
+
+test('pose drawings: baked data stays a sane size and each drawing has a feet anchor inside its box', () => {
+  assert.ok(fs.statSync(OUT).size < 9 * 1024 * 1024, 'characters_data.js over 9 MB');
+  for (const set of Object.values(naina.variants)) {
+    for (const a of Object.values(set)) assert.ok(a.anchor >= a.bbox.x0 && a.anchor <= a.bbox.x1 && a.bbox.y1 > a.bbox.y0);
+  }
+});
+
+test('transition: prev_pose blends to the new pose, old drawing stays opaque beneath, ends clean', () => {
+  const plain = A.person({ ...base, pose: 'idle', t: 1 });
+  const done = A.person({ ...base, pose: 'idle', t: 1, prev_pose: 'walk', blend: 1 });
+  assert.strictEqual(plain, done, 'blend 1 is a plain draw');
+  const mid = A.person({ ...base, pose: 'idle', t: 1, prev_pose: 'walk', blend: 0.5 });
+  assert.ok(mid.length > plain.length * 1.3, 'both drawings are present midway');
+  assert.strictEqual((mid.match(/<g opacity="1">/g) || []).length, 1, 'old drawing is fully opaque');
+  assert.ok(/<g opacity="0\.5"/.test(mid), 'new drawing fades in (smoothstep 0.5 = 0.5)');
+  const same = A.person({ ...base, pose: 'idle', t: 1, prev_pose: 'idle', blend: 0.3 });
+  assert.strictEqual(same, plain, 'same pose needs no blend');
+  assert.ok(!/NaN/.test(mid));
+});
+
+test('transition: stage eases a walking figure into its resting pose, procedural characters unaffected', () => {
+  const beat = (t) => stageSvg(
+    { setting: 'village', time: 'day', actors: [{ id: 'naina', x0: 0.2, x1: 0.5, pose: 'idle', expr: 'neutral' }], props: [], camera: { z0: 1, z1: 1, fx0: 0.5 } },
+    { w: 1080, h: 1920, t, beatSec: 6, art: 'chibi', accent: '#cb3bcc', cast: { naina: { id: 'naina', name: 'Naina', look: {} } }, speakers: [], wordStarts: [], wordIdx: 0 });
+  const arrive = 0.12 + Math.min(1.8, Math.max(0.55, 0.3 * 3.0)); // delay + walk duration for a 0.3 move
+  const during = beat(arrive + 0.1);
+  const after = beat(arrive + 0.6);
+  assert.ok(during.length > after.length, 'two drawings during the ease, one after');
+  assert.ok(!/NaN|undefined/.test(during));
 });
 
 test('stage: a story beat with naina (asset) and ramu (procedural) draws together with name tags', () => {

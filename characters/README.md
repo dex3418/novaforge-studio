@@ -31,3 +31,19 @@ npm run sheet naina  # writes out/naina_sheet.svg/.png: every pose and angle, dr
 
 To add a character: create `characters/<id>/`, add `character.json` and the SVGs, run `npm run characters`.
 Required: a `front` angle and an `idle` pose. The build fails loudly if the rig groups or pivots are missing.
+
+## Whole-pose drawings (`variants`, from v18)
+
+`characters/<id>/library/` holds complete flat drawings (walking frames, action poses, expression close-ups). They are
+declared in `character.json` under `variants`:
+
+```json
+"variants": { "walk": { "front": {"file": "library/walking_poses/naina_walk_01_front.svg", "faces": 0}, "...": {} },
+              "wave": { "any":   {"file": "library/action_poses/naina_pose_09_relieved_wave.svg", "faces": 0} } }
+```
+
+- Keys are camera angles (like `front_left_45`) or `any` when a pose has one drawing. `faces` is the way the drawing looks (-1 left, 1 right, 0 front); a drawing that faces the wrong way is mirrored around its feet.
+- `stand_h` (optional) says how tall a standing figure would be in that drawing's units, so head size matches everywhere. Drawings that are only head-and-shoulders (stand_h well above their own height) hang from the head-top line and fade out at the bottom.
+- The build removes tracing leftovers (a flat label bar at the top, thin slivers at a side edge) as whole shapes. Files in `library/` are never edited.
+- Poses with a drawing and no rig get whole-body motion only (bob, lean, hop), no head tilt and no talking mouth.
+- Changing pose (e.g. walk -> idle after arriving) blends for 0.3 s: old drawing stays opaque, the new one fades in with a small hop.

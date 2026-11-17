@@ -91,7 +91,11 @@ function stageSvg(d, o) {
       else if (!isSp && pose === 'idle' && (d.actors || []).length > 1) pose = 'listen';
     }
     if (still && pose === 'idle' && a.speaks) pose = 'talk';
+    // right after a walk ends the figure eases into its next pose instead of snapping (registry characters use it)
+    const settle = (a.delay || 0.12) + wd;
+    const eased = !still && dist > 0.02 && !moving && t - settle < 0.3;
     return {
+      prev_pose: eased ? 'walk' : null, blend: eased ? clamp((t - settle) / 0.3) : 1,
       id: a.id, name: ch.name, look: ch.look, x, y: FEET + ((i * 17) % 34), facing,
       pose, art, expr: a.expr || 'neutral', mouth: isSp ? mouth : 0, walk: t * 9.5 + i, scale: (a.scale || 1) * 1.0, t: t + i * 0.7,
       alpha: still ? 1 : clamp((t + 0.02) / 0.18), isSp,
