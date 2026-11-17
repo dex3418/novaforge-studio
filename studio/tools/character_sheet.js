@@ -25,6 +25,12 @@ const angles = Object.keys(ch.angles);
 const rows = [];
 poses.forEach((pose) => rows.push({ label: pose, items: [1, -1].map((f) => ({ pose, facing: f, label: f > 0 ? 'right' : 'left' })) }));
 rows.push({ label: 'angles', items: angles.map((g) => ({ pose: 'idle', facing: 1, angle: g, label: g })) });
+// whole-pose drawings: one cell per pose (walk shows all of its angles)
+const vposes = Object.keys(ch.variants || {});
+vposes.forEach((p) => {
+  const keys = Object.keys(ch.variants[p]);
+  rows.push({ label: `${p} (drawing)`, items: keys.flatMap((k) => (k === 'any' ? [1, -1] : [1]).map((f) => ({ pose: p, facing: f, angle: k === 'any' ? undefined : k, label: `${k === 'any' ? '' : k + ' '}${f > 0 ? 'right' : 'left'}` }))) });
+});
 const cols = Math.max(...rows.map((r) => r.items.length));
 const W = cols * CELL;
 const H = rows.length * 420 + 20;
