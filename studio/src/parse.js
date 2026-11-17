@@ -143,6 +143,23 @@ function parseText(src, slug) {
     }
   }
 
+  // a story pasted without "## " headings: group its lines into scenes of up to 3 lines instead of failing
+  if (!scenes.length && storyMode) {
+    const lines = body.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !/^#/.test(l) && !/^([-*_])\1{2,}$/.test(l) && !/^<!--/.test(l));
+    for (let i = 0; i < lines.length; i += 3) {
+      const sc = { heading: `Scene ${scenes.length + 1}`, paras: [] };
+      for (const raw of lines.slice(i, i + 3)) {
+        let para = raw.replace(/^[>\-*\u2022]\s+/, '');
+        const sl = story.speakerLine(para, cast, loose);
+        if (sl) {
+          if (sl.isNew && !cast.find((c) => c.id === sl.id) && sl.id !== story.NARRATOR) cast.push({ id: sl.id, name: sl.name, look: {}, voice: '', explicit: {} });
+          para = `\u0001${sl.id}\u0003${sl.tone}\u0002${sl.text}`;
+        }
+        sc.paras.push(para);
+      }
+      scenes.push(sc);
+    }
+  }
   if (!scenes.length) throw new Error('no "## " scenes found');
 
   scenes.forEach(normalizeSlide);
