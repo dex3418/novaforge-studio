@@ -1,0 +1,10 @@
+{
+  "character_id": "nikita",
+  "name": "Nikita",
+  "version": 1,
+  "extends": "naina",
+  "note": "Same body and same drawings as Naina, different colours. Hair style, eye shape and a different face need new drawings (see characters/README.md).",
+  "recolor": [
+    { "from_hue": [190, 260], "min_sat": 0.2, "to_hue": 340, "keep_spread": 0.4 }
+  ]
+}

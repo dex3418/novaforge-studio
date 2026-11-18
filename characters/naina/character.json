@@ -236,84 +236,96 @@
       "any": {
         "file": "library/expressions/naina_expr_01_laughing.svg",
         "faces": 0,
-        "stand_h": 871
+        "stand_h": 870,
+        "shot": "bust"
       }
     },
     "angry": {
       "any": {
         "file": "library/expressions/naina_expr_02_angry.svg",
         "faces": 0,
-        "stand_h": 864
+        "stand_h": 870,
+        "shot": "bust"
       }
     },
     "annoyed": {
       "any": {
         "file": "library/expressions/naina_expr_03_annoyed.svg",
         "faces": 0,
-        "stand_h": 867
+        "stand_h": 870,
+        "shot": "bust"
       }
     },
     "think_hand": {
       "any": {
         "file": "library/expressions/naina_expr_04_thinking.svg",
         "faces": 0,
-        "stand_h": 880
+        "stand_h": 870,
+        "shot": "bust"
       }
     },
     "sleepy": {
       "any": {
         "file": "library/expressions/naina_expr_05_sleepy.svg",
         "faces": 0,
-        "stand_h": 884
+        "stand_h": 870,
+        "shot": "bust"
       }
     },
     "finger_heart": {
       "any": {
         "file": "library/expressions/naina_expr_06_finger_heart.svg",
         "faces": 0,
-        "stand_h": 874
+        "stand_h": 870,
+        "shot": "bust"
       }
     },
     "shocked": {
       "any": {
         "file": "library/expressions/naina_expr_07_shocked.svg",
         "faces": 0,
-        "stand_h": 900
+        "stand_h": 870,
+        "shot": "bust"
       }
     },
     "thumbsup": {
       "any": {
         "file": "library/expressions/naina_expr_08_thumbs_up.svg",
         "faces": 0,
-        "stand_h": 909
+        "stand_h": 870,
+        "shot": "bust"
       }
     },
     "peace": {
       "any": {
         "file": "library/expressions/naina_expr_09_peace_wink.svg",
         "faces": 0,
-        "stand_h": 893
+        "stand_h": 870,
+        "shot": "bust"
       }
     },
     "panic": {
       "any": {
         "file": "library/expressions/naina_expr_10_panicked_sweat.svg",
         "faces": 0,
-        "stand_h": 893
+        "stand_h": 870,
+        "shot": "bust"
       }
     },
     "blush": {
       "any": {
         "file": "library/expressions/naina_expr_11_blushing.svg",
         "faces": 0,
-        "stand_h": 870
+        "stand_h": 870,
+        "shot": "bust"
       }
     },
     "determined": {
       "any": {
         "file": "library/expressions/naina_expr_12_determined.svg",
         "faces": 0,
-        "stand_h": 874
+        "stand_h": 870,
+        "shot": "bust"
       }
     }
   }

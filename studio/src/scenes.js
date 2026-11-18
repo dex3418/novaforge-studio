@@ -142,6 +142,10 @@ function transitionStyle(ctx) {
   const op = Math.min(e, x);
   const u = ctx.u;
   switch (ctx.sc.transition || ctx.plan.transition) {
+    case 'cut':
+      return '';
+    case 'fadein':
+      return `opacity:${e}`; // fades in only; the scene's own closing fade handles the exit
     case 'slide':
       return `opacity:${op};transform:translateX(${(1 - b) * 110 * u - (1 - x) * 90 * u}px)`;
     case 'wipe':

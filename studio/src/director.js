@@ -18,7 +18,9 @@ const calibration = require('./calibration');
 const { wordSpeakers } = require('./story');
 const { validatePlan, segmentRanges } = require('./plan');
 
-const MODELS = (process.env.GEMINI_MODEL ? [process.env.GEMINI_MODEL] : []).concat(['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-4-argon']);
+// order = the models that answered on a free key in the gemini-probe run first; the bigger ones after
+const MODELS = (process.env.GEMINI_MODEL ? [process.env.GEMINI_MODEL] : []).concat(['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3.7-flash', 'gemini-3.8-flash']);
+const gate = require('./gemini_gate');
 const MAX_CHARS = 24000;
 
 const LIBRARY = `
@@ -98,6 +100,7 @@ ${scenes.join('\n\n')}
 }
 
 async function callModel(model, key, prompt, images = []) {
+  await gate.wait('text');
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
@@ -230,16 +233,20 @@ function loadImages(parsed) {
 }
 
 // one question, with retries and model fallback. Returns { raw, model, tried } or { fail: [..] }
-async function ask(prompt, images, opts, models, attempts = 3) {
+async function ask(prompt, images, opts, models, attempts = 2) {
   const key = process.env.GEMINI_API_KEY;
   const tried = [];
   for (const model of models) {
+    if (!opts.call && gate.skip(model)) { tried.push(`${model}: skipped (already failed in this run)`); continue; }
     for (let attempt = 1; attempt <= attempts; attempt++) {
       try {
         const raw = parseJson(await (opts.call || callModel)(model, key, prompt, images));
         return { raw, model, tried };
       } catch (e) {
         tried.push(`${model}: ${e.message}`);
+        if (e.budget) return { fail: tried };
+        if (!opts.call) gate.failed(model, e.status);
+        if (e.status === 429) break; // out of quota or rate limited: go to the next model, do not retry this one
         if (e.status === 404 || e.status === 400 || e.status === 403 || e.status === 401) break;
         if (e.status === 429 && /limit: 0/.test(e.message)) break; // no free quota on this model: retrying won't help
         if (attempt < attempts) await new Promise((r) => setTimeout(r, (opts.wait === undefined ? 4000 : opts.wait) * attempt)); // 503 = busy, usually clears in seconds

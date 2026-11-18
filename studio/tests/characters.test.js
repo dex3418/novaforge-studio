@@ -279,6 +279,44 @@ test('safety switch: with the registry off, a registry id draws the procedural f
   assert.strictEqual(A.person(a), on);
 });
 
+test('derived character (nikita): same drawings as naina, only colours move, identity record kept apart', () => {
+  const nik = CH.get('nikita');
+  assert.ok(nik && nik.id === 'nikita' && nik.name === 'Nikita' && nik.extends === 'naina');
+  assert.deepStrictEqual(Object.keys(nik.angles), Object.keys(naina.angles));
+  assert.deepStrictEqual(nik.poses, naina.poses);
+  for (const g of Object.keys(naina.angles)) {
+    assert.strictEqual(nik.angles[g].bbox.y1, naina.angles[g].bbox.y1, 'same geometry');
+    assert.strictEqual(nik.angles[g].svg.replace(/#[0-9A-Fa-f]{6}/g, '#').length, naina.angles[g].svg.replace(/#[0-9A-Fa-f]{6}/g, '#').length, 'same shapes, only colours differ');
+  }
+  assert.notStrictEqual(nik.angles.front.svg, naina.angles.front.svg, 'kurta colour changed');
+  assert.ok(nik.angles.front.svg.includes('#2B2D32') || nik.angles.front.svg.includes('#0D0505'), 'hair/outline colours untouched');
+  assert.strictEqual(CH.get('nikita'), nik, 'cached');
+  const a = { ...base, id: 'nikita', name: 'Nikita' };
+  for (const pose of ['idle', 'walk', 'talk', 'wave', 'laugh']) {
+    const s = A.person({ ...a, pose, mouth: pose === 'talk' ? 0.8 : 0 });
+    assert.ok(s.startsWith('<g opacity=') && !/NaN|undefined|\{\{/.test(s), pose);
+  }
+  assert.notStrictEqual(A.person({ ...a, pose: 'wave' }), A.person({ ...base, pose: 'wave' }));
+});
+
+test('expression close-ups (shot: bust) hang from head height, fade out and carry no ground shadow', () => {
+  for (const p of ['laugh', 'angry', 'annoyed', 'think_hand', 'sleepy', 'finger_heart', 'shocked', 'thumbsup', 'peace', 'panic', 'blush', 'determined']) {
+    const s = A.person({ ...base, pose: p });
+    assert.ok(/<mask id="fade-naina-/.test(s) && !/opacity="\.16"/.test(s), p);
+  }
+});
+
+test('pose drawings: nothing is left floating outside the figure (specks above the head, slivers beside the body)', () => {
+  for (const [pose, set] of Object.entries(naina.variants)) {
+    if (/^sit_car/.test(pose)) continue; // these two are scene pictures (car interior and open doors), wider by design
+    for (const [k, a] of Object.entries(set)) {
+      const h = a.bbox.y1 - a.bbox.y0;
+      const w = a.bbox.x1 - a.bbox.x0;
+      assert.ok(w < h * 1.9, `${pose}/${k} is ${w} wide for ${h} tall`);
+    }
+  }
+});
+
 test('stage: a story beat with naina (asset) and ramu (procedural) draws together with name tags', () => {
   const svg = stageSvg(
     { setting: 'village', time: 'day', actors: [{ id: 'naina', x0: 0.25, x1: 0.25, pose: 'talk', expr: 'neutral', speaks: true }, { id: 'ramu', x0: 0.75, x1: 0.75, pose: 'listen', expr: 'neutral' }], props: [], camera: { z0: 1, z1: 1.05, fx0: 0.5 } },

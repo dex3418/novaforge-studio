@@ -488,8 +488,10 @@ function assignMotion(plan, parsed, seed) {
   const fixedTex = TEXTURES[meta.texture] ? meta.texture : null;
 
   plan.scenes.forEach((s, si) => {
-    if (!PALETTES[s.palette]) s.palette = fixedPal || palOrder[si % palOrder.length];
-    if (!TEXTURES[s.texture]) s.texture = fixedTex || texOrder[(si * 2) % texOrder.length];
+    const drawn = s.kind === 'story' || (s.beats || []).some((b) => b.kind === 'story');
+    // drawn story scenes: one colour family and no texture overlay, so the scenes read as one continuous film
+    if (!PALETTES[s.palette]) s.palette = fixedPal || (drawn ? palOrder[0] : palOrder[si % palOrder.length]);
+    if (!TEXTURES[s.texture]) s.texture = fixedTex || (drawn ? 'none' : texOrder[(si * 2) % texOrder.length]);
   });
   plan.palette = plan.scenes[0].palette;
   plan.texture = plan.scenes[0].texture;
@@ -500,8 +502,8 @@ function assignMotion(plan, parsed, seed) {
   };
   const units = [];
   plan.scenes.forEach((s) => {
-    if (s.beats && s.beats.length > 1) s.beats.forEach((b) => units.push({ u: b, text: b.text || textOf(s) }));
-    else units.push({ u: s, text: textOf(s) });
+    if (s.beats && s.beats.length > 1) s.beats.forEach((b, bi) => units.push({ u: b, text: b.text || textOf(s), first: bi === 0 }));
+    else units.push({ u: s, text: textOf(s), first: true });
   });
 
   const base = MID[tpl.energy] || MID.mid;
@@ -510,7 +512,21 @@ function assignMotion(plan, parsed, seed) {
   let prevScheme = 'base';
   let prevIcon = '';
   let prevD = '';
-  units.forEach(({ u, text }, k) => {
+  units.forEach(({ u, text, first }, k) => {
+    // a drawn story beat never gets a pop-in, sparkle, icon or colour flip: beats of one scene cut cleanly into
+    // each other and only the first beat of a scene fades in
+    if (u.kind === 'story') {
+      u.transition = first ? 'fadein' : 'cut';
+      u.scheme = 'base';
+      u.decor = 'none';
+      u.cstyle = u.cstyle || 'pill';
+      u.align = u.align || 'bottom';
+      u.icon = undefined;
+      prevT = u.transition;
+      prevScheme = 'base';
+      prevD = 'none';
+      return;
+    }
     const e = energyAt(k, n, base);
     const high = e >= 0.85;
     if (!u.transition) {

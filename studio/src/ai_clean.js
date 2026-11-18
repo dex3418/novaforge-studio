@@ -8,7 +8,8 @@
 
 const { cleanScript, tidy } = require('./clean');
 
-const MODELS = (process.env.GEMINI_MODEL ? [process.env.GEMINI_MODEL] : []).concat(['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite']);
+const MODELS = (process.env.GEMINI_MODEL ? [process.env.GEMINI_MODEL] : []).concat(['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3.7-flash', 'gemini-3.8-flash']);
+const gate = require('./gemini_gate');
 const MAX_CHARS = 24000;
 const MAX_MISS = 0.05; // at most 5% of returned words may be absent from the original
 
@@ -39,6 +40,7 @@ ${raw}
 }
 
 async function callModel(model, key, prompt) {
+  await gate.wait('text');
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
@@ -132,7 +134,8 @@ async function aiClean(raw, opts = {}) {
   const prompt = buildPrompt(raw);
   const tried = [];
   for (const model of opts.models || MODELS) {
-    for (let attempt = 1; attempt <= 3; attempt++) {
+    if (!opts.call && gate.skip(model)) { tried.push(`${model}: skipped (already failed in this run)`); continue; }
+    for (let attempt = 1; attempt <= 2; attempt++) {
       try {
         const answer = parseJson(await (opts.call || callModel)(model, key, prompt));
         const v = validate(raw, answer);
@@ -141,6 +144,9 @@ async function aiClean(raw, opts = {}) {
       } catch (e) {
         tried.push(`${model}: ${String(e.message).slice(0, 140)}`);
         const s = e.status;
+        if (e.budget) return { ok: false, note: tried.join(' | ') };
+        if (!opts.call) gate.failed(model, s);
+        if (s === 429) break;
         if (s === 404 || s === 400 || s === 403 || s === 401) break;
         if (s === 429 && /limit: 0/.test(e.message)) break;
         if (!s) break; // answer problem (bad JSON, changed wording): another model may do better, retrying the same one will not

@@ -8,7 +8,7 @@
     "carousel": "node src/build.js --only carousel",
     "preview": "npx remotion studio remotion/index.jsx",
     "characters": "node tools/build_characters.js",
-    "test": "node tests/characters.test.js",
+    "test": "node tests/characters.test.js && node tests/story_smooth.test.js",
     "sheet": "node tools/character_sheet.js"
   },
   "engines": {
