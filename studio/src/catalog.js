@@ -92,7 +92,7 @@ const TEMPLATES = {
   gallery: { label: 'Photo gallery (with pictures)', family: 'night', textures: ['grain', 'bokeh', 'mesh', 'dots'], energy: 'mid', pics: true, photoEvery: 2 },
 };
 
-const TRANSITIONS = ['fade', 'slide', 'wipe', 'zoom', 'flip', 'bounce', 'rise', 'drop', 'circle', 'spin', 'split', 'blinds', 'elastic', 'shake', 'swipeup'];
+const TRANSITIONS = ['fade', 'slide', 'wipe', 'zoom', 'flip', 'bounce', 'rise', 'drop', 'circle', 'spin', 'split', 'blinds', 'elastic', 'shake', 'swipeup', 'fadein', 'cut'];
 const SCHEMES = ['base', 'pop', 'flip']; // colour change per beat: normal, accent background, light/dark flip
 const DECORS = ['none', 'orbs', 'sweep', 'rings', 'bars', 'sparks', 'waves', 'shapes', 'orbit', 'comets', 'confetti', 'pulse']; // animated background shapes (video)
 const HEADERS = ['top', 'pill', 'bottom', 'side']; // where brand and handle sit

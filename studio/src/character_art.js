@@ -146,8 +146,8 @@ function drawOne(a, ch, baseH) {
   // head-and-shoulders drawings (stand_h well above their own height) hang from the head-top line of a standing figure
   // and fade out at the bottom, so they read as a close-up instead of a torso cut off at the ground
   const hArt = art.bbox.y1 - art.bbox.y0;
-  const bust = !!(variant && art.stand_h && art.stand_h > hArt * 1.05);
-  const lift = bust ? (art.stand_h - hArt) * k : 0;
+  const bust = !!(variant && (art.shot === 'bust' || (art.stand_h && art.stand_h > hArt * 1.05)));
+  const lift = bust ? Math.max(0, (art.stand_h || hArt * 1.35) - hArt) * k : 0;
   const fadeId = `fade-${ch.id}-${pose}`;
   const fill = (src) => src.replace(/\{\{([\w-]+)\}\}/g, (_, key) => slots[key] || '');
   const fadeDef = bust ? `<defs><linearGradient id="${fadeId}-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0.72" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient><mask id="${fadeId}" maskUnits="userSpaceOnUse" x="${art.bbox.x0 - 20}" y="${art.bbox.y0 - 20}" width="${art.bbox.x1 - art.bbox.x0 + 40}" height="${hArt + 40}"><rect x="${art.bbox.x0 - 20}" y="${art.bbox.y0 - 20}" width="${art.bbox.x1 - art.bbox.x0 + 40}" height="${hArt + 20}" fill="url(#${fadeId}-g)"/></mask></defs>` : '';

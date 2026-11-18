@@ -69,6 +69,7 @@ function directionFor(style, delivery, si, n, text) {
 }
 
 async function callOnce(model, key, text, voice, direction) {
+  await require('./gemini_gate').wait('tts');
   const legacy = isLegacy(model);
   const reqPart = legacy ? { text: `Say in this style (${direction}): ${text}` } : { text, speech_metadata: { style: direction } };
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
@@ -97,7 +98,9 @@ async function callOnce(model, key, text, voice, direction) {
 
 async function oneSentence(key, text, voice, direction, state) {
   let lastErr;
+  const gate = require('./gemini_gate');
   for (const model of state.models) {
+    if (gate.skip(model)) continue;
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
         const out = await callOnce(model, key, text, voice, direction);
@@ -105,6 +108,10 @@ async function oneSentence(key, text, voice, direction, state) {
         return out;
       } catch (e) {
         lastErr = e;
+        // 429 on a voice is usually the per-minute limit: wait it out once on the SAME model so the voices stay consistent;
+        // only a second 429 sends us to the next model
+        if (e.status === 429 && attempt === 1) { await new Promise((r) => setTimeout(r, 15000)); continue; }
+        if (e.status === 429 || e.status === 503) { gate.failed(model, 503); break; }
         if (e.status === 404 || e.status === 400) break; // wrong model name: try next
         if (e.status === 429 || e.status >= 500) await new Promise((r) => setTimeout(r, 2500 * attempt));
       }

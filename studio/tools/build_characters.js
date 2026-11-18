@@ -122,21 +122,30 @@ function buildVariant(id, pose, key, spec) {
     const sliver = w < 16 && h > 20 && (p.b.x0 <= 3 || p.b.x1 >= VW - 3);
     return banner || sliver;
   };
-  // junk can also hide inside a big outline path as one of its sub-shapes, so test each M...Z piece too
+  // junk can also hide inside a big outline path as one of its sub-shapes, so each M...Z piece is tested too
+  // anything that lies completely outside the figure is a tracing leftover (specks above the head, slivers beside the
+  // body). The figure = the union of the biggest few shapes; a shape counts as outside when its box does not touch that.
+  const pieceBox = (piece) => pathBox(piece);
+  const allPieces = [];
+  for (const p of paths) for (const piece of /\sd="([^"]+)"/.exec(p.tag)[1].split(/(?=M)/)) { const b = pieceBox(piece); if (b) allPieces.push(b); }
+  const area = (b) => (b.x1 - b.x0) * (b.y1 - b.y0);
+  const bigPieces = allPieces.slice().sort((x, y) => area(y) - area(x)).slice(0, 3);
+  const fig = { x0: Math.min(...bigPieces.map((b) => b.x0)), y0: Math.min(...bigPieces.map((b) => b.y0)), x1: Math.max(...bigPieces.map((b) => b.x1)), y1: Math.max(...bigPieces.map((b) => b.y1)) };
+  const M = 6;
+  const outside = (b) => b.x1 < fig.x0 - M || b.x0 > fig.x1 + M || b.y1 < fig.y0 - M || b.y0 > fig.y1 + M;
   let removed = 0;
   const kept = [];
   for (const p of paths) {
     if (junk(p)) { removed++; continue; }
     const dm = /\sd="([^"]+)"/.exec(p.tag);
     const pieces = dm[1].split(/(?=M)/).filter((x) => x.trim());
-    if (pieces.length > 1) {
-      const good = pieces.filter((piece) => { const b = pathBox(piece); return !b || !junk({ b }); });
-      if (good.length !== pieces.length) {
-        removed += pieces.length - good.length;
-        const nd = good.join('');
-        p.tag = p.tag.replace(dm[1], nd);
-        p.b = pathBox(nd) || p.b;
-      }
+    const good = pieces.filter((piece) => { const b = pathBox(piece); return !b || (!junk({ b }) && !outside(b)); });
+    if (!good.length) { removed++; continue; }
+    if (good.length !== pieces.length) {
+      removed += pieces.length - good.length;
+      const nd = good.join('');
+      p.tag = p.tag.replace(dm[1], nd);
+      p.b = pathBox(nd) || p.b;
     }
     kept.push(p);
   }
@@ -155,6 +164,7 @@ function buildVariant(id, pose, key, spec) {
     bbox: { x0: r1(box.x0), y0: r1(box.y0), x1: r1(box.x1), y1: r1(box.y1) },
     anchor: r1((fx0 + fx1) / 2),
     stand_h: spec.stand_h || null,
+    shot: spec.shot || null,
     removed,
     svg,
   };
@@ -163,6 +173,14 @@ function buildVariant(id, pose, key, spec) {
 function buildOne(id) {
   const spec = JSON.parse(fs.readFileSync(path.join(CHAR_DIR, id, 'character.json'), 'utf8'));
   if (spec.character_id !== id) throw new Error(`${id}: character_id is "${spec.character_id}"`);
+  if (spec.extends) {
+    // same body and drawings as another character, different colours (applied by the renderer, nothing is copied)
+    if (spec.extends === id) throw new Error(`${id}: cannot extend itself`);
+    for (const r of spec.recolor || []) {
+      if (!Array.isArray(r.from_hue) || r.from_hue.length !== 2 || typeof r.to_hue !== 'number') throw new Error(`${id}: each recolor rule needs from_hue [a,b] and to_hue`);
+    }
+    return { id, name: spec.name || id, version: spec.version || 1, extends: spec.extends, recolor: spec.recolor || [] };
+  }
   const angles = {};
   for (const [name, a] of Object.entries(spec.angles || {})) angles[name] = buildAngle(id, name, a);
   if (!angles.front) throw new Error(`${id}: a "front" angle is required (it is the fallback)`);
@@ -204,6 +222,9 @@ function buildAll() {
   for (const id of fs.readdirSync(CHAR_DIR).sort()) {
     if (fs.existsSync(path.join(CHAR_DIR, id, 'character.json'))) data[id] = buildOne(id);
   }
+  for (const [id, d] of Object.entries(data)) {
+    if (d.extends && (!data[d.extends] || data[d.extends].extends)) throw new Error(`${id}: extends "${d.extends}", which is missing or itself derived`);
+  }
   return data;
 }
 
@@ -217,6 +238,7 @@ if (require.main === module) {
   const data = buildAll();
   fs.writeFileSync(OUT, render(data));
   for (const [id, c] of Object.entries(data)) {
+    if (c.extends) { console.log(`${id}: same drawings as ${c.extends}, ${c.recolor.length} recolor rule(s)`); continue; }
     const rm = Object.entries(c.angles).map(([a, v]) => `${a}:${v.removed}`).join(' ');
     console.log(`${id}: ${Object.keys(c.angles).length} angles, poses [${c.poses.join(', ')}], removed stray paths ${rm}`);
   }
