@@ -269,6 +269,16 @@ test('transition: stage eases a walking figure into its resting pose, procedural
   assert.ok(!/NaN|undefined/.test(during));
 });
 
+test('safety switch: with the registry off, a registry id draws the procedural figure, and switching back restores it', () => {
+  const a = { ...base, look: { gender: 'f' } };
+  const on = A.person(a);
+  CH.setEnabled(false);
+  let off;
+  try { off = A.person(a); } finally { CH.setEnabled(true); }
+  assert.ok(off.length < on.length / 10 && off.startsWith('<g'), 'procedural figure is small');
+  assert.strictEqual(A.person(a), on);
+});
+
 test('stage: a story beat with naina (asset) and ramu (procedural) draws together with name tags', () => {
   const svg = stageSvg(
     { setting: 'village', time: 'day', actors: [{ id: 'naina', x0: 0.25, x1: 0.25, pose: 'talk', expr: 'neutral', speaks: true }, { id: 'ramu', x0: 0.75, x1: 0.75, pose: 'listen', expr: 'neutral' }], props: [], camera: { z0: 1, z1: 1.05, fx0: 0.5 } },

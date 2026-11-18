@@ -16,7 +16,11 @@ function warn(key, msg) {
   if (typeof console !== 'undefined' && console.warn) console.warn(`[characters] ${msg}`);
 }
 
-const get = (id) => (id && Object.prototype.hasOwnProperty.call(DATA, id) ? DATA[id] : null);
+// Safety switch: the video renderer turns it off for the rest of a frame's life if drawing a registry character
+// ever throws, so a bad asset can never blank the video (the procedural figure is drawn instead).
+let enabled = true;
+const setEnabled = (v) => { enabled = !!v; };
+const get = (id) => (enabled && id && Object.prototype.hasOwnProperty.call(DATA, id) ? DATA[id] : null);
 const ids = () => Object.keys(DATA);
 
 // the pose the character will actually perform for a requested pose
@@ -55,4 +59,5 @@ function resolveAngle(ch, pose, facing, override) {
   return 'front';
 }
 
-module.exports = { get, ids, resolvePose, resolveExpression, resolveAngle, warnings, drainWarnings: () => warnings.splice(0) };
+module.exports = {
+  setEnabled, get, ids, resolvePose, resolveExpression, resolveAngle, warnings, drainWarnings: () => warnings.splice(0) };
