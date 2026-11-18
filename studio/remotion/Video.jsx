@@ -2,6 +2,34 @@ import React from 'react';
 import { AbsoluteFill, Audio, Sequence, staticFile, interpolate, useCurrentFrame, useVideoConfig, delayRender, continueRender } from 'remotion';
 import { useLayoutEffect, useRef } from 'react';
 import { renderScene, currentWordIndex } from '../src/scenes';
+import CHARS from '../src/characters';
+
+// Never let one bad frame blank the video, and say exactly what went wrong in the render log.
+// 1) try normally  2) retry with registry characters off (procedural figures)  3) plain caption card
+const note = (what, e) => {
+  try { console.error(`[nf-error] ${what}: ${e && (e.stack || e.message) ? (e.stack || e.message) : String(e)}`.slice(0, 1500)); } catch (x) { /* ignore */ }
+};
+function safeRender(args, label) {
+  try {
+    return renderScene(args);
+  } catch (e) {
+    note(`${label} (registry on)`, e);
+  }
+  try {
+    CHARS.setEnabled(false);
+    return renderScene(args);
+  } catch (e) {
+    note(`${label} (registry off)`, e);
+  } finally {
+    CHARS.setEnabled(true);
+  }
+  try {
+    return renderScene({ ...args, scene: { ...args.scene, kind: 'caption', data: {}, beats: null } });
+  } catch (e) {
+    note(`${label} (caption card)`, e);
+    return '';
+  }
+}
 
 // Cuts a scene into its beats (each with its own visual) using the real speech timing.
 function beatFrames(scene) {
@@ -66,11 +94,11 @@ const Scene = ({ scene, plan, theme, brand, handle, total, w, h, pics }) => {
     words = p.words;
   }
   const wordIdx = currentWordIndex(words, local, audioFrames, wordFrames);
-  const html = renderScene({
+  const html = safeRender({
     mode: 'video', w, h, plan, scene: sc, frame: local, fps,
     sceneFrames, audioFrames, wordIdx, wordFrames,
     font: theme.font, brand, handle, total, num: scene.index, pics,
-  });
+  }, `scene ${scene.index} frame ${frame}`);
   // pictures inside the HTML must be decoded before the frame is captured
   const ref = useRef(null);
   const hasImg = html.includes('<img');
