@@ -4,6 +4,7 @@
 
 const A = require('./story_art');
 const { ICONS } = require('./icons');
+const SH = require('./shots');
 
 const { clamp, ease, esc } = A;
 const r1 = (n) => Math.round(n * 10) / 10;
@@ -38,16 +39,18 @@ function stageSvg(d, o) {
   const cam = d.camera || {};
   const q = ease(t / dur);
   const land = 1;
-  const z = lerp(cam.z0 || 1, cam.z1 || cam.z0 || 1, q) * land;
-  const fx = lerp(cam.fx0 == null ? 0.5 : cam.fx0, cam.fx1 == null ? (cam.fx0 == null ? 0.5 : cam.fx0) : cam.fx1, q) * W;
-  const fy = still ? 600 : 520; // slides: lift the scene so the text box does not cover the legs
+  let z = lerp(cam.z0 || 1, cam.z1 || cam.z0 || 1, q) * land;
+  let rot = 0;
+  let tagsOff = false;
+  let fx = lerp(cam.fx0 == null ? 0.5 : cam.fx0, cam.fx1 == null ? (cam.fx0 == null ? 0.5 : cam.fx0) : cam.fx1, q) * W;
+  let fy = still ? 600 : 520; // slides: lift the scene so the text box does not cover the legs
   const shake = cam.shake && !still ? Math.max(0, 1 - t / 0.6) * 9 : 0;
   const sx = shake ? Math.sin(t * 52) * shake : 0;
   const sy = shake ? Math.cos(t * 44) * shake * 0.6 : 0;
   const layer = (k, inner) => {
     const zk = 1 + (z - 1) * k;
     const fxk = W / 2 + (fx - W / 2) * k;
-    return `<g transform="translate(${r1(W / 2 + sx * k)} ${r1(500 + sy * k)}) scale(${r1(zk * 1000) / 1000}) translate(${r1(-fxk)} ${-fy})">${inner}</g>`;
+    return `<g transform="translate(${r1(W / 2 + sx * k)} ${r1(500 + sy * k)})${rot ? ` rotate(${r1(rot * k * 100) / 100})` : ''} scale(${r1(zk * 1000) / 1000}) translate(${r1(-fxk)} ${-fy})">${inner}</g>`;
   };
 
   // props
@@ -103,6 +106,23 @@ function stageSvg(d, o) {
   });
   acts.sort((a, b) => a.y - b.y || a.x - b.x);
 
+  // a named shot (close_up, two_shot, ...) is turned into camera numbers here, from where the people really stand
+  if (cam.shot) {
+    const info = acts.map((a) => {
+      const da = (d.actors || []).find((x) => x.id === a.id) || {};
+      const x1 = da.x1 == null ? (da.x0 == null ? 0.5 : da.x0) : da.x1;
+      return { id: a.id, x: x1, y: a.y, h: A.heightOf(art) * (a.look && a.look.age === 'child' ? 0.68 : 1) * (a.scale || 1), speaks: !!da.speaks };
+    });
+    const f = SH.frame(cam, { W, H: 1000, actors: info });
+    if (f) {
+      z = lerp(f.z0, f.z1, q);
+      fx = lerp(f.fx0, f.fx1, q) * W;
+      if (f.fy0 != null) fy = lerp(f.fy0, f.fy1 == null ? f.fy0 : f.fy1, q);
+      rot = lerp(f.rot0, f.rot1, q);
+      if (z > 2.2) tagsOff = true; // a name tag floating over a close-up covers the face
+    }
+  }
+
   const actorSvg = acts.map((a) => A.person(a)).join('');
   // name tags over the speaker (only when more than one character is on screen)
   let tags = '';
@@ -126,7 +146,7 @@ function stageSvg(d, o) {
   const scene =
     (art === 'webtoon' && !learnedScene ? `<g filter="url(#bl${seed})">${layer(0.25, pl.far + birdsSvg)}</g>` : layer(0.25, pl.far + birdsSvg)) +
     layer(0.55, pl.mid + back.join('')) +
-    layer(1, pl.ground + front.join('') + actorSvg + bub + tags);
+    layer(1, pl.ground + front.join('') + actorSvg + (tagsOff ? '' : bub + tags));
   const tint = night ? `<rect x="0" y="0" width="${W}" height="1000" fill="#0a1030" opacity=".22"/>` : d.time === 'dusk' ? `<rect x="0" y="0" width="${W}" height="1000" fill="#ff7a3c" opacity=".08"/>` : '';
   let extra = '';
   let css = '';

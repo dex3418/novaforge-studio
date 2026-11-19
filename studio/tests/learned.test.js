@@ -113,7 +113,7 @@ ok('a learned landscape and prop are accepted by the story and drawn by the stag
   assert.deepStrictEqual(norm.props.map((p) => p.type), ['chair']);
 });
 ok('the director is told about learned names', () => {
-  const prompt = require('../src/director').buildPrompt({ scenes: [{ index: 1, heading: 'x', narration: 'Hello there.', lines: null }] });
+  const prompt = require('../src/director').buildPrompt({ scenes: [{ index: 1, heading: 'x', narration: 'Hello there.', lines: null }], meta: { mode: 'story' } });
   assert.ok(prompt.includes('market') && prompt.includes('chair'), 'setting and prop lists include learned names');
   assert.ok(prompt.includes('wave') && prompt.includes('sit') && /happy/.test(prompt), 'pose list includes learned poses');
 });

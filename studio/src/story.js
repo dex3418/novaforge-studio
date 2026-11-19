@@ -13,6 +13,7 @@
 
 const A = require('./story_art');
 const CHARS = require('./characters');
+const SHOTS = require('./shots');
 const { ICONS } = require('./icons');
 const { VOICES, DEFAULT_VOICE } = require('./catalog');
 
@@ -204,7 +205,10 @@ function normalizeStory(d, castIds, fallback) {
   }
   const c = o.camera && typeof o.camera === 'object' ? o.camera : {};
   const fc = f.camera || {};
-  const camera = {
+  // a named shot (top level "shot"/"on" or inside "camera") is checked against the shot library: an invented name becomes the nearest real shot
+  const shotIn = { shot: o.shot != null ? o.shot : c.shot, on: o.on != null ? o.on : c.on, shake: c.shake || o.shake };
+  const shotCam = SHOTS.cleanCamera(shotIn, actors.map((a) => a.id), null);
+  const camera = shotCam ? shotCam : fc.shot && !(c.z0 != null || c.z1 != null || c.fx0 != null) ? { ...fc } : {
     z0: inRange(c.z0, 0.9, 1.6, fc.z0 || 1), z1: inRange(c.z1, 0.9, 1.6, fc.z1 || fc.z0 || 1),
     fx0: inRange(c.fx0, 0, 1, fc.fx0 == null ? 0.5 : fc.fx0), fx1: inRange(c.fx1, 0, 1, c.fx0 != null ? inRange(c.fx0, 0, 1, 0.5) : fc.fx1 == null ? (fc.fx0 == null ? 0.5 : fc.fx0) : fc.fx1),
     ...(c.shake ? { shake: true } : {}),
@@ -266,6 +270,8 @@ function applyStory(plan, parsed, helpers = {}) {
   let prevSetting = '';
   let beatNo = 0;
   let lastBubble = -9;
+  let prevShot = '';
+  let bigPrev = false;
 
   parsed.scenes.forEach((sc, si) => {
     const s = plan.scenes.find((x) => x.index === sc.index);
@@ -334,16 +340,20 @@ function applyStory(plan, parsed, helpers = {}) {
         const dir = (beatNo + si) % 2 ? 1 : -1;
         props.push({ type: mover, x: dir > 0 ? -0.25 : 1.25, x1: dir > 0 ? 1.3 : -0.3, scale: mover === 'car' ? 0.95 : 0.8, color: ['#e5484d', '#2f6fd6', '#f2b705', '#29b937'][(beatNo + si) % 4] });
       }
-      // camera: wide opening, then close on the speaker, pull back, push in
-      const cycle = (beatNo + si) % 4;
+      // camera: the shot grammar picks a named shot (wide to open, medium for dialogue, close-up on the emotional line,
+      // a reaction shot after big news, never the same shot twice, short beats get no slow moves)
       const sx = actors.find((a) => a.speaks);
-      let camera;
-      if (k === 0 && si === 0) camera = { z0: 1, z1: 1.07, fx0: 0.5 };
-      else if (cycle === 1 && sx) camera = { z0: 1.12, z1: 1.28, fx0: sx.x1, fx1: sx.x1 };
-      else if (cycle === 2) camera = { z0: 1.18, z1: 1, fx0: 0.5, fx1: 0.5 };
-      else if (cycle === 3 && sx) camera = { z0: 1, z1: 1.18, fx0: 0.5, fx1: sx.x1 };
-      else camera = { z0: 1, z1: 1.1, fx0: 0.5, fx1: 0.5 };
-      if (/!/.test(btext) && has(TONE.surprised, btext)) camera.shake = true;
+      const big = /!/.test(btext) && has(TONE.surprised, btext);
+      const nm = words(btext).length;
+      const shot = SHOTS.planShot({
+        first: k === 0 && si === 0, moving: actors.some((a) => Math.abs(a.x1 - a.x0) > 0.25) || (actors.length === 1 && moveText),
+        n: actors.length, expr: sx ? sx.expr : actors[0] ? actors[0].expr : 'neutral', big, after: bigPrev, sec: nm / 2.6,
+      }, prevShot);
+      const camera = { shot };
+      const on = shot === 'reaction' ? (actors.find((a) => !a.speaks) || actors[0]) : sx || actors[0];
+      if (on) camera.on = on.id;
+      bigPrev = big;
+      if (big) camera.shake = true;
       const d = { setting, time, actors, props, camera };
       if (helpers.pickIcon && beatNo - lastBubble >= 3 && actors.length) {
         const ic = helpers.pickIcon(btext);
@@ -353,6 +363,16 @@ function applyStory(plan, parsed, helpers = {}) {
       const given = u.kind === 'story' && u.data && Array.isArray(u.data.actors) ? normalizeStory(u.data, ids, mine) : null;
       u.kind = 'story';
       u.data = given || mine; // the AI's own storyboard wins when it is valid
+      {
+        // the AI's shots are held to the same grammar: same shot twice in a row is swapped for a close relative
+        const cm = u.data.camera || {};
+        if (cm.shot) {
+          const better = SHOTS.breakRepeat(cm.shot, prevShot, u.data.actors.length, nm / 2.6);
+          if (better !== cm.shot) { cm.shot = better; cm.fixedFrom = 'repeat'; }
+          if (!cm.on && u.data.actors.length) cm.on = (u.data.actors.find((a) => a.speaks) || u.data.actors[0]).id;
+          prevShot = cm.shot;
+        } else prevShot = '';
+      }
       u.data.actors.forEach((a) => { if (talker) a.speaks = a.id === talker; pos[a.id] = a.x1; });
     });
     // the scene itself (carousel + fallback) shows its first story beat
