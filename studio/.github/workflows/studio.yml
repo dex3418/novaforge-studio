@@ -1,0 +1,194 @@
+name: studio
+
+# Renders carousel PNGs (zip), a 9:16 Reel and a 16:9 YouTube video from a script.
+# Triggers:
+#   - the "box" page on your phone (workflow_dispatch with script_text)
+#   - manual run from the Actions tab
+#   - a push that touches studio/scripts/**
+
+run-name: studio - ${{ github.event.inputs.script_name || github.event.head_commit.message || 'run' }}
+
+on:
+  push:
+    paths:
+      - 'studio/scripts/**'
+  workflow_dispatch:
+    inputs:
+      script_text:
+        description: 'Full script text (used by the box page)'
+        required: false
+        default: ''
+      script_name:
+        description: 'Short name for the output files'
+        required: false
+        default: ''
+      script:
+        description: 'Or a script path relative to studio/ (blank = all scripts)'
+        required: false
+        default: ''
+      only:
+        description: 'What to build: carousel,reel,long (blank = all)'
+        required: false
+        default: ''
+      calibration:
+        description: 'Your ratings summary (sent by the box, JSON)'
+        required: false
+        default: ''
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: studio/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install edge-tts
+        run: pip install edge-tts
+
+      # v27: nothing is downloaded from the Ubuntu mirror unless it is really missing (one run spent 23 minutes
+      # on that download). Fonts come from studio/fonts, ffmpeg from npm (below), apt is only a fallback.
+      - name: Install bundled fonts
+        timeout-minutes: 10
+        run: |
+          mkdir -p "$HOME/.fonts"
+          cp studio/fonts/*.ttf "$HOME/.fonts/"
+          fc-cache -f >/dev/null 2>&1 || true
+          if ! fc-list | grep -qi "Noto Color Emoji"; then
+            sudo apt-get update && sudo apt-get install -y fonts-noto-color-emoji || echo "::warning::emoji font missing"
+          fi
+          if ! command -v zip >/dev/null; then
+            sudo apt-get update && sudo apt-get install -y zip
+          fi
+          fc-match "Noto Sans Devanagari"
+
+      - name: Browser libraries for Remotion
+        continue-on-error: true
+        timeout-minutes: 10
+        run: |
+          need=""
+          for p in libnss3 libdbus-1-3 libatk1.0-0 libgbm-dev libasound2t64 libxrandr2 libxkbcommon-dev libxfixes3 \
+                   libxcomposite1 libxdamage1 libatk-bridge2.0-0 libpango-1.0-0 libcairo2 libcups2; do
+            dpkg -s "$p" >/dev/null 2>&1 || need="$need $p"
+          done
+          if [ -n "$need" ]; then
+            echo "installing missing:$need"
+            sudo apt-get update && sudo apt-get install -y $need
+          else
+            echo "all browser libraries already present"
+          fi
+
+      - name: Install studio dependencies
+        working-directory: studio
+        run: npm install --no-audit --no-fund
+
+      # ffmpeg and ffprobe come from npm (cached with node_modules), not from apt. A self-test runs the exact filters
+      # the voice code uses; if the binary is missing or too old, apt ffmpeg is the fallback.
+      - name: Use bundled ffmpeg
+        working-directory: studio
+        timeout-minutes: 10
+        run: |
+          mkdir -p "$HOME/bin"
+          F=$(node -e "try{console.log(require('ffmpeg-static')||'')}catch(e){}")
+          P=$(node -e "try{console.log(require('@ffprobe-installer/ffprobe').path||'')}catch(e){}")
+          if [ -n "$F" ] && [ -x "$F" ]; then ln -sf "$F" "$HOME/bin/ffmpeg"; fi
+          if [ -n "$P" ] && [ -x "$P" ]; then ln -sf "$P" "$HOME/bin/ffprobe"; fi
+          ok=false
+          if [ -x "$HOME/bin/ffmpeg" ] && [ -x "$HOME/bin/ffprobe" ] && "$HOME/bin/ffmpeg" -hide_banner -v error \
+               -f lavfi -i anullsrc=r=24000:cl=mono -t 0.2 \
+               -af "apad=pad_dur=0.1,highpass=f=70,acompressor=threshold=0.125:ratio=2.5:attack=8:release=120:makeup=1.5,equalizer=f=180:t=q:w=1:g=1.5,loudnorm=I=-16:TP=-1.5:LRA=9" \
+               -f null -; then
+            ok=true
+          fi
+          if [ "$ok" = true ]; then
+            echo "$HOME/bin" >> "$GITHUB_PATH"
+            "$HOME/bin/ffmpeg" -version | head -1
+          else
+            echo "::warning::bundled ffmpeg unusable, falling back to apt"
+            sudo apt-get update && sudo apt-get install -y ffmpeg
+          fi
+
+      # characters/*/learned and library/ (approved in the Learning Studio) are baked into the bundle here, so a
+      # push of those folders is enough: no need to run the build by hand first
+      - name: Bake learned artwork
+        working-directory: studio
+        run: npm run characters
+
+      - name: Pick scripts
+        id: pick
+        working-directory: studio
+        env:
+          SCRIPT_TEXT: ${{ github.event.inputs.script_text }}
+          SCRIPT_NAME: ${{ github.event.inputs.script_name }}
+          SCRIPT_INPUT: ${{ github.event.inputs.script }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          skip=false
+          files=""
+          if [ -n "$SCRIPT_TEXT" ]; then
+            name=$(printf '%s' "$SCRIPT_NAME" | tr 'A-Z' 'a-z' | tr -cs 'a-z0-9' '-' | sed 's/^-*//; s/-*$//' | cut -c1-40)
+            if [ -z "$name" ]; then name="post-$(date +%s)"; fi
+            mkdir -p scripts/_inbox
+            printf '%s\n' "$SCRIPT_TEXT" > "scripts/_inbox/$name.md"
+            files="scripts/_inbox/$name.md"
+          elif [ -n "$SCRIPT_INPUT" ]; then
+            files="$SCRIPT_INPUT"
+          elif [ "$EVENT" = "push" ]; then
+            files=$(git diff --name-only --diff-filter=AM --relative HEAD~1 HEAD -- scripts | grep '\.md$' | tr '\n' ' ' || true)
+            if [ -z "$files" ]; then skip=true; fi
+          fi
+          echo "files=$files" >> "$GITHUB_OUTPUT"
+          echo "skip=$skip" >> "$GITHUB_OUTPUT"
+          echo "Scripts: ${files:-all}  skip=$skip"
+
+      - name: Render
+        if: steps.pick.outputs.skip != 'true'
+        working-directory: studio
+        env:
+          FILES: ${{ steps.pick.outputs.files }}
+          ONLY: ${{ github.event.inputs.only }}
+          CALIBRATION: ${{ github.event.inputs.calibration }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_TTS_MODEL: ${{ secrets.GEMINI_TTS_MODEL }}
+          GEMINI_MODEL: ${{ secrets.GEMINI_MODEL }}
+        run: |
+          if [ -n "$ONLY" ]; then
+            node src/build.js $FILES --only "$ONLY"
+          else
+            node src/build.js $FILES
+          fi
+
+      - name: Upload results
+        if: steps.pick.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: studio-output
+          path: |
+            studio/out/**/*-carousel.zip
+            studio/out/**/*-reel.mp4
+            studio/out/**/*-youtube.mp4
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload report and caption
+        if: always() && steps.pick.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: studio-report
+          path: |
+            studio/out/**/*.txt
+            studio/out/**/*.json
+            studio/out/**/*.md
+          if-no-files-found: ignore
+          retention-days: 14
