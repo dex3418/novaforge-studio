@@ -65,3 +65,24 @@ how much of the original hue variation to keep, `light_mult` / `sat_mult` to lig
 What recolouring can and cannot do: clothes, skin tone and similar colour families, yes. A different hairstyle, eye shape or
 face needs new drawings, because the shapes themselves change. Naina's hair and outlines share the same dark colours, so hair
 colour cannot be changed separately yet.
+
+## Learned artwork (from v24): the Learning Studio feeds production
+
+Vectors approved with **Accurate** in the Learning Studio (`cd studio && npm run learn`, http://localhost:8787) are saved
+as plain files and baked by `npm run characters` (the render workflow does this itself before every render):
+
+| Category in the page | Saved at | Used in the studio as |
+|---|---|---|
+| Character 360 (group = character id) | `characters/<id>/learned/<style>/<angle>.svg` | the character's standing drawings, picked by angle and facing. Walking uses the side views |
+| Poses (group = character id) | `library/pose/<style>/<id>/<pose>.svg` | extra poses. `standing, walking, sitting, pointing, waving, talking, thinking, listening, celebrating` become `idle, walk, sit, point, wave, talk, think, listen, celebrate` |
+| Emotions (group = character id) | `library/emotion/<style>/<id>/<emotion>.svg` | drawn instead of the idle/talk/listen drawing when an actor's expression is that emotion |
+| Props (any group) | `library/prop/<style>/<set>/<name>.svg` | story props; the name is recognised in scripts and offered to the AI director. A learned name replaces a built-in prop of the same name |
+| Landscapes (any group) | `library/landscape/<style>/<set>/<name>.svg` | story settings (a `setting:` value, found by name in the text, offered to the director). Replaces a built-in setting of the same name |
+
+Rules that keep it safe:
+- A folder with learned art and **no** `character.json` becomes a character by itself. A character that already has rigged angles keeps its rig and only gains learned poses and emotions.
+- Give every view of one character at the **same scale** (one sheet, or pictures of the same resolution). Each drawing is sized against the character's front view, so a sitting pose comes out smaller than a standing one. Emotions and poses are treated as full figures.
+- Asked for something the character has no drawing for, the registry falls back to idle and records a warning. Nothing is invented.
+- Style: one style per character (`learned_style` in `character.json`, otherwise ghibli, then webtoon). For props and landscapes `library/config.json` `{"style":"webtoon"}` decides when a name exists in both styles.
+- Optional hints next to the drawings: `library/pose/<style>/<id>.json` `{"waving":{"faces":-1}}` (which way the drawing looks: 1 right, -1 left, 0 never mirrored; poses default to 1, emotions to 0), `library/prop/<style>/<set>.json` `{"tablet":{"height":300}}` (stage units; a person is about 400, default 240).
+- Heavy drawings make heavy frames. The build warns above 500 KB per drawing; Needs refinement adds detail and size.

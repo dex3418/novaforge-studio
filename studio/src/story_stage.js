@@ -120,10 +120,11 @@ function stageSvg(d, o) {
     const s = (who.look && who.look.age === 'child' ? 0.68 : 1) * (A.heightOf(art) / 398);
     bub = A.bubble(who.x + 90, who.y - 500 * s, ICONS[d.icon], t, accent);
   }
-  const birdsSvg = !night && d.setting !== 'office' && d.setting !== 'home' && d.setting !== 'street' ? A.birds(W, t) : '';
+  const learnedScene = !!A.LEARNED_SCENES[d.setting];
+  const birdsSvg = !night && !learnedScene && d.setting !== 'office' && d.setting !== 'home' && d.setting !== 'street' ? A.birds(W, t) : '';
 
   const scene =
-    (art === 'webtoon' ? `<g filter="url(#bl${seed})">${layer(0.25, pl.far + birdsSvg)}</g>` : layer(0.25, pl.far + birdsSvg)) +
+    (art === 'webtoon' && !learnedScene ? `<g filter="url(#bl${seed})">${layer(0.25, pl.far + birdsSvg)}</g>` : layer(0.25, pl.far + birdsSvg)) +
     layer(0.55, pl.mid + back.join('')) +
     layer(1, pl.ground + front.join('') + actorSvg + bub + tags);
   const tint = night ? `<rect x="0" y="0" width="${W}" height="1000" fill="#0a1030" opacity=".22"/>` : d.time === 'dusk' ? `<rect x="0" y="0" width="${W}" height="1000" fill="#ff7a3c" opacity=".08"/>` : '';

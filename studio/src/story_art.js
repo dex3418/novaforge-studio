@@ -8,6 +8,7 @@
 
 const CHARS = require('./characters');
 const { assetPerson } = require('./character_art');
+const LIBART = require('./library_art');
 
 const r1 = (n) => Math.round(n * 10) / 10;
 const sin = Math.sin;
@@ -192,7 +193,10 @@ function mouth(kind, open) {
 function person(a) {
   // a character with real artwork in the registry is drawn from that artwork, never redrawn
   const asset = CHARS.get(a.id);
-  if (asset) return assetPerson(a, asset, heightOf(a.art === 'chibi' || a.art === 'webtoon' ? a.art : 'flat'));
+  if (asset) {
+    const drawn = assetPerson(a, asset, heightOf(a.art === 'chibi' || a.art === 'webtoon' ? a.art : 'flat'));
+    if (drawn != null) return drawn; // null = nothing drawable in the registry, use the procedural figure
+  }
   const l = lookFor(a);
   const t = a.t || 0;
   const ang = poseAngles(a.pose, t + (hashStr(a.id || a.name || '') % 50) / 10, a.walk || 0);
@@ -422,12 +426,15 @@ const SKY = {
   night: ['#0d1b3d', '#2a3c70'],
 };
 const SETTINGS = ['village', 'street', 'field', 'office', 'home'];
+const LEARNED_SCENES = {}; // landscapes approved in the Learning Studio (library_art.js)
+const LEARNED_PROPS = [];
 const TIMES = ['day', 'dusk', 'night'];
 
 function cloud(x, y, s, col) { return `<g transform="translate(${r1(x)} ${r1(y)}) scale(${s})" fill="${col}"><ellipse cx="0" cy="0" rx="70" ry="26"/><ellipse cx="-34" cy="-18" rx="38" ry="28"/><ellipse cx="22" cy="-26" rx="44" ry="32"/></g>`; }
 
 // returns { far, mid, ground, groundTop } SVG strings for three parallax layers
 function place(setting, time, W, t, seed) {
+  if (LEARNED_SCENES[setting]) return LIBART.sceneLayers(LEARNED_SCENES[setting], W);
   const night = time === 'night';
   const sky = SKY[time] || SKY.day;
   const ink = night ? '#1b2850' : time === 'dusk' ? '#6a4c93' : '#9ad1a0';
@@ -497,6 +504,8 @@ function birds(W, t) {
   return o;
 }
 
+require('./library_art').register({ PROPS, SETTINGS, LEARNED_SCENES, LEARNED_PROPS }, require('./library_data'));
+
 function heightOf(art) { return art === 'chibi' ? 350 : art === 'webtoon' ? 440 : 398; }
 
-module.exports = { heightOf, person, PROPS, MOVERS, place, birds, bubble, lookFor, EXPR, POSES, SETTINGS, TIMES, COLORS, SKIN, HAIR, TOPS, hashStr, ease, clamp, shade, esc, SKY };
+module.exports = { LEARNED_SCENES, LEARNED_PROPS, heightOf, person, PROPS, MOVERS, place, birds, bubble, lookFor, EXPR, POSES, SETTINGS, TIMES, COLORS, SKIN, HAIR, TOPS, hashStr, ease, clamp, shade, esc, SKY };

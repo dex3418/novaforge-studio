@@ -12,6 +12,7 @@
 // plan can never break a render: anything unknown is replaced.
 
 const A = require('./story_art');
+const CHARS = require('./characters');
 const { ICONS } = require('./icons');
 const { VOICES, DEFAULT_VOICE } = require('./catalog');
 
@@ -133,6 +134,10 @@ const PROPKEYS = [
   ['hut', /\bhut\b|झोपड़ी|village|गाँव|गांव/i], ['tree', /\btree|पेड़|forest|जंगल|\bmango|\bneem/i], ['board', /\bboard\b|notice|poster|sign|नोटिस|सूचना/i],
   ['bench', /\bbench\b|\bsit\b|बैठ/i], ['desk', /\bdesk\b|counter|table|मेज|कंप्यूटर|computer/i], ['lamp', /\blamp\b|\blight\b|streetlight|बत्ती/i],
 ];
+// learned props and landscapes (Learning Studio) are recognised by their own name in the script: "market_stall" matches "market stall(s)"
+const nameRx = (n) => new RegExp(`\\b${n.split(/[_-]+/).join('[ _-]?')}s?\\b`, 'i');
+for (const n of A.SETTINGS) if (!RX[n]) RX[n] = nameRx(n);
+for (const n of A.LEARNED_PROPS) if (!PROPKEYS.some(([k]) => k === n)) PROPKEYS.push([n, nameRx(n)]);
 const TONE = {
   laugh: /haha|lol|laugh|funny|joke|हँस|हंस|मज़ाक|मजाक/i,
   cry: /\bcry|crying|tears|रो\b|रोने|आँसू|आंसू/i,
@@ -157,7 +162,7 @@ const TONE = {
 };
 
 function pickSetting(text, fallback, opening) {
-  const order = ['office', 'field', 'street', 'home', 'village'];
+  const order = ['office', 'field', 'street', 'home', 'village', ...A.SETTINGS.filter((k) => !['office', 'field', 'street', 'home', 'village'].includes(k))];
   const count = (rx, t) => (String(t).match(new RegExp(rx.source, rx.flags.includes('g') ? rx.flags : rx.flags + 'g')) || []).length;
   let best = fallback;
   let top = 0;
@@ -184,7 +189,7 @@ function normalizeStory(d, castIds, fallback) {
     actors.push({
       id: a.id, x0, x1: inRange(a.x1 != null ? a.x1 : x0, -0.3, 1.3, x0),
       facing: a.facing === -1 ? -1 : 1,
-      pose: A.POSES.includes(a.pose) ? a.pose : 'idle', expr: A.EXPR[a.expr] ? a.expr : 'neutral',
+      pose: A.POSES.includes(a.pose) || CHARS.extraPoses().includes(a.pose) ? a.pose : 'idle', expr: A.EXPR[a.expr] || CHARS.extraExpressions().includes(a.expr) ? a.expr : 'neutral',
       speaks: !!a.speaks, ...(Number.isFinite(Number(a.delay)) ? { delay: inRange(a.delay, 0, 1.5, 0.12) } : {}),
     });
     if (actors.length >= 4) break;

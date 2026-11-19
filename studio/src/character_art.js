@@ -87,11 +87,12 @@ function mouthOverlay(face, angle, mouth, t) {
 
 // Whole-pose drawings (ch.variants[pose]) are picked by angle like the rigged art, or 'any' when a pose has one drawing.
 function pickVariant(ch, pose, facing, override) {
-  const set = ch.variants && ch.variants[pose];
+  // pose_alias: a pose that reuses another pose's drawings but keeps its own camera-angle rule (learned characters: walk = idle, side views)
+  const set = ch.variants && (ch.variants[pose] || (ch.pose_alias && ch.variants[ch.pose_alias[pose]]));
   if (!set) return null;
   if (override && set[override]) return { key: override, art: set[override] };
   if (set.any) return { key: 'any', art: set.any };
-  const key = CH.resolveAngle(ch, pose, facing);
+  const key = CH.resolveAngle(ch, pose, facing, undefined, set);
   const use = set[key] ? key : set.front ? 'front' : Object.keys(set)[0];
   return { key: use, art: set[use] };
 }
@@ -110,7 +111,7 @@ function assetPerson(a, ch, baseH) {
       const hop = Math.sin(Math.PI * b) * 10;
       const base = { ...a, prev_pose: null, blend: 1, y: a.y - hop };
       const alpha = a.alpha == null ? 1 : a.alpha;
-      return drawOne({ ...base, pose: prev, mouth: 0 }, ch, baseH) + drawOne({ ...base, alpha: alpha * e }, ch, baseH);
+      return (drawOne({ ...base, pose: prev, mouth: 0 }, ch, baseH) || '') + (drawOne({ ...base, alpha: alpha * e }, ch, baseH) || '');
     }
   }
   return drawOne(a, ch, baseH);
@@ -120,9 +121,13 @@ function drawOne(a, ch, baseH) {
   const facing = a.facing < 0 ? -1 : 1;
   const pose = CH.resolvePose(ch, a.pose);
   CH.resolveExpression(ch, a.expr);
-  const variant = pickVariant(ch, pose, facing, a.angle);
+  // learned emotions: while the figure is standing or talking, an expression the character has a drawing for is drawn instead
+  const exKey = ch.expression_art && a.expr && a.expr !== 'neutral' ? ch.expression_art[a.expr] : null;
+  const vpose = exKey && ch.variants[exKey] && (pose === 'idle' || pose === 'talk' || pose === 'listen') ? exKey : pose;
+  const variant = pickVariant(ch, vpose, facing, a.angle);
   const angle = variant ? variant.key : CH.resolveAngle(ch, pose, facing, a.angle);
   const art = variant ? variant.art : ch.angles[angle];
+  if (!art) return null; // nothing drawable: the caller falls back to the procedural figure
   const t = a.t || 0;
   const m = motion(pose, t, a.walk || 0, a.mouth || 0, facing);
 
@@ -146,9 +151,9 @@ function drawOne(a, ch, baseH) {
   // head-and-shoulders drawings (stand_h well above their own height) hang from the head-top line of a standing figure
   // and fade out at the bottom, so they read as a close-up instead of a torso cut off at the ground
   const hArt = art.bbox.y1 - art.bbox.y0;
-  const bust = !!(variant && (art.shot === 'bust' || (art.stand_h && art.stand_h > hArt * 1.05)));
+  const bust = !!(variant && art.shot !== 'full' && (art.shot === 'bust' || (art.stand_h && art.stand_h > hArt * 1.05)));
   const lift = bust ? Math.max(0, (art.stand_h || hArt * 1.35) - hArt) * k : 0;
-  const fadeId = `fade-${ch.id}-${pose}`;
+  const fadeId = `fade-${ch.id}-${vpose}`;
   const fill = (src) => src.replace(/\{\{([\w-]+)\}\}/g, (_, key) => slots[key] || '');
   const fadeDef = bust ? `<defs><linearGradient id="${fadeId}-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0.72" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient><mask id="${fadeId}" maskUnits="userSpaceOnUse" x="${art.bbox.x0 - 20}" y="${art.bbox.y0 - 20}" width="${art.bbox.x1 - art.bbox.x0 + 40}" height="${hArt + 40}"><rect x="${art.bbox.x0 - 20}" y="${art.bbox.y0 - 20}" width="${art.bbox.x1 - art.bbox.x0 + 40}" height="${hArt + 20}" fill="url(#${fadeId}-g)"/></mask></defs>` : '';
   const markup = variant ? (bust ? `${fadeDef}<g mask="url(#${fadeId})">${art.svg}</g>` : art.svg) : fill(under(ch, angle, art)) + fill(art.svg) + faceG;

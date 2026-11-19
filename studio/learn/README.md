@@ -16,6 +16,9 @@ Every item shows: what you gave | the vector | where they differ, plus every rou
 - **Needs refinement** tries up to 7 more detailed settings and keeps the closest one.
 - **Different** marks the current settings as rejected and tries up to 5 other approaches.
 
+Approved vectors are used in videos: `npm run characters` (the render workflow runs it) bakes them into the studio.
+What goes where, and the rules, are in `characters/README.md` ("Learned artwork").
+
 What "learning" means here: the tracer's settings, per category and style. Approved settings become the starting
 point next time, rejected ones are not tried again. There is no neural network, nothing leaves the browser, and the
-saved vectors are NOT yet read by the renderer (`characters/*/learned/` is separate from `character.json`).
+the page only learns the tracer's settings from your verdicts.
