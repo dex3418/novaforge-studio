@@ -5,7 +5,7 @@
 // Rule from the project brief: never silently invent an asset. Anything asked for that a character
 // does not have is replaced by a declared fallback AND recorded in warnings (once per kind of miss).
 
-const DATA = require('./characters_data');
+let DATA = require('./characters_data');
 
 const seen = new Set();
 const warnings = [];
@@ -77,6 +77,9 @@ function lookup(id) {
 }
 const get = (id) => (enabled ? lookup(id) : null);
 const ids = () => Object.keys(DATA);
+// poses and expressions that LEARNED or registry characters add on top of the built-in lists (the director may use them)
+const extraPoses = () => [...new Set(Object.values(DATA).filter((c) => !c.extends).flatMap((c) => (c.learned_style || c.expression_art ? c.poses : [])))];
+const extraExpressions = () => [...new Set(Object.values(DATA).filter((c) => !c.extends).flatMap((c) => Object.keys(c.expression_art || {})))];
 
 // the pose the character will actually perform for a requested pose
 function resolvePose(ch, pose) {
@@ -101,18 +104,23 @@ function resolveExpression(ch, expr) {
 }
 
 // which camera angle to draw. facing is 1 (screen right) or -1 (screen left); override is an explicit angle id.
-function resolveAngle(ch, pose, facing, override) {
+// have = the angles of one drawing set (a learned character has no rigged angles, only drawings per angle)
+function resolveAngle(ch, pose, facing, override, have) {
+  const pool = have || ch.angles;
   if (override) {
-    if (ch.angles[override]) return override;
+    if (pool[override]) return override;
     warn(`${ch.id}|angle|${override}`, `${ch.id}: angle "${override}" does not exist, choosing one automatically`);
   }
   const policy = ch.pose_angle[pose] || 'three_quarter';
   const right = facing >= 0;
   const want = policy === 'front' ? 'front' : policy === 'profile' ? (right ? 'right_profile' : 'left_profile') : right ? 'front_right_45' : 'front_left_45';
-  if (ch.angles[want]) return want;
+  if (pool[want]) return want;
   warn(`${ch.id}|angle|${want}`, `${ch.id}: angle "${want}" is missing, using "front"`);
   return 'front';
 }
 
+// tests swap the baked data for a synthetic build
+const setData = (d) => { DATA = d; derived.clear(); seen.clear(); warnings.length = 0; };
+
 module.exports = {
-  setEnabled, get, ids, resolvePose, resolveExpression, resolveAngle, warnings, drainWarnings: () => warnings.splice(0) };
+  setData, setEnabled, get, ids, extraPoses, extraExpressions, resolvePose, resolveExpression, resolveAngle, warnings, drainWarnings: () => warnings.splice(0) };

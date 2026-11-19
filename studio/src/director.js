@@ -16,6 +16,8 @@ const { PALETTES, TEXTURES, TEMPLATES, TRANSITIONS, EMOTIONS, SCHEMES, DECORS } 
 const { ICON_NAMES } = require('./icons');
 const calibration = require('./calibration');
 const { wordSpeakers } = require('./story');
+const A = require('./story_art');
+const CHARS = require('./characters');
 const { validatePlan, segmentRanges } = require('./plan');
 
 // order = the models that answered on a free key in the gemini-probe run first; the bigger ones after
@@ -43,7 +45,7 @@ VISUAL TYPES (kind) and their "data":
 - terminal {"lines":[{"cmd":"cat name.txt"},{"out":"a line copied from the beat, max 14 words"}, ...up to 8]}  a terminal window that types the lines. "cmd" lines are only short file or shell commands (letters, digits, dot, dash, slash, space; e.g. "cat hook.txt", "ls"). Only "out" lines carry script text. Good for steps, tech and developer topics, 1 to 4 lines of output.
 - photo    {"pic":0,"line":"max 14 words copied from the beat"}  a full-screen picture with the line over it. ONLY when PICTURES are available below. "pic" is the picture number.
 - profile  {"pic":0,"line":"max 14 words copied from the beat"}  a framed picture card with the speaker's name and role (filled in by the system). ONLY when PICTURES are available below; use it at most once, early, when the speaker introduces themself.
-- story    {"setting":"village|street|field|office|home","time":"day|dusk|night","actors":[{"id":"cast id","x0":0.3,"x1":0.3,"facing":1,"pose":"idle|walk|talk|point|wave|think|worried|celebrate|listen|shrug|peace|thumbsup|crossed|fist","expr":"neutral|happy|sad|worried|surprised|angry|thinking|laugh|cry|sleep|wink|tired|love","speaks":true}],"props":[{"type":"tree|bush|house|hut|car|bus|tractor|school|hospital|shop|office|bank|board|lamp|bench|desk","x":0.9,"x1":0.1,"scale":0.9,"layer":"back|front"}],"camera":{"z0":1,"z1":1.15,"fx0":0.5,"fx1":0.5,"shake":false},"icon":"optional icon name","iconOf":"cast id"}  ONLY in story mode (see STORY below). A drawn scene with people, places and objects. Positions x are 0 (left) to 1 (right) of the screen; an actor enters from off-screen with x0 below 0 or above 1. Cars, buses and tractors move from x to x1. Text is never written in "data": the spoken line is shown as subtitles by the system.
+- story    {"setting":"${A.SETTINGS.join('|')}","time":"day|dusk|night","actors":[{"id":"cast id","x0":0.3,"x1":0.3,"facing":1,"pose":"${A.POSES.concat(CHARS.extraPoses().filter((p) => !A.POSES.includes(p))).join('|')}","expr":"${Object.keys(A.EXPR).concat(CHARS.extraExpressions().filter((e) => !A.EXPR[e])).join('|')}","speaks":true}],"props":[{"type":"${Object.keys(A.PROPS).join('|')}","x":0.9,"x1":0.1,"scale":0.9,"layer":"back|front"}],"camera":{"z0":1,"z1":1.15,"fx0":0.5,"fx1":0.5,"shake":false},"icon":"optional icon name","iconOf":"cast id"}  ONLY in story mode (see STORY below). A drawn scene with people, places and objects. Positions x are 0 (left) to 1 (right) of the screen; an actor enters from off-screen with x0 below 0 or above 1. Cars, buses and tractors move from x to x1. Text is never written in "data": the spoken line is shown as subtitles by the system.
 - cta      {"text":"...","sub":"","button":"short handle or phrase"}  final call to action, last beat of the last scene only.
 `;
 

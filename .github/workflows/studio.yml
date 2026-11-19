@@ -75,6 +75,12 @@ jobs:
         working-directory: studio
         run: npm install --no-audit --no-fund
 
+      # characters/*/learned and library/ (approved in the Learning Studio) are baked into the bundle here, so a
+      # push of those folders is enough: no need to run the build by hand first
+      - name: Bake learned artwork
+        working-directory: studio
+        run: npm run characters
+
       - name: Pick scripts
         id: pick
         working-directory: studio

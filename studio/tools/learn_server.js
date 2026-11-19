@@ -1,6 +1,6 @@
 'use strict';
 // Local save server for the Learning Studio page (no dependencies).
-//   cd studio && npm run learn        then open http://localhost:8765 in the phone browser
+//   cd studio && npm run learn        then open http://localhost:8787 in the phone browser
 // It serves studio/learn/index.html and writes approved ("Accurate") vectors straight into the repo folder, so
 // learning never needs a git push. Only 127.0.0.1 can reach it.
 //   character  -> characters/<id>/learned/<style>/<name>.svg (+ .json, .original.png, learned.json index)
@@ -12,7 +12,7 @@ const path = require('path');
 
 const ROOT = process.env.NF_ROOT || path.join(__dirname, '..', '..');
 const PAGE = path.join(__dirname, '..', 'learn', 'index.html');
-const PORT = Number(process.env.PORT) || 8765;
+const PORT = Number(process.env.PORT) || 8787;
 const CATS = ['character', 'emotion', 'pose', 'prop', 'landscape'];
 const STYLES = ['ghibli', 'webtoon'];
 const safe = (s) => /^[a-z0-9_-]{1,40}$/.test(String(s || ''));
