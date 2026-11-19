@@ -1,0 +1,957 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NovaForge Learning Studio</title>
+<style>
+:root{
+  --bg:#f6f4ef; --panel:#ffffff; --ink:#1d1f24; --mute:#6b7078; --line:#dcd8cf;
+  --acc:#2f5fd0; --ok:#1f8a4c; --warn:#b9770e; --bad:#b83a3a; --chk1:#e9e6df; --chk2:#f8f6f1;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#14161a; --panel:#1d2026; --ink:#e9eaec; --mute:#9aa0a9; --line:#2f343c;
+  --acc:#7da2ff; --ok:#4fc283; --warn:#e0a24a; --bad:#e27676; --chk1:#262a31; --chk2:#2e333b;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--panel);border-bottom:1px solid var(--line);padding:10px 16px}
+header h1{font-size:17px;margin:0 0 8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.pill{font-size:12px;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--mute)}
+.pill.on{color:var(--ok);border-color:var(--ok)}
+.tabs,.seg{display:flex;gap:6px;flex-wrap:wrap}
+.tabs button,.seg button{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:6px 11px;font-size:14px;cursor:pointer}
+.tabs button.on,.seg button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:8px}
+main{max-width:1180px;margin:0 auto;padding:14px 16px 80px}
+section.box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
+section.box>h2{font-size:15px;margin:0 0 10px}
+label{display:block;font-size:13px;color:var(--mute);margin:8px 0 3px}
+input[type=text],textarea,select{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--bg);color:var(--ink);font:inherit}
+textarea{min-height:64px;resize:vertical}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:700px){.grid2{grid-template-columns:1fr}}
+button.act{border:0;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer;color:#fff;background:var(--acc)}
+button.act:disabled{opacity:.45;cursor:default}
+button.ghost{border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer}
+.b-ok{background:var(--ok)!important}.b-warn{background:var(--warn)!important}.b-bad{background:var(--bad)!important}
+.hint{color:var(--mute);font-size:13px}
+#status{font-size:13px;color:var(--mute);min-height:20px;margin-top:6px;white-space:pre-wrap}
+.cards{display:grid;gap:14px}
+.card{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:12px}
+.card.saved{border-color:var(--ok)}
+.card h3{margin:0 0 8px;font-size:15px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.badge{font-size:12px;border-radius:99px;padding:1px 9px;border:1px solid var(--line);color:var(--mute)}
+.badge.ok{color:var(--ok);border-color:var(--ok)}
+.trio{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+@media(max-width:700px){.trio{grid-template-columns:1fr 1fr}.trio .d{grid-column:1/3}}
+.pic{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:
+ conic-gradient(var(--chk1) 25%,var(--chk2) 0 50%,var(--chk1) 0 75%,var(--chk2) 0) 0 0/16px 16px}
+.pic img{display:block;width:100%;height:300px;object-fit:contain}
+.cap{font-size:12px;color:var(--mute);margin:3px 0 0}
+.hist{display:flex;gap:8px;overflow-x:auto;padding:8px 0}
+.hist .h{flex:0 0 auto;width:92px;border:2px solid var(--line);border-radius:8px;padding:3px;cursor:pointer;background:var(--bg);text-align:center;font-size:11px;color:var(--mute)}
+.hist .h.cur{border-color:var(--acc)}
+.hist img{width:100%;height:70px;object-fit:contain;display:block;background:var(--chk2);border-radius:4px}
+.sw{display:flex;flex-wrap:wrap;gap:2px;margin-top:6px}
+.sw i{width:14px;height:14px;border-radius:3px;border:1px solid rgba(0,0,0,.2)}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.btns button.act{flex:1 1 140px}
+.strip{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px}
+.strip .col{flex:0 0 auto;width:150px;text-align:center;font-size:12px;color:var(--mute)}
+.strip img{width:150px;height:200px;object-fit:contain;border:1px solid var(--line);border-radius:6px;display:block;background:var(--chk2);margin-bottom:3px}
+.lib .grp{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:10px}
+.lib .grp h4{margin:0 0 6px;font-size:14px}
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:10px;font-size:14px;z-index:20;max-width:90vw;display:none}
+canvas.prev{max-width:100%;border:1px solid var(--line);border-radius:8px;margin-top:8px}
+details summary{cursor:pointer;color:var(--acc);font-size:13px;margin-top:8px}
+.namegrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:8px}
+.namegrid div{font-size:12px;color:var(--mute)}
+</style>
+</head>
+<body>
+<header>
+  <h1>NovaForge Learning Studio <span id="srv" class="pill">checking save server…</span></h1>
+  <div class="tabs" id="tabs"></div>
+  <div class="row">
+    <span class="hint">Style:</span>
+    <div class="seg" id="styleSeg"></div>
+    <span class="hint" id="profInfo"></span>
+  </div>
+</header>
+<main>
+  <div id="view-learn">
+    <section class="box">
+      <h2>1. Give the pictures</h2>
+      <div class="grid2">
+        <div>
+          <label for="gname" id="gnameLabel">Name</label>
+          <input type="text" id="gname" placeholder="naina">
+          <label for="files">Pictures (a sheet with several views, or one picture per item)</label>
+          <input type="file" id="files" accept="image/*" multiple>
+        </div>
+        <div>
+          <label for="names" id="namesLabel">Names, one per item in picture order (comma or new line)</label>
+          <textarea id="names"></textarea>
+          <label for="splitMode">How to cut the sheet into items</label>
+          <select id="splitMode">
+            <option value="auto">Auto: find the separate drawings</option>
+            <option value="equal">Cut by number of names (at the thinnest gaps)</option>
+            <option value="whole">Whole picture is one item</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <label style="margin:0;display:flex;gap:6px;align-items:center"><input type="checkbox" id="holes"> remove background trapped in gaps (between arms, hair, legs)</label>
+      </div>
+      <div class="row">
+        <button class="act" id="btnDetect">Find items</button>
+        <button class="act b-ok" id="btnLearn" disabled>2. Start learning</button>
+        <button class="ghost" id="btnClear">Clear</button>
+      </div>
+      <div id="status"></div>
+      <div id="sheets"></div>
+      <details><summary>How this learns (honest version)</summary>
+        <p class="hint">There is no neural network here. The page traces each picture into vector shapes with its own tracer, rasterises the vector again and measures how close it is to your picture. Needs refinement and Different re-run the tracer with other settings and keep the closest result. Accurate saves the vector and the settings, and the next picture in the same category and style starts from the settings you approved (settings you marked Different are avoided). Nothing is sent anywhere: all work happens in this browser.</p>
+      </details>
+    </section>
+    <section class="box" id="cardsBox" style="display:none">
+      <h2>3. Check every picture</h2>
+      <div class="cards" id="cards"></div>
+    </section>
+    <section class="box" id="outBox" style="display:none">
+      <h2>Output: your pictures and their vectors</h2>
+      <div class="hint" id="outInfo"></div>
+      <div class="strip" id="outStrip"></div>
+      <div class="btns">
+        <button class="ghost" id="dlSheet">Download side-by-side sheet (SVG)</button>
+        <button class="ghost" id="dlPng">Download comparison (PNG)</button>
+        <button class="ghost" id="dlZip">Download all vectors (zip)</button>
+      </div>
+    </section>
+  </div>
+  <div id="view-lib" style="display:none" class="lib">
+    <section class="box">
+      <h2>Saved library (kept in this browser<span id="libSrv"></span>)</h2>
+      <div class="btns"><button class="ghost" id="libZip">Download whole library (zip)</button><button class="ghost" id="libRefresh">Refresh</button></div>
+      <div id="libList" style="margin-top:10px"></div>
+    </section>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+/* ============================================================================================
+   NovaForge Learning Studio.  One file, no libraries.
+   picture -> split into items -> own tracer (k-means colours + contour tracing) -> vector
+   -> score against the picture -> Accurate / Needs refinement / Different -> library
+   ============================================================================================ */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const sleep = (ms = 0) => new Promise((r) => setTimeout(r, ms));
+const slug = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40);
+
+const CATS = {
+  character: { label: 'Character 360', group: 'Character id', ph: 'naina', names: 'front, front_left_45, left_profile, back_left_45, back, back_right_45, right_profile, front_right_45', nl: 'Angle names, one per view in picture order', bg: true, split: 'auto' },
+  emotion:   { label: 'Emotions', group: 'Character id', ph: 'naina', names: 'neutral, happy, sad, angry, surprised, worried', nl: 'Emotion names, one per drawing', bg: true, split: 'auto' },
+  pose:      { label: 'Poses', group: 'Character id', ph: 'naina', names: 'standing, walking, sitting, pointing, waving, talking, thinking, listening, celebrating, worried', nl: 'Pose names, one per drawing', bg: true, split: 'auto' },
+  prop:      { label: 'Props', group: 'Prop set name', ph: 'office_props', names: '', nl: 'Prop names, one per drawing (blank = prop_1, prop_2…)', bg: true, split: 'auto' },
+  landscape: { label: 'Landscapes', group: 'Landscape set name', ph: 'village', names: '', nl: 'Scene names, one per picture (blank = scene_1…)', bg: false, split: 'whole' },
+};
+const STYLES = { ghibli: 'Ghibli style', webtoon: 'Webtoon style' };
+// starting settings per style. size = working resolution of the longest side, colors = k-means colours,
+// blur = median passes, simplify/omit = path simplification (px) and smallest shape kept (px²),
+// smooth = round corners, ink = dark line layer threshold (0 = off), seed = k-means start
+const PRESET = {
+  ghibli:  { size: 420, colors: 16, blur: 1, simplify: 1.0, omit: 10, smooth: 1, ink: 0,    seed: 1, bgtol: 40, holes: 0 },
+  webtoon: { size: 420, colors: 10, blur: 0, simplify: 0.7, omit: 6,  smooth: 1, ink: 0.22, seed: 1, bgtol: 40, holes: 0 },
+};
+function presetFor(cat, style) {
+  const p = Object.assign({}, PRESET[style]);
+  if (cat === 'landscape') { p.size = 520; p.colors += 6; p.blur = Math.max(p.blur, 1); if (style === 'webtoon') p.ink = 0.18; }
+  if (cat === 'prop') p.colors = Math.max(6, p.colors - 3);
+  return p;
+}
+const S = { cat: 'character', style: 'ghibli', sheets: [], plan: [], items: [], server: false, profile: {}, db: null, memlib: new Map(), busy: false };
+
+/* ---------- tiny helpers ---------- */
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast._t); toast._t = setTimeout(() => (t.style.display = 'none'), 3200); }
+function status(msg) { $('#status').textContent = msg; }
+function hash(str) { let h = 5381; for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0; return (h >>> 0).toString(36); }
+function mulberry(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const pkey = (p) => [p.size, p.colors, p.blur, p.simplify.toFixed(2), p.omit.toFixed(1), p.smooth, p.ink.toFixed(2), p.seed, p.bgtol, p.holes].join('|');
+const svgUrl = (svg) => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+const hex = (c) => '#' + c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+function canvasOf(w, h) { const c = document.createElement('canvas'); c.width = Math.max(1, w); c.height = Math.max(1, h); return c; }
+function loadImg(url) { return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('image failed to load')); i.src = url; }); }
+
+/* ---------- storage: IndexedDB library + localStorage profile ---------- */
+function openDb() {
+  return new Promise((res) => {
+    try {
+      const rq = indexedDB.open('nf-learn', 1);
+      rq.onupgradeneeded = () => rq.result.createObjectStore('lib', { keyPath: 'key' });
+      rq.onsuccess = () => res(rq.result);
+      rq.onerror = () => res(null);
+    } catch (e) { res(null); }
+  });
+}
+const dbTx = (mode) => S.db.transaction('lib', mode).objectStore('lib');
+const dbReq = (r) => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+async function libPut(rec) { S.memlib.set(rec.key, rec); if (S.db) try { await dbReq(dbTx('readwrite').put(rec)); } catch (e) { /* memory copy kept */ } }
+async function libAll() { if (S.db) try { return await dbReq(dbTx('readonly').getAll()); } catch (e) { /* fallthrough */ } return [...S.memlib.values()]; }
+async function libDel(key) { S.memlib.delete(key); if (S.db) try { await dbReq(dbTx('readwrite').delete(key)); } catch (e) { /* ignore */ } }
+function loadProfile() { try { S.profile = JSON.parse(localStorage.getItem('nf-learn-profile') || '{}'); } catch (e) { S.profile = {}; } }
+function saveProfile() { try { localStorage.setItem('nf-learn-profile', JSON.stringify(S.profile)); } catch (e) { /* ignore */ } }
+const profKey = () => `${S.cat}/${S.style}`;
+function prof() { const k = profKey(); return (S.profile[k] = S.profile[k] || { acc: [], rej: [] }); }
+function initialParams() {
+  const base = presetFor(S.cat, S.style);
+  const acc = prof().acc;
+  if (!acc.length) return base;
+  const best = acc.slice().sort((a, b) => b.score - a.score || b.t - a.t)[0];
+  return Object.assign(base, best.p);
+}
+
+/* ---------- image reading, background, splitting ---------- */
+async function readSheet(file) {
+  const bmp = await createImageBitmap(file);
+  const sc = Math.min(1, 2400 / Math.max(bmp.width, bmp.height));
+  const c = canvasOf(Math.round(bmp.width * sc), Math.round(bmp.height * sc));
+  c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  const bg = detectBg(ctx.getImageData(0, 0, c.width, c.height));
+  return { name: file.name, canvas: c, w: c.width, h: c.height, bg };
+}
+// background = the most common colour on the outer ring of the picture; transparent PNGs use alpha instead
+function detectBg(img) {
+  const { data, width: w, height: h } = img;
+  const ring = [];
+  const add = (x, y) => ring.push((y * w + x) * 4);
+  for (let x = 0; x < w; x++) { add(x, 0); add(x, h - 1); }
+  for (let y = 0; y < h; y++) { add(0, y); add(w - 1, y); }
+  let transparent = 0;
+  const buckets = new Map();
+  for (const o of ring) {
+    if (data[o + 3] < 128) { transparent++; continue; }
+    const k = (data[o] >> 4) << 8 | (data[o + 1] >> 4) << 4 | (data[o + 2] >> 4);
+    const b = buckets.get(k) || { n: 0, r: 0, g: 0, b: 0 };
+    b.n++; b.r += data[o]; b.g += data[o + 1]; b.b += data[o + 2];
+    buckets.set(k, b);
+  }
+  if (transparent > ring.length * 0.5) return { alpha: true, r: 255, g: 255, b: 255 };
+  let best = null;
+  for (const b of buckets.values()) if (!best || b.n > best.n) best = b;
+  if (!best) return { alpha: false, r: 255, g: 255, b: 255 };
+  return { alpha: false, r: best.r / best.n, g: best.g / best.n, b: best.b / best.n };
+}
+// foreground mask for the sheet split (global: everything that differs from the background)
+function sheetMask(canvas, bg, tol) {
+  const sc = Math.min(1, 700 / Math.max(canvas.width, canvas.height));
+  const w = Math.max(1, Math.round(canvas.width * sc)), h = Math.max(1, Math.round(canvas.height * sc));
+  const c = canvasOf(w, h);
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(canvas, 0, 0, w, h);
+  const d = ctx.getImageData(0, 0, w, h).data;
+  const m = new Uint8Array(w * h);
+  const t2 = tol * tol;
+  for (let i = 0; i < w * h; i++) {
+    const o = i * 4;
+    if (d[o + 3] < 128) continue;
+    if (bg.alpha) { m[i] = 1; continue; }
+    const dr = d[o] - bg.r, dg = d[o + 1] - bg.g, db = d[o + 2] - bg.b;
+    if (dr * dr + dg * dg + db * db > t2) m[i] = 1;
+  }
+  return { m, w, h, sc };
+}
+function runs(proj, thr, gap) {
+  const out = [];
+  let s = -1, last = -1;
+  for (let i = 0; i < proj.length; i++) {
+    if (proj[i] > thr) { if (s < 0) s = i; else if (i - last > gap) { out.push([s, last]); s = i; } last = i; }
+  }
+  if (s >= 0) out.push([s, last]);
+  return out;
+}
+function bboxOf(mk, x0, y0, x1, y1) {
+  let bx0 = 1e9, by0 = 1e9, bx1 = -1, by1 = -1;
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (mk.m[y * mk.w + x]) { if (x < bx0) bx0 = x; if (x > bx1) bx1 = x; if (y < by0) by0 = y; if (y > by1) by1 = y; }
+  return bx1 < 0 ? null : [bx0, by0, bx1, by1];
+}
+function detectBoxes(sheet, mode, wantN, tol = 40) {
+  const mk = sheetMask(sheet.canvas, sheet.bg, tol);
+  const { w, h, sc } = mk;
+  const all = bboxOf(mk, 0, 0, w - 1, h - 1);
+  if (!all) return { boxes: [], note: 'nothing found on this picture (is the background plain?)' };
+  const back = (b) => { const pad = 6; return { x: Math.max(0, Math.floor(b[0] / sc) - pad), y: Math.max(0, Math.floor(b[1] / sc) - pad), x1: Math.min(sheet.w, Math.ceil((b[2] + 1) / sc) + pad), y1: Math.min(sheet.h, Math.ceil((b[3] + 1) / sc) + pad) }; };
+  const fin = (arr) => arr.map((b) => { const r = back(b); return { x: r.x, y: r.y, w: r.x1 - r.x, h: r.y1 - r.y }; });
+  if (mode === 'whole') return { boxes: fin([all]), note: '' };
+  const equal = () => {
+    // N views side by side: start from equal columns, then slide each cut to the thinnest gap nearby
+    // (so uneven spacing, or figures whose hair touches, still get cut in sensible places)
+    const n = Math.max(1, wantN);
+    const proj = new Float64Array(w);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) proj[x] += mk.m[y * w + x];
+    const sm = new Float64Array(w);
+    for (let x = 0; x < w; x++) { let s = 0, c = 0; for (let k = -2; k <= 2; k++) if (x + k >= 0 && x + k < w) { s += proj[x + k]; c++; } sm[x] = s / c; }
+    const mx = Math.max(...sm) || 1;
+    const cell = (all[2] - all[0] + 1) / n;
+    const cuts = [all[0]];
+    for (let i = 1; i < n; i++) {
+      const ex = all[0] + i * cell;
+      let best = Math.round(ex), bc = Infinity;
+      for (let x = Math.max(cuts[cuts.length - 1] + 3, Math.round(ex - cell * 0.35)); x <= Math.min(w - 1, Math.round(ex + cell * 0.35)); x++) {
+        const cost = sm[x] / mx + 0.5 * Math.abs(x - ex) / cell;
+        if (cost < bc) { bc = cost; best = x; }
+      }
+      cuts.push(best);
+    }
+    cuts.push(all[2] + 1);
+    const arr = [];
+    for (let i = 0; i < n; i++) { const b = bboxOf(mk, cuts[i], all[1], cuts[i + 1] - 1, all[3]); if (b) arr.push(b); }
+    return arr;
+  };
+  if (mode === 'equal' && wantN > 0) return { boxes: fin(equal()), note: `cut into ${wantN} parts at the thinnest gaps` };
+  // auto: bands (rows) then groups (columns) separated by empty space
+  const rowP = new Int32Array(h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) rowP[y] += mk.m[y * w + x];
+  let bands = runs(rowP, Math.max(1, w * 0.004), Math.max(3, h * 0.02));
+  const maxBand = Math.max(...bands.map((b) => b[1] - b[0] + 1));
+  bands = bands.filter((b) => b[1] - b[0] + 1 >= maxBand * 0.25);
+  let boxes = [];
+  for (const [y0, y1] of bands) {
+    const colP = new Int32Array(w);
+    for (let y = y0; y <= y1; y++) for (let x = 0; x < w; x++) colP[x] += mk.m[y * w + x];
+    let groups = runs(colP, Math.max(1, (y1 - y0 + 1) * 0.004), Math.max(3, w * 0.012));
+    const maxW = Math.max(...groups.map((g) => g[1] - g[0] + 1));
+    groups = groups.filter((g) => g[1] - g[0] + 1 >= maxW * 0.12);
+    for (const [x0, x1] of groups) { const b = bboxOf(mk, x0, y0, x1, y1); if (b) boxes.push(b); }
+  }
+  if (wantN > 0 && boxes.length !== wantN) {
+    const was = boxes.length;
+    boxes = equal();
+    return { boxes: fin(boxes), note: `auto-detect found ${was} separate drawings but you listed ${wantN} names, so the sheet was cut into ${wantN} parts at the thinnest gaps` };
+  }
+  return { boxes: fin(boxes), note: `found ${boxes.length} separate drawing${boxes.length === 1 ? '' : 's'}` };
+}
+
+/* ---------- tracer ---------- */
+function median3(src, w, h) {
+  const out = new Uint8ClampedArray(src.length);
+  const win = new Int16Array(9);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const o = (y * w + x) * 4;
+    for (let ch = 0; ch < 3; ch++) {
+      let k = 0;
+      for (let dy = -1; dy <= 1; dy++) {
+        const yy = Math.min(h - 1, Math.max(0, y + dy));
+        for (let dx = -1; dx <= 1; dx++) { const xx = Math.min(w - 1, Math.max(0, x + dx)); win[k++] = src[(yy * w + xx) * 4 + ch]; }
+      }
+      for (let i = 1; i < 9; i++) { const v = win[i]; let j = i - 1; while (j >= 0 && win[j] > v) { win[j + 1] = win[j]; j--; } win[j + 1] = v; }
+      out[o + ch] = win[4];
+    }
+    out[o + 3] = src[o + 3];
+  }
+  return out;
+}
+function computeFg(img, w, h, bg, tol, holes, nobg) {
+  const n = w * h, fg = new Uint8Array(n).fill(1);
+  if (nobg) return fg;
+  const d = img.data, t2 = tol * tol;
+  const isBg = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    const o = i * 4;
+    if (d[o + 3] < 128) { isBg[i] = 1; continue; }
+    if (bg.alpha) continue;
+    const dr = d[o] - bg.r, dg = d[o + 1] - bg.g, db = d[o + 2] - bg.b;
+    if (dr * dr + dg * dg + db * db <= t2) isBg[i] = 1;
+  }
+  const removed = new Uint8Array(n), st = new Int32Array(n);
+  let sp = 0;
+  const push = (i) => { if (isBg[i] && !removed[i]) { removed[i] = 1; st[sp++] = i; } };
+  const flood = () => { while (sp) { const i = st[--sp], x = i % w, y = (i / w) | 0; if (x > 0) push(i - 1); if (x < w - 1) push(i + 1); if (y > 0) push(i - w); if (y < h - 1) push(i + w); } };
+  for (let x = 0; x < w; x++) { push(x); push((h - 1) * w + x); }
+  for (let y = 0; y < h; y++) { push(y * w); push(y * w + w - 1); }
+  flood();
+  if (holes) { // background-coloured islands that are not connected to the outside: only big ones count as gaps
+    const minHole = Math.max(20, n * 0.0004), seen = new Uint8Array(n);
+    for (let i = 0; i < n; i++) {
+      if (!isBg[i] || removed[i] || seen[i]) continue;
+      const comp = [i]; seen[i] = 1;
+      for (let q = 0; q < comp.length; q++) {
+        const j = comp[q], x = j % w, y = (j / w) | 0;
+        const tryp = (k) => { if (isBg[k] && !removed[k] && !seen[k]) { seen[k] = 1; comp.push(k); } };
+        if (x > 0) tryp(j - 1); if (x < w - 1) tryp(j + 1); if (y > 0) tryp(j - w); if (y < h - 1) tryp(j + w);
+      }
+      if (comp.length >= minHole) for (const j of comp) removed[j] = 1;
+    }
+  }
+  for (let i = 0; i < n; i++) fg[i] = removed[i] ? 0 : 1;
+  return fg;
+}
+// working copy of an item at the working resolution
+function prepare(item, p) {
+  const key = [p.size, p.blur, p.bgtol, p.holes].join('|');
+  if (item._prep && item._prep.key === key) return item._prep;
+  const cw = item.crop.width, ch = item.crop.height;
+  const sc = Math.min(1.6, p.size / Math.max(cw, ch));
+  const w = Math.max(8, Math.round(cw * sc)), h = Math.max(8, Math.round(ch * sc));
+  const c = canvasOf(w, h);
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(item.crop, 0, 0, w, h);
+  const img = ctx.getImageData(0, 0, w, h);
+  const fg = computeFg(img, w, h, item.bg, p.bgtol, p.holes, item.nobg);
+  let work = img.data;
+  for (let i = 0; i < p.blur; i++) work = median3(work, w, h);
+  item._prep = { key, w, h, orig: img.data, work, fg };
+  return item._prep;
+}
+function kmeans(pts, k, seed, iters = 8) {
+  const rnd = mulberry(seed * 7919 + 13);
+  const n = pts.length / 3;
+  k = Math.max(1, Math.min(k, n));
+  const cen = [];
+  const first = Math.floor(rnd() * n);
+  cen.push([pts[first * 3], pts[first * 3 + 1], pts[first * 3 + 2]]);
+  const dist = new Float64Array(n).fill(Infinity);
+  while (cen.length < k) {
+    const c = cen[cen.length - 1];
+    let tot = 0;
+    for (let i = 0; i < n; i++) { const dr = pts[i * 3] - c[0], dg = pts[i * 3 + 1] - c[1], db = pts[i * 3 + 2] - c[2]; const d = dr * dr + dg * dg + db * db; if (d < dist[i]) dist[i] = d; tot += dist[i]; }
+    if (tot <= 0) break;
+    let r = rnd() * tot, pick = n - 1;
+    for (let i = 0; i < n; i++) { r -= dist[i]; if (r <= 0) { pick = i; break; } }
+    cen.push([pts[pick * 3], pts[pick * 3 + 1], pts[pick * 3 + 2]]);
+  }
+  const K = cen.length, asg = new Uint8Array(n);
+  for (let it = 0; it < iters; it++) {
+    const sum = Array.from({ length: K }, () => [0, 0, 0, 0]);
+    for (let i = 0; i < n; i++) {
+      let b = 0, bd = Infinity;
+      for (let j = 0; j < K; j++) { const dr = pts[i * 3] - cen[j][0], dg = pts[i * 3 + 1] - cen[j][1], db = pts[i * 3 + 2] - cen[j][2]; const d = dr * dr + dg * dg + db * db; if (d < bd) { bd = d; b = j; } }
+      asg[i] = b; const s = sum[b]; s[0] += pts[i * 3]; s[1] += pts[i * 3 + 1]; s[2] += pts[i * 3 + 2]; s[3]++;
+    }
+    for (let j = 0; j < K; j++) if (sum[j][3]) cen[j] = [sum[j][0] / sum[j][3], sum[j][1] / sum[j][3], sum[j][2] / sum[j][3]];
+  }
+  return cen;
+}
+function quantize(prep, p) {
+  const { w, h, work, fg } = prep;
+  const n = w * h;
+  const fgIdx = [];
+  for (let i = 0; i < n; i++) if (fg[i]) fgIdx.push(i);
+  if (!fgIdx.length) return null;
+  const step = Math.max(1, Math.floor(fgIdx.length / 7000));
+  const sample = [];
+  for (let s = 0; s < fgIdx.length; s += step) { const o = fgIdx[s] * 4; sample.push(work[o], work[o + 1], work[o + 2]); }
+  let cen = kmeans(Float32Array.from(sample), p.colors, p.seed);
+  // merge colours that are nearly the same
+  const keep = [];
+  for (const c of cen) if (!keep.some((k) => (k[0] - c[0]) ** 2 + (k[1] - c[1]) ** 2 + (k[2] - c[2]) ** 2 < 160)) keep.push(c);
+  cen = keep;
+  const cls = new Uint8Array(n).fill(255), area = new Int32Array(cen.length);
+  for (const i of fgIdx) {
+    const o = i * 4; let b = 0, bd = Infinity;
+    for (let j = 0; j < cen.length; j++) { const dr = work[o] - cen[j][0], dg = work[o + 1] - cen[j][1], db = work[o + 2] - cen[j][2]; const d = dr * dr + dg * dg + db * db; if (d < bd) { bd = d; b = j; } }
+    cls[i] = b; area[b]++;
+  }
+  const order = cen.map((_, i) => i).filter((i) => area[i] > 0).sort((a, b) => area[b] - area[a]);
+  const rank = new Int16Array(cen.length).fill(-1);
+  order.forEach((ci, r) => (rank[ci] = r));
+  const rk = new Uint8Array(n).fill(255);
+  for (const i of fgIdx) rk[i] = rank[cls[i]];
+  return { pal: order.map((ci) => cen[ci]), rk };
+}
+// contour tracing of a binary mask along pixel edges; returns closed loops of corner points
+function traceMask(mask, w, h) {
+  const W = w + 1, dirs = new Uint8Array(W * (h + 1));
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (!mask[y * w + x]) continue;
+    if (y === 0 || !mask[(y - 1) * w + x]) dirs[y * W + x] |= 1;            // right along the top
+    if (x === w - 1 || !mask[y * w + x + 1]) dirs[y * W + x + 1] |= 2;      // down along the right
+    if (y === h - 1 || !mask[(y + 1) * w + x]) dirs[(y + 1) * W + x + 1] |= 4; // left along the bottom
+    if (x === 0 || !mask[y * w + x - 1]) dirs[(y + 1) * W + x] |= 8;        // up along the left
+  }
+  const DX = [1, 0, -1, 0], DY = [0, 1, 0, -1];
+  const loops = [];
+  for (let v0 = 0; v0 < dirs.length; v0++) {
+    while (dirs[v0]) {
+      let d = 0; while (!(dirs[v0] & (1 << d))) d++;
+      let v = v0, pd = -1;
+      const pts = [];
+      for (;;) {
+        dirs[v] &= ~(1 << d);
+        if (d !== pd) pts.push([v % W, (v / W) | 0]);
+        pd = d;
+        v = v + DX[d] + DY[d] * W;
+        if (v === v0) break; // back at the start: this loop is closed (any edges left here belong to another loop)
+        let nd = -1;
+        for (const t of [(d + 1) & 3, d, (d + 3) & 3]) if (dirs[v] & (1 << t)) { nd = t; break; }
+        if (nd < 0) break;
+        d = nd;
+      }
+      if (pts.length >= 3) loops.push(pts);
+    }
+  }
+  return loops;
+}
+function dp(pts, eps) { // Douglas-Peucker on an open polyline (iterative)
+  const n = pts.length;
+  if (n < 3) return pts.slice();
+  const keep = new Uint8Array(n); keep[0] = keep[n - 1] = 1;
+  const st = [[0, n - 1]];
+  while (st.length) {
+    const [a, b] = st.pop();
+    let md = 0, mi = -1;
+    const ax = pts[a][0], ay = pts[a][1], bx = pts[b][0], by = pts[b][1];
+    const dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy) || 1e-9;
+    for (let i = a + 1; i < b; i++) { const d = Math.abs((pts[i][0] - ax) * dy - (pts[i][1] - ay) * dx) / L; if (d > md) { md = d; mi = i; } }
+    if (md > eps && mi > 0) { keep[mi] = 1; st.push([a, mi], [mi, b]); }
+  }
+  const out = [];
+  for (let i = 0; i < n; i++) if (keep[i]) out.push(pts[i]);
+  return out;
+}
+function simplifyLoop(pts, eps) {
+  if (eps <= 0.05 || pts.length < 6) return pts;
+  let far = 0, fd = -1;
+  for (let i = 1; i < pts.length; i++) { const d = (pts[i][0] - pts[0][0]) ** 2 + (pts[i][1] - pts[0][1]) ** 2; if (d > fd) { fd = d; far = i; } }
+  const a = dp(pts.slice(0, far + 1), eps), b = dp(pts.slice(far).concat([pts[0]]), eps);
+  return a.concat(b.slice(1, -1));
+}
+const area2 = (pts) => { let s = 0; for (let i = 0; i < pts.length; i++) { const j = (i + 1) % pts.length; s += pts[i][0] * pts[j][1] - pts[j][0] * pts[i][1]; } return Math.abs(s) / 2; };
+const f1 = (v) => (Math.round(v * 10) / 10).toString();
+function loopPath(pts, round) {
+  const n = pts.length;
+  if (!round) return 'M' + pts.map((q) => f1(q[0]) + ' ' + f1(q[1])).join('L') + 'Z';
+  let d = '';
+  for (let i = 0; i < n; i++) {
+    const pr = pts[(i + n - 1) % n], c = pts[i], nx = pts[(i + 1) % n];
+    const l1 = Math.hypot(pr[0] - c[0], pr[1] - c[1]) || 1, l2 = Math.hypot(nx[0] - c[0], nx[1] - c[1]) || 1;
+    const t1 = Math.min(0.5, round / l1), t2 = Math.min(0.5, round / l2);
+    const a = [c[0] + (pr[0] - c[0]) * t1, c[1] + (pr[1] - c[1]) * t1], b = [c[0] + (nx[0] - c[0]) * t2, c[1] + (nx[1] - c[1]) * t2];
+    d += (i === 0 ? 'M' : 'L') + f1(a[0]) + ' ' + f1(a[1]) + 'Q' + f1(c[0]) + ' ' + f1(c[1]) + ' ' + f1(b[0]) + ' ' + f1(b[1]);
+  }
+  return d + 'Z';
+}
+function maskPath(mask, w, h, eps, omit, round) {
+  const loops = traceMask(mask, w, h);
+  let d = '', count = 0;
+  for (const lp of loops) {
+    const s = simplifyLoop(lp, eps);
+    if (s.length < 3 || area2(s) < omit) continue;
+    d += loopPath(s, round); count++;
+  }
+  return { d, count };
+}
+function buildSvg(prep, q, p, item) {
+  const { w, h, orig, fg } = prep;
+  const n = w * h;
+  const ow = item.crop.width, oh = item.crop.height;
+  let body = '', paths = 0;
+  const round = p.smooth ? 3 : 0;
+  const mask = new Uint8Array(n);
+  for (let r = 0; r < q.pal.length; r++) {
+    let any = 0;
+    for (let i = 0; i < n; i++) { const v = q.rk[i] !== 255 && q.rk[i] >= r ? 1 : 0; mask[i] = v; any |= v; }
+    if (!any) continue;
+    const res = maskPath(mask, w, h, p.simplify, p.omit, round);
+    if (!res.d) continue;
+    body += `<path fill="${hex(q.pal[r])}" fill-rule="evenodd" d="${res.d}"/>`; paths += res.count;
+  }
+  let ink = null;
+  if (p.ink > 0) {
+    let sr = 0, sg = 0, sb = 0, c = 0;
+    const lim = p.ink * 255;
+    for (let i = 0; i < n; i++) {
+      const o = i * 4;
+      const lum = 0.299 * orig[o] + 0.587 * orig[o + 1] + 0.114 * orig[o + 2];
+      const on = fg[i] && lum < lim ? 1 : 0;
+      mask[i] = on; if (on) { sr += orig[o]; sg += orig[o + 1]; sb += orig[o + 2]; c++; }
+    }
+    if (c > 8) {
+      const res = maskPath(mask, w, h, Math.max(0.3, p.simplify * 0.6), Math.max(2, p.omit * 0.4), round ? 2 : 0);
+      if (res.d) { ink = [sr / c, sg / c, sb / c]; body += `<path fill="${hex(ink)}" fill-rule="evenodd" d="${res.d}"/>`; paths += res.count; }
+    }
+  }
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${ow}" height="${oh}">${body}</svg>`;
+  return { svg, paths, palette: q.pal.map(hex).concat(ink ? [hex(ink)] : []) };
+}
+// raster the vector again and compare with the picture (only where picture or vector has content)
+async function scoreSvg(prep, svg, wantDiff) {
+  const img = await loadImg(svgUrl(svg));
+  const { w, h, orig, fg } = prep;
+  const c = canvasOf(w, h), ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(img, 0, 0, w, h);
+  const v = ctx.getImageData(0, 0, w, h).data;
+  let tot = 0, cnt = 0;
+  let dctx = null, dimg = null;
+  if (wantDiff) { const dc = canvasOf(w, h); dctx = dc.getContext('2d'); dimg = dctx.createImageData(w, h); wantDiff.canvas = dc; }
+  for (let i = 0; i < w * h; i++) {
+    const o = i * 4, a = v[o + 3] / 255;
+    const inOrig = fg[i], inVec = a > 0.5;
+    if (dimg) { dimg.data[o] = dimg.data[o + 1] = dimg.data[o + 2] = 245; dimg.data[o + 3] = 255; }
+    if (!inOrig && !inVec) continue;
+    const oa = orig[o + 3] / 255;
+    const orr = inOrig ? orig[o] * oa + 255 * (1 - oa) : 255, og = inOrig ? orig[o + 1] * oa + 255 * (1 - oa) : 255, ob = inOrig ? orig[o + 2] * oa + 255 * (1 - oa) : 255;
+    const vr = v[o] + 255 * (1 - a), vg = v[o + 1] + 255 * (1 - a), vb = v[o + 2] + 255 * (1 - a);
+    const d = (Math.abs(orr - vr) + Math.abs(og - vg) + Math.abs(ob - vb)) / 765;
+    tot += d; cnt++;
+    if (dimg) { const g = Math.round(245 - Math.min(1, d * 3) * 245); dimg.data[o] = 245; dimg.data[o + 1] = g; dimg.data[o + 2] = g; }
+  }
+  if (dimg) dctx.putImageData(dimg, 0, 0);
+  return cnt ? Math.max(0, 100 * (1 - tot / cnt)) : 0;
+}
+async function evalParams(item, p) {
+  const prep = prepare(item, p);
+  const q = quantize(prep, p);
+  if (!q) return { p, svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${prep.w} ${prep.h}"/>`, score: 0, paths: 0, bytes: 0, palette: [], empty: true };
+  const b = buildSvg(prep, q, p, item);
+  const score = await scoreSvg(prep, b.svg);
+  return { p: Object.assign({}, p), svg: b.svg, score, paths: b.paths, bytes: b.svg.length, palette: b.palette };
+}
+
+/* ---------- refinement / different ---------- */
+const rejected = () => new Set(prof().rej);
+function refineCandidates(p, level) {
+  const c = [];
+  const mk = (o) => c.push(Object.assign({}, p, o));
+  mk({ colors: Math.min(28, p.colors + 3) });
+  mk({ simplify: Math.max(0.25, p.simplify * 0.65), omit: Math.max(1.5, p.omit * 0.5) });
+  mk({ size: Math.min(700, Math.round(p.size * 1.25)) });
+  if (p.blur > 0) mk({ blur: p.blur - 1 });
+  mk({ ink: p.ink ? Math.min(0.4, p.ink + 0.06) : 0.2 });
+  mk({ colors: Math.min(28, p.colors + 4), simplify: Math.max(0.25, p.simplify * 0.7), omit: Math.max(1.5, p.omit * 0.6), size: Math.min(700, Math.round(p.size * 1.15)) });
+  mk({ smooth: p.smooth ? 0 : 1 });
+  return c;
+}
+function differentCandidates(p, history) {
+  const rnd = mulberry((Date.now() & 0xffff) + history.length * 31);
+  const used = new Set(history.map((h) => pkey(h.p)));
+  const rej = rejected();
+  const out = [];
+  const pick = (a) => a[Math.floor(rnd() * a.length)];
+  for (let tries = 0; tries < 40 && out.length < 5; tries++) {
+    const q = Object.assign({}, p);
+    q.seed = Math.floor(rnd() * 9000) + 2;
+    q.colors = Math.max(5, Math.min(26, p.colors + pick([-5, -3, 3, 5, 7])));
+    if (rnd() < 0.5) q.blur = pick([0, 1, 2]);
+    if (rnd() < 0.5) q.smooth = p.smooth ? 0 : 1;
+    if (rnd() < 0.5) q.ink = pick([0, 0.16, 0.24, 0.32]);
+    if (rnd() < 0.5) q.holes = p.holes ? 0 : 1;
+    if (rnd() < 0.4) q.bgtol = Math.max(20, Math.min(90, p.bgtol + pick([-15, 15, 25])));
+    if (rnd() < 0.5) q.simplify = Math.max(0.3, p.simplify * pick([0.6, 1.5, 2]));
+    const k = pkey(q);
+    if (used.has(k) || rej.has(k) || out.some((o) => pkey(o) === k)) continue;
+    out.push(q);
+  }
+  return out;
+}
+async function runCandidates(item, cands, label) {
+  let best = null;
+  for (let i = 0; i < cands.length; i++) {
+    status(`${item.name}: ${label} ${i + 1}/${cands.length}…`);
+    await sleep(0);
+    let r;
+    try { r = await evalParams(item, cands[i]); } catch (e) { continue; }
+    if (!best || r.score > best.score) best = r;
+  }
+  return best;
+}
+function addRound(item, rec, note) {
+  rec.note = note; rec.t = Date.now(); rec.round = item.history.length + 1;
+  item.history.push(rec); item.cur = item.history.length - 1; item.saved = false;
+}
+async function doRefine(item) {
+  const cur = item.history[item.cur];
+  const best = await runCandidates(item, refineCandidates(cur.p, item.history.length), 'refining, trying setting');
+  if (!best) return toast('Could not refine this one');
+  const better = best.score > cur.score + 0.05;
+  addRound(item, best, better ? `refined (+${(best.score - cur.score).toFixed(2)})` : 'refined, already near the limit');
+  await finishRound(item);
+}
+async function doDifferent(item) {
+  const cur = item.history[item.cur];
+  const k = pkey(cur.p);
+  const pf = prof(); if (!pf.rej.includes(k)) { pf.rej.push(k); pf.rej = pf.rej.slice(-60); saveProfile(); }
+  const cands = differentCandidates(cur.p, item.history);
+  const best = cands.length ? await runCandidates(item, cands, 'trying a different approach') : null;
+  if (!best) return toast('No new approach left to try');
+  addRound(item, best, 'different approach');
+  await finishRound(item);
+}
+async function finishRound(item) {
+  const rec = item.history[item.cur];
+  const d = {}; await scoreSvg(prepare(item, rec.p), rec.svg, d);
+  rec.diffUrl = d.canvas ? d.canvas.toDataURL() : '';
+  status(''); renderCard(item); renderOutput();
+}
+async function doAccurate(item) {
+  const rec = item.history[item.cur];
+  const group = slug($('#gname').value) || 'untitled';
+  const key = `${S.cat}/${S.style}/${group}/${item.name}`;
+  const orig = canvasOf(Math.min(360, item.crop.width), Math.round(item.crop.height * Math.min(1, 360 / item.crop.width)));
+  orig.getContext('2d').drawImage(item.crop, 0, 0, orig.width, orig.height);
+  const record = {
+    key, category: S.cat, style: S.style, group, name: item.name, svg: rec.svg, score: +rec.score.toFixed(2), params: rec.p,
+    palette: rec.palette, w: item.crop.width, h: item.crop.height, paths: rec.paths, rounds: item.history.length, original: orig.toDataURL('image/png'), savedAt: new Date().toISOString(),
+  };
+  await libPut(record);
+  const pf = prof(); pf.acc.push({ p: rec.p, score: rec.score, t: Date.now() }); pf.acc = pf.acc.slice(-40); saveProfile();
+  let where = 'this browser';
+  if (S.server) {
+    try {
+      const r = await fetch('/api/save', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(record) });
+      const j = await r.json();
+      if (j.ok) where = 'this browser and ' + j.path; else toast('Saved in the browser; server said: ' + j.error);
+    } catch (e) { /* browser copy is enough */ }
+  }
+  item.saved = true; renderCard(item); renderProfInfo();
+  toast(`${item.name} saved (${where}). Next ${CATS[S.cat].label.toLowerCase()} in ${STYLES[S.style]} starts from these settings.`);
+}
+
+/* ---------- UI: cards and output ---------- */
+function swatches(pal) { return `<div class="sw">${pal.map((c) => `<i style="background:${c}" title="${c}"></i>`).join('')}</div>`; }
+function renderCard(item) {
+  const el = item.el || (item.el = document.createElement('div'));
+  const rec = item.history[item.cur];
+  el.className = 'card' + (item.saved ? ' saved' : '');
+  el.dataset.id = item.id;
+  const hist = item.history.map((h, i) => `<div class="h ${i === item.cur ? 'cur' : ''}" data-act="pick" data-i="${i}"><img src="${svgUrl(h.svg)}" alt=""><div>#${h.round} · ${h.score.toFixed(1)}%</div></div>`).join('');
+  el.innerHTML = `
+    <h3>${esc(item.name)} <span class="badge">match ${rec.score.toFixed(1)}%</span> <span class="badge">${rec.paths} shapes · ${(rec.bytes / 1024).toFixed(1)} KB</span>
+      <span class="badge">round ${rec.round}${rec.note ? ' · ' + esc(rec.note) : ''}</span>${item.saved ? '<span class="badge ok">saved to library</span>' : ''}</h3>
+    <div class="trio">
+      <div><div class="pic"><img src="${item.origUrl}" alt="original"></div><div class="cap">What you gave</div></div>
+      <div><div class="pic"><img src="${svgUrl(rec.svg)}" alt="vector"></div><div class="cap">Vector (round ${rec.round})</div></div>
+      <div class="d"><div class="pic"><img src="${rec.diffUrl || ''}" alt="difference"></div><div class="cap">Difference (darker red = further from your picture)</div></div>
+    </div>
+    ${swatches(rec.palette)}
+    <div class="hist">${hist}</div>
+    <div class="btns">
+      <button class="act b-ok" data-act="ok">Accurate</button>
+      <button class="act b-warn" data-act="refine">Needs refinement</button>
+      <button class="act b-bad" data-act="diff">Different</button>
+    </div>
+    <details><summary>Vector code</summary><textarea readonly rows="5" onclick="this.select()">${esc(rec.svg)}</textarea>
+      <div class="btns"><button class="ghost" data-act="dl">Download this SVG</button><button class="ghost" data-act="copy">Copy SVG</button></div></details>`;
+  return el;
+}
+function renderOutput() {
+  const items = S.items;
+  $('#outBox').style.display = items.length ? '' : 'none';
+  if (!items.length) return;
+  $('#outInfo').textContent = 'Top: exactly what you gave. Bottom: the vector it became. Each is one view side by side in the order you listed.';
+  $('#outStrip').innerHTML = items.map((it) => {
+    const r = it.history[it.cur];
+    return `<div class="col"><img src="${it.origUrl}" alt=""><img src="${svgUrl(r.svg)}" alt=""><div>${esc(it.name)}<br>${r.score.toFixed(1)}%${it.saved ? ' · saved' : ''}</div></div>`;
+  }).join('');
+}
+function renderProfInfo() {
+  const pf = prof();
+  $('#profInfo').textContent = pf.acc.length ? `learned from ${pf.acc.length} approved ${pf.acc.length === 1 ? 'picture' : 'pictures'}, ${pf.rej.length} settings avoided` : 'nothing approved yet in this category and style';
+}
+function renderTabs() {
+  $('#tabs').innerHTML = Object.entries(CATS).map(([k, v]) => `<button data-cat="${k}" class="${S.cat === k && !S.libView ? 'on' : ''}">${v.label}</button>`).join('') + `<button data-cat="__lib" class="${S.libView ? 'on' : ''}">Library</button>`;
+  $('#styleSeg').innerHTML = Object.entries(STYLES).map(([k, v]) => `<button data-style="${k}" class="${S.style === k ? 'on' : ''}">${v}</button>`).join('');
+  const c = CATS[S.cat];
+  $('#gnameLabel').textContent = c.group; $('#gname').placeholder = c.ph;
+  $('#namesLabel').textContent = c.nl;
+  renderProfInfo();
+}
+function setCat(k) {
+  if (k === '__lib') { S.libView = true; $('#view-learn').style.display = 'none'; $('#view-lib').style.display = ''; renderTabs(); renderLibrary(); return; }
+  S.libView = false; $('#view-learn').style.display = ''; $('#view-lib').style.display = 'none';
+  if (k !== S.cat) { S.cat = k; clearAll(); const c = CATS[k]; $('#names').value = c.names; $('#splitMode').value = c.split; }
+  renderTabs();
+}
+function clearAll() { S.sheets = []; S.plan = []; S.items = []; $('#cards').innerHTML = ''; $('#cardsBox').style.display = 'none'; $('#outBox').style.display = 'none'; $('#sheets').innerHTML = ''; $('#btnLearn').disabled = true; status(''); $('#files').value = ''; }
+
+/* ---------- detect and learn ---------- */
+function namesList() { return $('#names').value.split(/[\n,]+/).map((s) => slug(s)).filter(Boolean); }
+async function doDetect() {
+  const files = [...$('#files').files];
+  if (!files.length) return toast('Choose at least one picture first');
+  status('Reading pictures…'); await sleep(0);
+  S.sheets = [];
+  for (const f of files) { try { S.sheets.push(await readSheet(f)); } catch (e) { toast(`Could not read ${f.name}`); } }
+  const names = namesList();
+  const mode = CATS[S.cat].bg ? $('#splitMode').value : 'whole';
+  const wantN = mode === 'auto' ? (S.sheets.length === 1 ? names.length : 0) : names.length;
+  S.plan = []; const notes = [];
+  const wrap = $('#sheets'); wrap.innerHTML = '';
+  S.sheets.forEach((sh, si) => {
+    const r = detectBoxes(sh, mode, S.sheets.length === 1 ? wantN : (mode === 'equal' ? Math.max(1, Math.round(names.length / S.sheets.length)) : 0));
+    notes.push(`${sh.name}: ${r.note}`);
+    const prev = canvasOf(Math.min(900, sh.w), Math.round(sh.h * Math.min(900, sh.w) / sh.w)); prev.className = 'prev';
+    const k = prev.width / sh.w, pc = prev.getContext('2d');
+    pc.fillStyle = '#fff'; pc.fillRect(0, 0, prev.width, prev.height); pc.drawImage(sh.canvas, 0, 0, prev.width, prev.height);
+    r.boxes.forEach((b, bi) => { S.plan.push({ si, box: b }); pc.strokeStyle = '#e03131'; pc.lineWidth = 2; pc.strokeRect(b.x * k, b.y * k, b.w * k, b.h * k); pc.fillStyle = '#e03131'; pc.font = '14px sans-serif'; pc.fillText(String(S.plan.length), b.x * k + 4, b.y * k + 16); });
+    wrap.appendChild(prev);
+  });
+  const total = S.plan.length;
+  const fallback = CATS[S.cat].names ? '' : 'prop_';
+  S.plan.forEach((p, i) => { p.name = names[i] || `${S.cat === 'landscape' ? 'scene' : fallback || 'item'}_${i + 1}`; });
+  const used = new Map(); S.plan.forEach((p) => { const n = used.get(p.name) || 0; used.set(p.name, n + 1); if (n) p.name += '_' + (n + 1); });
+  let msg = notes.join('\n') + `\n${total} item${total === 1 ? '' : 's'} will be learned.`;
+  if (names.length && names.length !== total) msg += `\nWarning: ${names.length} names but ${total} items. Extra items get automatic names, extra names are ignored.`;
+  status(msg);
+  const ng = document.createElement('div'); ng.className = 'namegrid';
+  ng.innerHTML = S.plan.map((p, i) => `<div>${i + 1}. <input type="text" data-plan="${i}" value="${esc(p.name)}"></div>`).join('');
+  wrap.appendChild(ng);
+  $('#btnLearn').disabled = !total;
+}
+async function doLearn() {
+  if (S.busy) return; S.busy = true; $('#btnLearn').disabled = true;
+  try {
+    S.items = []; $('#cards').innerHTML = ''; $('#cardsBox').style.display = '';
+    document.querySelectorAll('[data-plan]').forEach((i) => { S.plan[+i.dataset.plan].name = slug(i.value) || S.plan[+i.dataset.plan].name; });
+    const p0 = initialParams();
+    for (let i = 0; i < S.plan.length; i++) {
+      const pl = S.plan[i], sh = S.sheets[pl.si];
+      status(`Learning ${pl.name} (${i + 1}/${S.plan.length})…`); await sleep(0);
+      const crop = canvasOf(pl.box.w, pl.box.h);
+      crop.getContext('2d').drawImage(sh.canvas, pl.box.x, pl.box.y, pl.box.w, pl.box.h, 0, 0, pl.box.w, pl.box.h);
+      const view = canvasOf(Math.min(480, crop.width), Math.max(1, Math.round(crop.height * Math.min(480, crop.width) / crop.width)));
+      const vc = view.getContext('2d'); vc.fillStyle = '#fff'; vc.drawImage(crop, 0, 0, view.width, view.height);
+      const item = { id: 'i' + i, name: pl.name, crop, bg: sh.bg, nobg: !CATS[S.cat].bg, history: [], cur: 0, saved: false, origUrl: view.toDataURL('image/png') };
+      const holes = $('#holes').checked ? 1 : p0.holes;
+      const rec = await evalParams(item, Object.assign({}, p0, { holes }));
+      rec.round = 1; rec.note = 'first trace'; rec.t = Date.now();
+      item.history.push(rec);
+      const d = {}; await scoreSvg(prepare(item, rec.p), rec.svg, d); rec.diffUrl = d.canvas ? d.canvas.toDataURL() : '';
+      S.items.push(item);
+      $('#cards').appendChild(renderCard(item));
+      renderOutput();
+    }
+    status(`Done: ${S.items.length} item${S.items.length === 1 ? '' : 's'} traced. Judge each one with the three buttons.`);
+  } catch (e) { console.error(e); status('Something failed: ' + e.message); }
+  S.busy = false; $('#btnLearn').disabled = false;
+}
+
+/* ---------- downloads, zip ---------- */
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(b) { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function zipBlob(files) { // stored (no compression) zip
+  const enc = new TextEncoder(), parts = [], central = [];
+  let off = 0;
+  for (const f of files) {
+    const nm = enc.encode(f.name), data = typeof f.data === 'string' ? enc.encode(f.data) : f.data, crc = crc32(data);
+    const h = new DataView(new ArrayBuffer(30));
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true); h.setUint16(10, 0, true); h.setUint16(12, 0x21, true);
+    h.setUint32(14, crc, true); h.setUint32(18, data.length, true); h.setUint32(22, data.length, true); h.setUint16(26, nm.length, true); h.setUint16(28, 0, true);
+    parts.push(h.buffer, nm, data);
+    const c = new DataView(new ArrayBuffer(46));
+    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(10, 0, true); c.setUint16(12, 0, true); c.setUint16(14, 0x21, true);
+    c.setUint32(16, crc, true); c.setUint32(20, data.length, true); c.setUint32(24, data.length, true); c.setUint16(28, nm.length, true); c.setUint32(42, off, true);
+    central.push(c.buffer, nm);
+    off += 30 + nm.length + data.length;
+  }
+  let csize = 0; for (const p of central) csize += p.byteLength !== undefined ? p.byteLength : p.length;
+  const e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, csize, true); e.setUint32(16, off, true);
+  return new Blob([...parts, ...central, e.buffer], { type: 'application/zip' });
+}
+function download(name, blobOrText, type) {
+  const b = blobOrText instanceof Blob ? blobOrText : new Blob([blobOrText], { type: type || 'text/plain' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+function sheetSvg(items) {
+  const cw = 260, ch = 340, pad = 10;
+  const W = items.length * cw + pad, H = ch * 2 + 60;
+  let b = `<rect width="100%" height="100%" fill="#fff"/><text x="${pad}" y="22" font-family="sans-serif" font-size="15" fill="#555">Top: your picture. Bottom: vector.</text>`;
+  items.forEach((it, i) => {
+    const r = it.history[it.cur], x = pad + i * cw;
+    b += `<image href="${it.origUrl}" x="${x}" y="34" width="${cw - pad}" height="${ch - 20}" preserveAspectRatio="xMidYMid meet"/>`;
+    const inner = r.svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '');
+    const vb = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(r.svg), vw = +vb[1], vh = +vb[2], s = Math.min((cw - pad) / vw, (ch - 20) / vh);
+    b += `<g transform="translate(${x + ((cw - pad) - vw * s) / 2} ${34 + ch + (ch - 20 - vh * s) / 2}) scale(${s})">${inner}</g>`;
+    b += `<text x="${x + (cw - pad) / 2}" y="${H - 10}" text-anchor="middle" font-family="sans-serif" font-size="13" fill="#333">${esc(it.name)} ${r.score.toFixed(1)}%</text>`;
+  });
+  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${b}</svg>`;
+}
+async function comparisonPng(items) {
+  const svg = sheetSvg(items);
+  const img = await loadImg(svgUrl(svg));
+  const m = /viewBox="0 0 (\d+) (\d+)"/.exec(svg), c = canvasOf(+m[1], +m[2]);
+  c.getContext('2d').drawImage(img, 0, 0);
+  return new Promise((r) => c.toBlob(r, 'image/png'));
+}
+
+/* ---------- library view ---------- */
+async function renderLibrary() {
+  const all = (await libAll()).sort((a, b) => a.key.localeCompare(b.key));
+  $('#libSrv').textContent = S.server ? ' and written to the repo by the save server' : '';
+  if (!all.length) { $('#libList').innerHTML = '<p class="hint">Nothing saved yet. Press Accurate on a picture to save it here.</p>'; return; }
+  const groups = new Map();
+  for (const r of all) { const k = `${r.category}/${r.style}/${r.group}`; (groups.get(k) || groups.set(k, []).get(k)).push(r); }
+  $('#libList').innerHTML = [...groups.entries()].map(([k, arr]) => `<div class="grp"><h4>${esc(k)} <span class="badge">${arr.length} saved</span></h4>
+    <div class="strip">${arr.map((r) => `<div class="col"><img src="${svgUrl(r.svg)}" alt=""><div>${esc(r.name)}<br>${r.score}%</div></div>`).join('')}</div>
+    <div class="btns"><button class="ghost" data-lib="zip" data-k="${esc(k)}">Download this group (zip)</button><button class="ghost" data-lib="del" data-k="${esc(k)}">Delete group</button></div></div>`).join('');
+  S.libGroups = groups;
+}
+function libFiles(recs) {
+  const files = [], index = [];
+  for (const r of recs) {
+    const base = `${r.category}/${r.style}/${r.group}/${r.name}`;
+    files.push({ name: base + '.svg', data: r.svg });
+    const meta = Object.assign({}, r); delete meta.svg; delete meta.original;
+    files.push({ name: base + '.json', data: JSON.stringify(meta, null, 1) });
+    if (r.original) files.push({ name: base + '.original.png', data: Uint8Array.from(atob(r.original.split(',')[1]), (c) => c.charCodeAt(0)) });
+    index.push(meta);
+  }
+  files.push({ name: 'library_index.json', data: JSON.stringify(index, null, 1) });
+  return files;
+}
+
+/* ---------- wiring ---------- */
+document.addEventListener('click', async (e) => {
+  const t = e.target.closest('button,[data-act]'); if (!t) return;
+  if (t.dataset.cat) return setCat(t.dataset.cat);
+  if (t.dataset.style) { S.style = t.dataset.style; return renderTabs(); }
+  if (t.dataset.lib) {
+    const arr = S.libGroups.get(t.dataset.k) || [];
+    if (t.dataset.lib === 'zip') download(t.dataset.k.replace(/\//g, '_') + '.zip', zipBlob(libFiles(arr)));
+    if (t.dataset.lib === 'del' && confirm('Delete this group from the browser library?')) { for (const r of arr) await libDel(r.key); renderLibrary(); }
+    return;
+  }
+  const card = t.closest('.card');
+  if (card && t.dataset.act) {
+    const item = S.items.find((i) => i.id === card.dataset.id); if (!item) return;
+    const act = t.dataset.act;
+    if (act === 'pick') { item.cur = +t.dataset.i; item.saved = false; const rec = item.history[item.cur]; if (!rec.diffUrl) await finishRound(item); else { renderCard(item); renderOutput(); } return; }
+    if (S.busy) return toast('Wait, still working on another picture');
+    if (act === 'dl') return download(`${item.name}.svg`, item.history[item.cur].svg, 'image/svg+xml');
+    if (act === 'copy') { try { await navigator.clipboard.writeText(item.history[item.cur].svg); toast('SVG copied'); } catch (er) { toast('Select the code and copy it by hand'); } return; }
+    S.busy = true; card.querySelectorAll('button').forEach((b) => (b.disabled = true));
+    try { if (act === 'ok') await doAccurate(item); if (act === 'refine') await doRefine(item); if (act === 'diff') await doDifferent(item); }
+    catch (er) { console.error(er); toast('Failed: ' + er.message); }
+    S.busy = false; renderCard(item);
+    return;
+  }
+  if (t.id === 'btnDetect') return doDetect();
+  if (t.id === 'btnLearn') return doLearn();
+  if (t.id === 'btnClear') { clearAll(); return; }
+  if (t.id === 'dlSheet') return download('sheet_side_by_side.svg', sheetSvg(S.items), 'image/svg+xml');
+  if (t.id === 'dlPng') return download('comparison.png', await comparisonPng(S.items));
+  if (t.id === 'dlZip') { const files = S.items.map((i) => ({ name: `${i.name}.svg`, data: i.history[i.cur].svg })); return download('vectors.zip', zipBlob(files)); }
+  if (t.id === 'libZip') return download('nf_library.zip', zipBlob(libFiles(await libAll())));
+  if (t.id === 'libRefresh') return renderLibrary();
+});
+$('#files').addEventListener('change', () => { if ($('#files').files.length) doDetect(); });
+
+(async function init() {
+  loadProfile();
+  S.db = await openDb();
+  try { const r = await fetch('/api/ping'); const j = await r.json(); S.server = !!j.ok; } catch (e) { S.server = false; }
+  $('#srv').textContent = S.server ? 'save server connected: Accurate writes into the repo folder' : 'browser-only mode: Accurate saves in this browser, use Library to download';
+  $('#srv').className = 'pill' + (S.server ? ' on' : '');
+  $('#names').value = CATS.character.names; $('#splitMode').value = 'auto';
+  renderTabs();
+  window.NFL = { S, CATS, PRESET, detectBoxes, readSheet, evalParams, doRefine, doDifferent, doAccurate, libAll, zipBlob, crc32, traceMask, doDetect, doLearn };
+})();
+</script>
+</body>
+</html>
