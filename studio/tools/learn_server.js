@@ -12,7 +12,7 @@ const path = require('path');
 
 const ROOT = process.env.NF_ROOT || path.join(__dirname, '..', '..');
 const PAGE = path.join(__dirname, '..', 'learn', 'index.html');
-const PORT = Number(process.env.PORT) || 8765;
+const PORT = Number(process.env.PORT) || 8787;
 const CATS = ['character', 'emotion', 'pose', 'prop', 'landscape'];
 const STYLES = ['ghibli', 'webtoon'];
 const safe = (s) => /^[a-z0-9_-]{1,40}$/.test(String(s || ''));

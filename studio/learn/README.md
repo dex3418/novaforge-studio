@@ -2,7 +2,7 @@
 
 A page for teaching the system new artwork without pushing to GitHub each time.
 
-    cd ~/novaforge-studio/studio && npm run learn      # then open http://localhost:8765 in the phone browser
+    cd ~/novaforge-studio/studio && npm run learn      # then open http://localhost:8787 in the phone browser
 
 (Opening `learn/index.html` directly also works; it then saves only inside the browser, and the Library tab
 downloads zips.)
