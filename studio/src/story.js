@@ -71,7 +71,8 @@ function parseCast(str) {
   return out.slice(0, 8);
 }
 
-const isStoryMeta = (meta) => !!meta && (String(meta.mode || '').toLowerCase() === 'story' || !!String(meta.cast || '').trim());
+// "mode: carousel" is an explicit no, even when a cast line is left in the header
+const isStoryMeta = (meta) => !!meta && String(meta.mode || '').toLowerCase() !== 'carousel' && (String(meta.mode || '').toLowerCase() === 'story' || !!String(meta.cast || '').trim());
 
 // a line that starts with "Name:" or "Name (tone):"  -> { name, tone, text }
 function speakerLine(line, known, loose) {

@@ -65,6 +65,7 @@ ${who || '  (no cast: use no actors)'}
 Lines tagged [name] are spoken by that character, untagged lines by the narrator (not drawn). Make about 4 of every 5 beats kind "story": show who is speaking (put them on screen with "speaks": true, others listen), where it happens (setting, time of day), and what is around (props from the library that the line mentions). Use a different pose or expression whenever the feeling changes, move people between beats (walk in, walk across, turn to each other), vary the camera (wide, close on the speaker with z1 up to 1.3 and fx at the speaker, pull back, small shake only for a shock), and keep the same setting through a scene unless the story moves. Use counter/stats/bars/spot/kinetic only when the line is really about a number or a key fact. Never invent a character who is not in the CAST. Keep actors within 2 or 3 per beat.\n\n`;
 }
 
+const isStoryParsed = (parsed) => require('./story').isStoryMeta(parsed.meta) || !!(parsed.cast && parsed.cast.length);
 function buildPrompt(parsed) {
   const scenes = parsed.scenes.map((sc) => {
     const sp = sc.lines ? wordSpeakers(sc) : null;
@@ -75,7 +76,7 @@ function buildPrompt(parsed) {
   return `You are the motion-graphics director for short social videos made from a spoken script.
 Decide how each part of the script should look on screen. Output JSON only.
 
-${LIBRARY}
+${isStoryParsed(parsed) ? LIBRARY : LIBRARY.split('\n').filter((l) => !l.startsWith('- story ')).join('\n')}
 RULES
 1. The script is cut into numbered LINES inside each scene. Split every scene into "beats": consecutive groups of lines (usually 1 or 2 lines, at most 3). A beat should last about 4 seconds, so keep a beat under ~18 spoken words. Beats must cover every line of the scene, in order, with no gaps and no overlap. fromSentence is inclusive, toSentence is exclusive (they count lines).
 2. Give each beat one visual kind. It must feel like motion graphics, not subtitles: at least 2 of every 3 beats must be a real visual (counter, stats, bars, spot, checklist, steps, qa, mythfact, compare, progress, alert, kinetic, keyword, quote). Use kinetic for punchy statements, keyword for a key term, spot when a concrete thing (money, time, place, document, phone, safety) is mentioned, stats when 2-4 numbers appear together. Caption only when nothing else fits, and never more than 2 captions in a row. Do not use the same kind twice in a row.

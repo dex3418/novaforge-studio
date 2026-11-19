@@ -182,6 +182,10 @@ function decide(sc, i, n) {
 
 // what the plan may use from outside the script: pictures and who is speaking
 const CTX = { pics: 0, person: '', role: '', meta: {} };
+// Drawn story beats (characters, places) exist ONLY in story mode (header "mode: story" or a cast). The AI director may
+// still propose one in an ordinary carousel; it is never accepted there.
+const storyAllowed = () => { const m = CTX.meta || {}; return String(m.mode || '').toLowerCase() !== 'carousel' && (String(m.mode || '').toLowerCase() === 'story' || !!String(m.cast || '').trim()); };
+const kindOk = (k) => KINDS.includes(k) && (k !== 'story' || storyAllowed());
 function setContext(parsed) {
   const m = (parsed && parsed.meta) || {};
   CTX.meta = m;
@@ -619,9 +623,9 @@ function normalizeBeats(g, sc, trust, diag) {
   for (const b of sorted) {
     const text = ws.slice(rng_[b.a].from, rng_[b.z - 1].to).join(' ');
     const wcb = text.split(' ').length;
-    let kind = KINDS.includes(b.kind) ? b.kind : 'caption';
+    let kind = kindOk(b.kind) ? b.kind : 'caption';
     let data = b.data && typeof b.data === 'object' ? b.data : {};
-    const why = !KINDS.includes(b.kind) ? `unknown kind "${b.kind}"` : !CHECK[kind](data) ? `${kind}: data missing or wrong shape` : !trust && !groundedData(kind, data, src) ? `${kind}: text or number not found in the script` : '';
+    const why = !kindOk(b.kind) ? (b.kind === 'story' ? 'story beats are only allowed in story mode' : `unknown kind "${b.kind}"`) : !CHECK[kind](data) ? `${kind}: data missing or wrong shape` : !trust && !groundedData(kind, data, src) ? `${kind}: text or number not found in the script` : '';
     if (why) {
       if (diag && b.kind !== 'caption') diag.push({ scene: sc.index, reason: why });
       kind = 'caption';
@@ -898,7 +902,7 @@ function validatePlan(plan, parsed, fallback, diag) {
       kind = nb[0].kind;
       data = nb[0].data;
     } else {
-      const okOwn = KINDS.includes(g.kind) && g.data && typeof g.data === 'object' && CHECK[g.kind](g.data) && (trust || groundedData(g.kind, g.data, src));
+      const okOwn = kindOk(g.kind) && g.data && typeof g.data === 'object' && CHECK[g.kind](g.data) && (trust || groundedData(g.kind, g.data, src));
       if (okOwn) {
         kind = g.kind;
         data = finalize(g.kind, g.data, sc.narration);
