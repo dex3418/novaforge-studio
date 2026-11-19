@@ -22,3 +22,16 @@ What goes where, and the rules, are in `characters/README.md` ("Learned artwork"
 What "learning" means here: the tracer's settings, per category and style. Approved settings become the starting
 point next time, rejected ones are not tried again. There is no neural network, nothing leaves the browser, and the
 the page only learns the tracer's settings from your verdicts.
+
+## Reopening saved items (v26)
+Everything you press **Accurate** on is kept in the repo folders (when `npm run learn` is running) and in the browser.
+Open the **Library** tab and press **Reopen** on one item, or **Reopen all of this group**: the cards come back with the
+saved vector, score and settings, and **Needs refinement / Different / Accurate** work again. Accurate overwrites the
+same item. A different browser or phone sees the same library because it is read from the server's folders.
+The saved original is now up to 900 px (was 360) so refining after a reopen has real detail to work with.
+
+## Auto focus on the figure (v26)
+Option **Focus on the figure** (default: Full) cuts neighbouring figures that overlap or touch the one being learned,
+removes banner strips, slivers cut off at the sheet edge and caption bits, and keeps what belongs to the figure: pieces
+inside its box and, for poses and emotions, effects close to it (hearts, sweat drops, "!"). *Loose bits only* keeps touching
+neighbours; *Off* keeps everything. Very thin hair strands can be lost at Full: choose Loose bits only if that happens.
