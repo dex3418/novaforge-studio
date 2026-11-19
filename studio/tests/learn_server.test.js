@@ -32,4 +32,20 @@ ok('path tricks and non-svg content are refused', () => {
     assert.throws(() => targetDir(Object.assign({ category: 'pose', style: 'ghibli', group: 'g', name: 'n', svg }, bad)), bad.toString());
   }
 });
+ok('library listing returns saved items with svg and original, so the page can reopen them', () => {
+  const { listLibrary } = require('../tools/learn_server');
+  const all = listLibrary();
+  const front = all.find((r) => r.group === 'naina' && r.name === 'front');
+  assert.ok(front && /^<svg/.test(front.svg) && /^data:image\/png/.test(front.original), 'character front');
+  assert.ok(all.some((r) => r.category === 'prop' && r.name === 'chair'), 'prop listed');
+  assert.ok(!all.some((r) => r.name === 'learned'), 'index file is not an item');
+});
+ok('remove deletes files and the index entry', () => {
+  const { remove, listLibrary } = require('../tools/learn_server');
+  remove({ category: 'prop', style: 'webtoon', group: 'office', name: 'chair' });
+  assert.ok(!listLibrary().some((r) => r.name === 'chair'));
+  remove({ category: 'character', style: 'ghibli', group: 'naina', name: 'back' });
+  const idx = JSON.parse(fs.readFileSync(path.join(process.env.NF_ROOT, 'characters', 'naina', 'learned', 'ghibli', 'learned.json'), 'utf8'));
+  assert.deepStrictEqual(Object.keys(idx), ['front']);
+});
 console.log(`learn_server.test.js: ${n}/${n} checks passed`);

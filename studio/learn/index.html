@@ -103,7 +103,8 @@ details summary{cursor:pointer;color:var(--acc);font-size:13px;margin-top:8px}
       </div>
       <div class="row">
         <label style="margin:0;display:flex;gap:6px;align-items:center"><input type="checkbox" id="holes"> remove background trapped in gaps (between arms, hair, legs)</label>
-        <label style="margin:0;display:flex;gap:6px;align-items:center"><input type="checkbox" id="clean" checked> remove loose bits that are not part of the figure (banner bars, edge slivers)</label>
+        <label style="margin:0;display:flex;gap:6px;align-items:center">Focus on the figure:
+          <select id="clean" style="width:auto"><option value="2">Full: cut loose bits and neighbours that overlap</option><option value="1">Loose bits only (banner bars, slivers)</option><option value="0">Off: keep everything</option></select></label>
       </div>
       <div class="row">
         <button class="act" id="btnDetect">Find items</button>
@@ -133,7 +134,7 @@ details summary{cursor:pointer;color:var(--acc);font-size:13px;margin-top:8px}
   </div>
   <div id="view-lib" style="display:none" class="lib">
     <section class="box">
-      <h2>Saved library (kept in this browser<span id="libSrv"></span>)</h2>
+      <h2>Saved library (kept in this browser<span id="libSrv"></span>). Press Reopen on any item to keep refining it.</h2>
       <div class="btns"><button class="ghost" id="libZip">Download whole library (zip)</button><button class="ghost" id="libRefresh">Refresh</button></div>
       <div id="libList" style="margin-top:10px"></div>
     </section>
@@ -391,9 +392,9 @@ function computeFg(img, w, h, bg, tol, holes, nobg) {
   for (let i = 0; i < n; i++) fg[i] = removed[i] ? 0 : 1;
   return fg;
 }
-// Loose bits: pieces of the picture that are not joined to the main figure and whose centre lies outside the figure's
-// own bounding box (a banner bar above the head, slivers cut off at the sheet edge). Detached parts inside the box stay.
-function dropLooseBits(fg, w, h) {
+// ---- auto focus on the figure --------------------------------------------------------------------------------
+// label connected pieces of the foreground
+function labelComps(fg, w, h) {
   const n = w * h, lab = new Int32Array(n), st = new Int32Array(n), comps = [];
   for (let i = 0; i < n; i++) {
     if (!fg[i] || lab[i]) continue;
@@ -409,15 +410,71 @@ function dropLooseBits(fg, w, h) {
     }
     comps.push({ id, area, x0, y0, x1, y1 });
   }
-  if (comps.length < 2) return;
+  return { lab, comps };
+}
+// Loose bits: pieces not joined to the main figure. A piece stays when its centre is inside the figure's box (a detached
+// hand, a button) or, for poses and emotions (near > 0), when it is close to the figure (hearts, sweat drops, "!" marks).
+// Banner bars, slivers cut off at the sheet edge and caption text are far away or outside, so they go.
+function dropLooseBits(fg, w, h, near) {
+  const { lab, comps } = labelComps(fg, w, h);
+  if (comps.length < 2) return 0;
   const main = comps.reduce((a, b) => (b.area > a.area ? b : a));
+  const reach = (near || 0) * Math.max(main.x1 - main.x0, main.y1 - main.y0);
   const drop = new Set();
   for (const c of comps) {
     if (c === main) continue;
     const cx = (c.x0 + c.x1) / 2, cy = (c.y0 + c.y1) / 2;
-    if (cx < main.x0 - 2 || cx > main.x1 + 2 || cy < main.y0 - 2 || cy > main.y1 + 2) drop.add(c.id);
+    const cw = c.x1 - c.x0 + 1, chh = c.y1 - c.y0 + 1;
+    // a long thin strip across the picture is a banner or a frame line, never part of a figure
+    if ((cw >= 0.8 * w && chh <= 0.08 * Math.max(w, h)) || (chh >= 0.8 * h && cw <= 0.08 * Math.max(w, h))) { drop.add(c.id); continue; }
+    if (cx >= main.x0 - 2 && cx <= main.x1 + 2 && cy >= main.y0 - 2 && cy <= main.y1 + 2) continue;
+    const dx = Math.max(main.x0 - c.x1, c.x0 - main.x1, 0), dy = Math.max(main.y0 - c.y1, c.y0 - main.y1, 0);
+    if (reach > 0 && Math.hypot(dx, dy) <= reach) continue;
+    drop.add(c.id);
   }
-  if (drop.size) for (let i = 0; i < n; i++) if (fg[i] && drop.has(lab[i])) fg[i] = 0;
+  let gone = 0;
+  if (drop.size) for (let i = 0; i < w * h; i++) if (fg[i] && drop.has(lab[i])) { fg[i] = 0; gone++; }
+  return gone;
+}
+// Overlapping neighbours: figures whose hair or hands touch are joined by thin bridges. Erode to break the bridges, keep
+// the main figure (and pieces that sit inside its box), then grow the kept core back, limited to the original shape.
+function cutBridges(fg, w, h, r, near) {
+  const n = w * h, er = new Uint8Array(n);
+  const hz = new Uint8Array(n);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let ok = 1; for (let k = -r; k <= r && ok; k++) { const xx = x + k; if (xx < 0 || xx >= w || !fg[y * w + xx]) ok = 0; } hz[y * w + x] = ok; }
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let ok = 1; for (let k = -r; k <= r && ok; k++) { const yy = y + k; if (yy < 0 || yy >= h || !hz[yy * w + x]) ok = 0; } er[y * w + x] = ok; }
+  const { lab, comps } = labelComps(er, w, h);
+  if (comps.length < 2) return 0;
+  const main = comps.reduce((a, b) => (b.area > a.area ? b : a));
+  const keep = new Set([main.id]);
+  const reach = (near || 0) * Math.max(main.x1 - main.x0, main.y1 - main.y0);
+  for (const c of comps) {
+    const cx = (c.x0 + c.x1) / 2, cy = (c.y0 + c.y1) / 2;
+    const dx = Math.max(main.x0 - c.x1, c.x0 - main.x1, 0), dy = Math.max(main.y0 - c.y1, c.y0 - main.y1, 0);
+    if (cx >= main.x0 && cx <= main.x1 && cy >= main.y0 && cy <= main.y1) keep.add(c.id);
+    else if (reach > 0 && Math.hypot(dx, dy) <= reach) keep.add(c.id);   // effects close to the figure (hearts, sweat drops)
+  }
+  // grow back from the kept core, r + 1 steps, only over original foreground
+  let front = [];
+  const out = new Uint8Array(n);
+  for (let i = 0; i < n; i++) if (er[i] && keep.has(lab[i])) { out[i] = 1; front.push(i); }
+  for (let step = 0; step <= r; step++) {
+    const next = [];
+    for (const j of front) {
+      const x = j % w, y = (j / w) | 0;
+      const tryp = (k) => { if (fg[k] && !out[k]) { out[k] = 1; next.push(k); } };
+      if (x > 0) tryp(j - 1); if (x < w - 1) tryp(j + 1); if (y > 0) tryp(j - w); if (y < h - 1) tryp(j + w);
+      if (x > 0 && y > 0) tryp(j - w - 1); if (x < w - 1 && y > 0) tryp(j - w + 1); if (x > 0 && y < h - 1) tryp(j + w - 1); if (x < w - 1 && y < h - 1) tryp(j + w + 1);
+    }
+    front = next;
+  }
+  let gone = 0;
+  for (let i = 0; i < n; i++) if (fg[i] && !out[i]) { fg[i] = 0; gone++; }
+  return gone;
+}
+function focusFigure(fg, w, h, level, near) {
+  if (level >= 2) cutBridges(fg, w, h, Math.max(2, Math.round(Math.max(w, h) * 0.006)), near);
+  if (level >= 1) dropLooseBits(fg, w, h, near);
 }
 // working copy of an item at the working resolution
 function prepare(item, p) {
@@ -432,7 +489,7 @@ function prepare(item, p) {
   ctx.drawImage(item.crop, 0, 0, w, h);
   const img = ctx.getImageData(0, 0, w, h);
   const fg = computeFg(img, w, h, item.bg, p.bgtol, p.holes, item.nobg);
-  if (p.clean && !item.nobg) dropLooseBits(fg, w, h);
+  if (p.clean && !item.nobg) focusFigure(fg, w, h, p.clean, item.near || 0);
   let work = img.data;
   for (let i = 0; i < p.blur; i++) work = median3(work, w, h);
   item._prep = { key, w, h, orig: img.data, work, fg };
@@ -581,7 +638,7 @@ function maskPath(mask, w, h, eps, omit, round) {
 function buildSvg(prep, q, p, item) {
   const { w, h, orig, fg } = prep;
   const n = w * h;
-  const ow = item.crop.width, oh = item.crop.height;
+  const ow = item.ow || item.crop.width, oh = item.oh || item.crop.height; // size of the picture as given (kept when reopened)
   let body = '', paths = 0;
   const round = p.smooth ? 3 : 0;
   const mask = new Uint8Array(n);
@@ -673,6 +730,7 @@ function differentCandidates(p, history) {
     if (rnd() < 0.5) q.smooth = p.smooth ? 0 : 1;
     if (rnd() < 0.5) q.ink = pick([0, 0.16, 0.24, 0.32]);
     if (rnd() < 0.5) q.holes = p.holes ? 0 : 1;
+    if (rnd() < 0.4) q.clean = pick([0, 1, 2]);
     if (rnd() < 0.4) q.bgtol = Math.max(20, Math.min(90, p.bgtol + pick([-15, 15, 25])));
     if (rnd() < 0.5) q.simplify = Math.max(0.3, p.simplify * pick([0.6, 1.5, 2]));
     const k = pkey(q);
@@ -724,11 +782,12 @@ async function doAccurate(item) {
   const rec = item.history[item.cur];
   const group = slug($('#gname').value) || 'untitled';
   const key = `${S.cat}/${S.style}/${group}/${item.name}`;
-  const orig = canvasOf(Math.min(360, item.crop.width), Math.round(item.crop.height * Math.min(1, 360 / item.crop.width)));
+  const ok0 = Math.min(1, 900 / Math.max(item.crop.width, item.crop.height));
+  const orig = canvasOf(Math.round(item.crop.width * ok0), Math.round(item.crop.height * ok0));
   orig.getContext('2d').drawImage(item.crop, 0, 0, orig.width, orig.height);
   const record = {
     key, category: S.cat, style: S.style, group, name: item.name, svg: rec.svg, score: +rec.score.toFixed(2), params: rec.p,
-    palette: rec.palette, w: item.crop.width, h: item.crop.height, paths: rec.paths, rounds: item.history.length, original: orig.toDataURL('image/png'), savedAt: new Date().toISOString(),
+    palette: rec.palette, w: item.ow || item.crop.width, h: item.oh || item.crop.height, bg: item.bg, paths: rec.paths, rounds: item.history.length, original: orig.toDataURL('image/png'), savedAt: new Date().toISOString(),
   };
   await libPut(record);
   const pf = prof(); pf.acc.push({ p: rec.p, score: rec.score, t: Date.now() }); pf.acc = pf.acc.slice(-40); saveProfile();
@@ -848,9 +907,9 @@ async function doLearn() {
       crop.getContext('2d').drawImage(sh.canvas, pl.box.x, pl.box.y, pl.box.w, pl.box.h, 0, 0, pl.box.w, pl.box.h);
       const view = canvasOf(Math.min(480, crop.width), Math.max(1, Math.round(crop.height * Math.min(480, crop.width) / crop.width)));
       const vc = view.getContext('2d'); vc.fillStyle = '#fff'; vc.drawImage(crop, 0, 0, view.width, view.height);
-      const item = { id: 'i' + i, name: pl.name, crop, bg: sh.bg, nobg: !CATS[S.cat].bg, history: [], cur: 0, saved: false, origUrl: view.toDataURL('image/png') };
+      const item = { id: 'i' + i, name: pl.name, crop, ow: crop.width, oh: crop.height, bg: sh.bg, nobg: !CATS[S.cat].bg, near: S.cat === 'pose' || S.cat === 'emotion' ? 0.12 : 0, history: [], cur: 0, saved: false, origUrl: view.toDataURL('image/png') };
       const holes = $('#holes').checked ? 1 : p0.holes;
-      const rec = await evalParams(item, Object.assign({}, p0, { holes, clean: $('#clean').checked ? 1 : 0 }));
+      const rec = await evalParams(item, Object.assign({}, p0, { holes, clean: Number($('#clean').value) }));
       rec.round = 1; rec.note = 'first trace'; rec.t = Date.now();
       item.history.push(rec);
       const d = {}; await scoreSvg(prepare(item, rec.p), rec.svg, d); rec.diffUrl = d.canvas ? d.canvas.toDataURL() : '';
@@ -913,15 +972,53 @@ async function comparisonPng(items) {
 }
 
 /* ---------- library view ---------- */
+// items saved by the server live in the repo folders: any browser sees them, so nothing has to be learned twice
+async function syncFromServer() {
+  if (!S.server) return;
+  try {
+    const j = await (await fetch('/api/library')).json();
+    for (const it of j.items || []) { it.key = it.key || `${it.category}/${it.style}/${it.group}/${it.name}`; await libPut(it); }
+  } catch (e) { /* the browser copy is still there */ }
+}
+// open saved items again as cards: keep refining, try a different approach, or approve again
+async function reopen(recs) {
+  if (S.busy || !recs.length) return;
+  S.busy = true;
+  try {
+    const r0 = recs[0];
+    S.libView = false; $('#view-learn').style.display = ''; $('#view-lib').style.display = 'none';
+    S.cat = r0.category; S.style = r0.style; clearAll(); renderTabs();
+    $('#gname').value = r0.group; $('#names').value = recs.map((r) => r.name).join(', ');
+    $('#cardsBox').style.display = '';
+    for (let i = 0; i < recs.length; i++) {
+      const rec = recs[i];
+      status(`Opening ${rec.name} (${i + 1}/${recs.length})…`); await sleep(0);
+      if (!rec.original) { toast(`${rec.name} has no saved original picture, it cannot be reopened`); continue; }
+      const img = await loadImg(rec.original);
+      const crop = canvasOf(img.naturalWidth, img.naturalHeight);
+      crop.getContext('2d').drawImage(img, 0, 0);
+      const bg = rec.bg || detectBg(crop.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, crop.width, crop.height));
+      const p = Object.assign(presetFor(rec.category, rec.style), rec.params || {});
+      const item = { id: 'i' + i, name: rec.name, crop, ow: rec.w || crop.width, oh: rec.h || crop.height, bg, nobg: !CATS[rec.category].bg, near: rec.category === 'pose' || rec.category === 'emotion' ? 0.12 : 0, history: [], cur: 0, saved: true, origUrl: rec.original };
+      const h = { p, svg: rec.svg, score: rec.score, paths: rec.paths || 0, bytes: rec.svg.length, palette: rec.palette || [], round: 1, note: 'reopened from library', t: Date.now() };
+      const d = {}; await scoreSvg(prepare(item, p), h.svg, d); h.diffUrl = d.canvas ? d.canvas.toDataURL() : '';
+      item.history.push(h); S.items.push(item);
+      $('#cards').appendChild(renderCard(item));
+    }
+    renderOutput(); status(`Opened ${S.items.length} saved item${S.items.length === 1 ? '' : 's'}. Press Needs refinement or Different to continue, Accurate to save again.`);
+  } catch (e) { console.error(e); status('Could not open: ' + e.message); }
+  S.busy = false;
+}
 async function renderLibrary() {
+  await syncFromServer();
   const all = (await libAll()).sort((a, b) => a.key.localeCompare(b.key));
   $('#libSrv').textContent = S.server ? ' and written to the repo by the save server' : '';
   if (!all.length) { $('#libList').innerHTML = '<p class="hint">Nothing saved yet. Press Accurate on a picture to save it here.</p>'; return; }
   const groups = new Map();
   for (const r of all) { const k = `${r.category}/${r.style}/${r.group}`; (groups.get(k) || groups.set(k, []).get(k)).push(r); }
   $('#libList').innerHTML = [...groups.entries()].map(([k, arr]) => `<div class="grp"><h4>${esc(k)} <span class="badge">${arr.length} saved</span></h4>
-    <div class="strip">${arr.map((r) => `<div class="col"><img src="${svgUrl(r.svg)}" alt=""><div>${esc(r.name)}<br>${r.score}%</div></div>`).join('')}</div>
-    <div class="btns"><button class="ghost" data-lib="zip" data-k="${esc(k)}">Download this group (zip)</button><button class="ghost" data-lib="del" data-k="${esc(k)}">Delete group</button></div></div>`).join('');
+    <div class="strip">${arr.map((r) => `<div class="col"><img src="${svgUrl(r.svg)}" alt=""><div>${esc(r.name)}<br>${r.score}%</div><button class="ghost" data-lib="open1" data-key="${esc(r.key)}">Reopen</button></div>`).join('')}</div>
+    <div class="btns"><button class="ghost" data-lib="open" data-k="${esc(k)}">Reopen all of this group</button><button class="ghost" data-lib="zip" data-k="${esc(k)}">Download this group (zip)</button><button class="ghost" data-lib="del" data-k="${esc(k)}">Delete group</button></div></div>`).join('');
   S.libGroups = groups;
 }
 function libFiles(recs) {
@@ -944,9 +1041,11 @@ document.addEventListener('click', async (e) => {
   if (t.dataset.cat) return setCat(t.dataset.cat);
   if (t.dataset.style) { S.style = t.dataset.style; return renderTabs(); }
   if (t.dataset.lib) {
+    if (t.dataset.lib === 'open1') { const all = await libAll(); return reopen(all.filter((r) => r.key === t.dataset.key)); }
     const arr = S.libGroups.get(t.dataset.k) || [];
+    if (t.dataset.lib === 'open') return reopen(arr);
     if (t.dataset.lib === 'zip') download(t.dataset.k.replace(/\//g, '_') + '.zip', zipBlob(libFiles(arr)));
-    if (t.dataset.lib === 'del' && confirm('Delete this group from the browser library?')) { for (const r of arr) await libDel(r.key); renderLibrary(); }
+    if (t.dataset.lib === 'del' && confirm('Delete this group from the browser library?')) { for (const r of arr) { await libDel(r.key); if (S.server) { try { await fetch('/api/delete', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(r) }); } catch (e) { /* ignore */ } } } renderLibrary(); }
     return;
   }
   const card = t.closest('.card');
@@ -982,7 +1081,7 @@ $('#files').addEventListener('change', () => { if ($('#files').files.length) doD
   $('#srv').className = 'pill' + (S.server ? ' on' : '');
   $('#names').value = CATS.character.names; $('#splitMode').value = 'auto';
   renderTabs();
-  window.NFL = { S, CATS, PRESET, detectBoxes, readSheet, evalParams, doRefine, doDifferent, doAccurate, libAll, zipBlob, crc32, traceMask, doDetect, doLearn };
+  window.NFL = { dropLooseBits, cutBridges, focusFigure, reopen, syncFromServer, S, CATS, PRESET, detectBoxes, readSheet, evalParams, doRefine, doDifferent, doAccurate, libAll, zipBlob, crc32, traceMask, doDetect, doLearn };
 })();
 </script>
 </body>

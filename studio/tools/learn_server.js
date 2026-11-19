@@ -46,11 +46,51 @@ function save(rec) {
   return path.relative(ROOT, path.join(dir, rec.name + '.svg'));
 }
 
+// every approved item on disk, with its vector, settings and the picture it was learned from
+function listLibrary() {
+  const out = [];
+  const add = (dir) => {
+    if (!fs.existsSync(dir)) return;
+    for (const f of fs.readdirSync(dir).sort()) {
+      if (!f.endsWith('.json') || f === 'learned.json' || f === 'config.json') continue;
+      const base = path.join(dir, f.slice(0, -5));
+      if (!fs.existsSync(base + '.svg')) continue;
+      try {
+        const meta = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+        if (!CATS.includes(meta.category) || !STYLES.includes(meta.style) || !safe(meta.group) || !safe(meta.name)) continue;
+        meta.svg = fs.readFileSync(base + '.svg', 'utf8');
+        if (fs.existsSync(base + '.original.png')) meta.original = 'data:image/png;base64,' + fs.readFileSync(base + '.original.png').toString('base64');
+        out.push(meta);
+      } catch (e) { /* skip unreadable item */ }
+    }
+  };
+  const cd = path.join(ROOT, 'characters');
+  if (fs.existsSync(cd)) for (const id of fs.readdirSync(cd)) for (const st of STYLES) add(path.join(cd, id, 'learned', st));
+  for (const c of CATS.filter((x) => x !== 'character')) for (const st of STYLES) {
+    const d = path.join(ROOT, 'library', c, st);
+    if (fs.existsSync(d)) for (const g of fs.readdirSync(d)) add(path.join(d, g));
+  }
+  return out;
+}
+function remove(rec) {
+  const dir = targetDir(Object.assign({}, rec, { svg: '<svg>' }));
+  for (const ext of ['.svg', '.json', '.original.png']) { try { fs.unlinkSync(path.join(dir, rec.name + ext)); } catch (e) { /* already gone */ } }
+  const idxFile = path.join(dir, 'learned.json');
+  try { const idx = JSON.parse(fs.readFileSync(idxFile, 'utf8')); delete idx[rec.name]; fs.writeFileSync(idxFile, JSON.stringify(idx, null, 1)); } catch (e) { /* no index */ }
+  return true;
+}
+
 function handler(req, res) {
   const send = (code, body, type) => { res.writeHead(code, { 'content-type': type || 'application/json', 'cache-control': 'no-store' }); res.end(typeof body === 'string' ? body : JSON.stringify(body)); };
   const url = req.url.split('?')[0];
   if (req.method === 'GET' && (url === '/' || url === '/index.html')) return send(200, fs.readFileSync(PAGE, 'utf8'), 'text/html; charset=utf-8');
   if (req.method === 'GET' && url === '/api/ping') return send(200, { ok: true, root: path.basename(ROOT) });
+  if (req.method === 'GET' && url === '/api/library') return send(200, { ok: true, items: listLibrary() });
+  if (req.method === 'POST' && url === '/api/delete') {
+    const chunks = []; req.on('data', (c) => chunks.push(c));
+    req.on('end', () => { try { send(200, { ok: remove(JSON.parse(Buffer.concat(chunks).toString('utf8'))) }); } catch (e) { send(400, { ok: false, error: e.message }); } });
+    return undefined;
+  }
   if (req.method === 'POST' && url === '/api/save') {
     let size = 0; const chunks = [];
     req.on('data', (c) => { size += c.length; if (size > 8e6) { send(413, { ok: false, error: 'too large' }); req.destroy(); } else chunks.push(c); });
@@ -69,4 +109,4 @@ if (require.main === module) {
     console.log('Approved vectors are written into this repo (characters/ and library/). Stop with Ctrl+C.');
   });
 }
-module.exports = { save, targetDir, handler };
+module.exports = { save, targetDir, handler, listLibrary, remove };
