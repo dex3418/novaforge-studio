@@ -2,20 +2,37 @@
 // Finds out which Gemini models THIS key can actually use, for text, image, speech (TTS) and others.
 // Runs in GitHub Actions (workflow "gemini-probe"), prints a table and writes gemini_probe.json.
 // The key is read from the GEMINI_KEY env var, never printed, and scrubbed from every message.
-//   GEMINI_KEY=... node tools/gemini_probe.js [--max 80]
+//   GEMINI_KEY=... node tools/gemini_probe.js [--max 80] [--rpm 6]
 
 const fs = require('fs');
 const KEY = process.env.GEMINI_KEY || '';
-const BASE = 'https://generativelanguage.googleapis.com/v1beta';
+const BASE = process.env.GEMINI_BASE || 'https://generativelanguage.googleapis.com/v1beta';
 if (!KEY) { console.error('No key given.'); process.exit(2); }
 
 const only = (process.env.ONLY || '').split(',').map((x) => x.trim()).filter(Boolean);
 const max = Number((process.argv[process.argv.indexOf('--max') + 1]) || 80);
-const scrub = (s) => String(s).split(KEY).join('***');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const scrub = (s) => String(s).split(KEY).join('***');
 const TINY_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 
+// One limiter for EVERY request (list, tests, retries): at most RPM calls in any 60 s window, and never closer than
+// 60/RPM s apart. Free keys allow only a few requests a minute per model family, and a probe that exceeds it reports
+// false "no" answers.  --rpm N (default 6).
+const RPM = Math.max(1, Number(process.argv[process.argv.indexOf('--rpm') + 1]) || 6);
+const sent = [];
+async function throttle() {
+  for (;;) {
+    const now = Date.now();
+    while (sent.length && now - sent[0] > 60000) sent.shift();
+    const gap = sent.length ? now - sent[sent.length - 1] : Infinity;
+    const wait = Math.max(sent.length >= RPM ? 60000 - (now - sent[0]) : 0, gap < 60000 / RPM ? 60000 / RPM - gap : 0);
+    if (wait <= 0) break;
+    await sleep(wait + 50);
+  }
+  sent.push(Date.now());
+}
 async function call(path, body) {
+  await throttle();
   const t0 = Date.now();
   try {
     const r = await fetch(`${BASE}/${path}`, { method: body ? 'POST' : 'GET', headers: { 'content-type': 'application/json', 'x-goog-api-key': KEY }, body: body ? JSON.stringify(body) : undefined });
@@ -104,17 +121,33 @@ function got(kind, r) {
   jobs.sort((a, b) => (order[a.kind] - order[b.kind]) || a.id.localeCompare(b.id));
 
   const rows = [];
+  const noPlan = {};
   let tested = 0;
   for (const j of jobs) {
     if (['live', 'video'].includes(j.kind)) { rows.push({ ...j, result: 'listed (not tested here)' }); continue; }
     if (only.length && !only.includes(j.kind)) { rows.push({ ...j, result: 'skipped (not selected)' }); continue; }
     if (tested >= max) { rows.push({ ...j, result: 'skipped (limit)' }); continue; }
+    // three models in a row with quota 0 for one kind means the plan has none for that kind: stop spending calls on it
+    if ((noPlan[j.kind] || 0) >= 3) { rows.push({ ...j, result: 'skipped (3 models of this kind already show no quota on this key)' }); continue; }
     tested++;
     const r = await withRetry(() => probe(j.id, j.kind));
     const ok = r.status === 200;
     rows.push({ ...j, http: r.status, ok, ms: r.ms, result: ok ? got(j.kind, r) : r.err });
     console.log(`${ok ? 'WORKS ' : 'fails '} ${j.kind.padEnd(6)} ${j.id.padEnd(46)} HTTP ${r.status}  ${rows[rows.length - 1].result}`);
-    await sleep(4500); // free tiers allow only a few requests a minute
+    // the limiter above already spaces calls; nothing else to wait for here
+    noPlan[j.kind] = /NOT ON YOUR PLAN/.test(rows[rows.length - 1].result || '') ? (noPlan[j.kind] || 0) + 1 : 0;
+  }
+  // models that were still rate limited after their retries are tried once more after a cool-down, so a busy
+  // minute does not look like "this model does not work"
+  const limited = rows.filter((x) => /RATE LIMITED/.test(x.result || ''));
+  if (limited.length) {
+    console.log(`\n${limited.length} test(s) were still rate limited. Cooling down 70 s, then trying each once more.`);
+    await sleep(70000);
+    for (const x of limited) {
+      const r = await withRetry(() => probe(x.id, x.kind));
+      x.http = r.status; x.ok = r.status === 200; x.ms = r.ms; x.result = x.ok ? got(x.kind, r) : r.err;
+      console.log(`${x.ok ? 'WORKS ' : 'fails '} ${x.kind.padEnd(6)} ${x.id.padEnd(46)} HTTP ${r.status}  ${x.result} (second try)`);
+    }
   }
 
   const works = (k) => rows.filter((x) => x.kind === k && x.ok && /returned/.test(x.result)).map((x) => x.id);
