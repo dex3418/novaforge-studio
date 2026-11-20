@@ -26,14 +26,8 @@ const story = require('./story');
 const path = require('path');
 
 function parseFrontmatter(src) {
-  const m = src.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
-  if (!m) return { meta: {}, body: src };
-  const meta = {};
-  for (const line of m[1].split(/\r?\n/)) {
-    const i = line.indexOf(':');
-    if (i > 0) meta[line.slice(0, i).trim()] = line.slice(i + 1).trim();
-  }
-  return { meta, body: src.slice(m[0].length) };
+  const h = require('./header').splitHeader(src);
+  return h.matched ? { meta: h.meta, body: h.body } : { meta: {}, body: src };
 }
 
 function clean(s) {

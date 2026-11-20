@@ -383,4 +383,19 @@ function applyStory(plan, parsed, helpers = {}) {
   });
 }
 
-module.exports = { parseCast, isStoryMeta, speakerLine, assignVoices, wordSpeakers, normalizeStory, applyStory, slug, NARRATOR, NOT_NAMES };
+// A script that is full of "Name: line" dialogue but has story mode off is made as a normal video, silently.
+// This returns a plain-words warning for the run report ('' when nothing looks wrong).
+function storyHint(text) {
+  const body = require('./header').splitHeader(text).body;
+  const names = new Map();
+  let n = 0;
+  for (const line of String(body).split(/\r?\n/)) {
+    if (/^\s*#/.test(line)) continue;
+    const s = speakerLine(line, [], true);
+    if (s) { n++; names.set(s.id, s.name); }
+  }
+  if (n < 4 || names.size < 2) return '';
+  return `This looks like a story (${n} spoken lines from ${[...names.values()].slice(0, 4).join(', ')}) but story mode is off, so it will be made as a normal video with no characters. Set Mode to "Story with characters" on the box page, or put "mode: story" on the first line inside the header at the very top of the script.`;
+}
+
+module.exports = { storyHint, parseCast, isStoryMeta, speakerLine, assignVoices, wordSpeakers, normalizeStory, applyStory, slug, NARRATOR, NOT_NAMES };

@@ -10,6 +10,7 @@
 const fs = require('fs');
 const path = require('path');
 const { parseText } = require('./parse');
+const storyLib = require('./story');
 const { prepareScript } = require('./ai_clean');
 const { makeCarousel } = require('./carousel');
 const { rulePlan, describePlan } = require('./plan');
@@ -82,8 +83,14 @@ async function build(file, only) {
       const total = wc.reduce((a, b) => a + b, 0);
       const d = [`title: ${p.title}`, `brand: ${p.meta.brand || '(none)'}, handle: ${p.meta.handle || '(none)'}`, `engine: ${p.meta.engine}, voice: ${p.meta.voice || 'auto'}, planner: ${p.meta.director || 'ai'}`];
       d.push('scene sizes (words): ' + wc.join(', '));
-      const st = total > 1400 ? 'warn' : 'ok';
+      let st = total > 1400 ? 'warn' : 'ok';
       if (st === 'warn') d.push('very long script: the video will run over ~9 minutes');
+      const isSt = storyLib.isStoryMeta(p.meta) || !!(p.cast && p.cast.length);
+      d.push(isSt ? `story mode: ON, cast: ${(p.cast || []).map((c) => c.name).join(', ') || '(from the dialogue)'}` : 'story mode: off');
+      if (!isSt) {
+        const hint = storyLib.storyHint(cleaned);
+        if (hint) { d.push(hint); st = 'warn'; console.log('::warning::' + hint); }
+      }
       return { status: st, summary: `${p.scenes.length} scenes, ${total} words (~${(total / 2.6 / 60).toFixed(1)} min spoken)`, details: d, value: p };
     });
     if (parsed.meta.caption) fs.writeFileSync(path.join(outDir, `${slug}-caption.txt`), parsed.meta.caption + '\n');

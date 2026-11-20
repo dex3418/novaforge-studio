@@ -7,6 +7,7 @@
 // unavailable or fails any check, the rule-based cleaner (clean.js) is used instead.
 
 const { cleanScript, tidy } = require('./clean');
+const { splitHeader, mergeHeader } = require('./header');
 
 const MODELS = (process.env.GEMINI_MODEL ? [process.env.GEMINI_MODEL] : []).concat(['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3.7-flash', 'gemini-3.8-flash']);
 const gate = require('./gemini_gate');
@@ -157,11 +158,28 @@ async function aiClean(raw, opts = {}) {
   return { ok: false, note: tried.join(' | ') || 'no answer' };
 }
 
+// A story script written with "Scene 1" labels (or none) instead of "## " headings: build the "## " scenes from the
+// person's own markers and keep every word. No marker at all: each blank-line block becomes a scene.
+const SCENE_MARK = /^\s*[*_#>\[(]*\s*(?:scene|sc\.?|\u0926\u0943\u0936\u094D\u092F)\s*(\d+)\s*[*_\])]*\s*(?:[-\u2013\u2014:.]\s*(.*?))?\s*[*_]*\s*$/i;
+function shapeStory(body) {
+  const lines = String(body).replace(/^\s+/, '').split(/\r?\n/);
+  if (lines.some((l) => SCENE_MARK.test(l))) {
+    return lines.map((l) => { const m = l.match(SCENE_MARK); return m ? `\n## ${(m[2] || '').trim() || 'Scene ' + m[1]}` : l; }).join('\n').trim() + '\n';
+  }
+  const blocks = lines.join('\n').split(/\n[ \t]*\n+/).map((b) => b.trim()).filter(Boolean);
+  return blocks.map((b, i) => `## Scene ${i + 1}\n${b}`).join('\n\n') + '\n';
+}
+
 // Step 1 of the pipeline. Studio-format scripts skip the AI (nothing to fix).
 async function prepareScript(raw, opts = {}) {
   const rules = cleanScript(raw);
   const r = rules.report;
-  const forceRules = process.env.AI_CLEAN === 'off' || /^\s*---[\s\S]{0,600}?\n\s*clean:\s*rules\s*(?:\r?\n)/i.test(raw);
+  // the header (mode, cast, voice, brand ...) is the person's, not the cleaner's: it is put back on whatever the cleaner returns
+  const head = splitHeader(raw);
+  const keep = (text) => (head.matched ? mergeHeader(text, head.lines) : text);
+  const mode = String(head.meta.mode || '').toLowerCase();
+  const isStory = head.matched && mode !== 'carousel' && (mode === 'story' || !!String(head.meta.cast || '').trim());
+  const forceRules = process.env.AI_CLEAN === 'off' || isStory || /^\s*---[\s\S]{0,600}?\n\s*clean:\s*rules\s*(?:\r?\n)/i.test(raw);
   const details = [];
   const ruleDetails = () => {
     if (r.dropped && r.dropped.length) details.push('removed sections: ' + r.dropped.join(', '));
@@ -174,19 +192,30 @@ async function prepareScript(raw, opts = {}) {
     ruleDetails();
     return { text: rules.text, status: 'ok', summary: 'already in studio format', details };
   }
+  if (isStory) {
+    // never the AI cleaner: it would rewrite the dialogue and rebuild the header
+    const shaped = mergeHeader(shapeStory(head.body), head.lines);
+    const again = cleanScript(shaped);
+    const text = again.report.kind === 'studio-format' ? again.text : shaped;
+    const scenes = (text.match(/^##\s/gm) || []).length;
+    details.push('story script: the AI cleaner was skipped so the dialogue stays word for word, and your header was kept');
+    details.push('no "## " scene headings found: scenes were made from your "Scene" labels or blank lines');
+    return { text, status: 'ok', summary: `story script, ${scenes} scenes`, details };
+  }
   if (forceRules) {
     ruleDetails();
-    return { text: rules.text, status: 'ok', summary: `rules cleaner (AI off): ${r.scenes} scenes`, details };
+    return { text: keep(rules.text), status: 'ok', summary: `rules cleaner (AI off): ${r.scenes} scenes`, details };
   }
   const ai = await aiClean(raw, opts);
   if (ai.ok) {
     details.push(`AI cleaner model: ${ai.model}, ${ai.wordsChecked} words checked against your original`);
     if (ai.notes) details.push(`${ai.notes} production notes (on-screen text, visual ideas) kept for the AI director`);
-    return { text: ai.text, status: 'ok', summary: `AI cleaned your script to ${ai.scenes} scenes (spoken text only)`, details };
+    if (head.matched) details.push('your header lines (voice, brand, handle ...) were kept');
+    return { text: keep(ai.text), status: 'ok', summary: `AI cleaned your script to ${ai.scenes} scenes (spoken text only)`, details };
   }
   ruleDetails();
   details.unshift(`AI cleaner failed, rules cleaner used: ${ai.note}`);
-  return { text: rules.text, status: 'warn', summary: `AI cleaner unavailable, rules cleaner made ${r.scenes} scenes`, details };
+  return { text: keep(rules.text), status: 'warn', summary: `AI cleaner unavailable, rules cleaner made ${r.scenes} scenes`, details };
 }
 
-module.exports = { aiClean, prepareScript, validate };
+module.exports = { aiClean, prepareScript, validate, shapeStory };

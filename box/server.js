@@ -77,9 +77,9 @@ function readBody(req, limit = 200000) {
 // Puts the box fields into the script's header. Anything filled in on the page
 // wins over the same line in the pasted script; empty fields leave the script alone.
 function withMeta(text, meta) {
-  const m = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
-  let head = m ? m[1].split(/\r?\n/) : [];
-  const rest = m ? text.slice(m[0].length) : text;
+  const h = require(path.join(__dirname, '..', 'studio', 'src', 'header.js')).splitHeader(text);
+  let head = h.matched ? h.lines : [];
+  const rest = h.matched ? h.body : text;
   for (const k of ['voice', 'brand', 'handle', 'cta', 'engine', 'template', 'palette', 'texture', 'director', 'captions', 'note', 'picture', 'person', 'role', 'mode', 'cast', 'setting', 'art']) {
     const v = String(meta[k] || '').replace(/[\r\n]+/g, ' ').trim().slice(0, k === 'cast' ? 700 : k === 'note' || k === 'picture' ? 400 : 120);
     if (!v) continue;
