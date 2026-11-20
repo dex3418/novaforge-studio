@@ -12,6 +12,15 @@ const path = require('path');
 
 const ROOT = process.env.NF_ROOT || path.join(__dirname, '..', '..');
 const PAGE = path.join(__dirname, '..', 'learn', 'index.html');
+const READER = path.join(__dirname, '..', 'learn', 'sheet_reader.js');
+// The page carries its own copy of sheet_reader.js (so it also works opened from a file). Every time the server hands the
+// page out it swaps in the current sheet_reader.js, so the copy can never be stale: nobody has to run a sync step.
+function pageHtml() {
+  const html = fs.readFileSync(PAGE, 'utf8');
+  let src;
+  try { src = fs.readFileSync(READER, 'utf8').replace(/\n$/, ''); } catch (e) { return html; }
+  return html.replace(/\/\*SHEET_READER_BEGIN\*\/\n[\s\S]*?\n\/\*SHEET_READER_END\*\//, () => '/*SHEET_READER_BEGIN*/\n' + src + '\n/*SHEET_READER_END*/');
+}
 const PORT = Number(process.env.PORT) || 8787;
 const CATS = ['character', 'emotion', 'pose', 'prop', 'landscape'];
 const STYLES = ['ghibli', 'webtoon'];
@@ -83,7 +92,7 @@ function remove(rec) {
 function handler(req, res) {
   const send = (code, body, type) => { res.writeHead(code, { 'content-type': type || 'application/json', 'cache-control': 'no-store' }); res.end(typeof body === 'string' ? body : JSON.stringify(body)); };
   const url = req.url.split('?')[0];
-  if (req.method === 'GET' && (url === '/' || url === '/index.html')) return send(200, fs.readFileSync(PAGE, 'utf8'), 'text/html; charset=utf-8');
+  if (req.method === 'GET' && (url === '/' || url === '/index.html')) return send(200, pageHtml(), 'text/html; charset=utf-8');
   if (req.method === 'GET' && url === '/api/ping') return send(200, { ok: true, root: path.basename(ROOT) });
   if (req.method === 'GET' && url === '/api/library') return send(200, { ok: true, items: listLibrary() });
   if (req.method === 'POST' && url === '/api/delete') {
@@ -109,4 +118,4 @@ if (require.main === module) {
     console.log('Approved vectors are written into this repo (characters/ and library/). Stop with Ctrl+C.');
   });
 }
-module.exports = { save, targetDir, handler, listLibrary, remove };
+module.exports = { save, targetDir, handler, listLibrary, remove, pageHtml };

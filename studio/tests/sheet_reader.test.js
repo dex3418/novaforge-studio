@@ -89,4 +89,17 @@ ok('page carries an identical copy of the reader (the server only serves index.h
   assert.strictEqual(m[1], src.replace(/\n$/, ''), 'run: node tools/sync_reader.js');
 });
 
+ok('the server always hands out the current reader, even if the copy inside index.html is stale', () => {
+  const os = require('os');
+  const { pageHtml } = require('../tools/learn_server.js');
+  const real = path.join(__dirname, '..', 'learn', 'index.html');
+  const keep = fs.readFileSync(real, 'utf8');
+  try {
+    fs.writeFileSync(real, keep.replace(/\/\*SHEET_READER_BEGIN\*\/\n[\s\S]*?\n\/\*SHEET_READER_END\*\//, () => '/*SHEET_READER_BEGIN*/\n// STALE COPY\n/*SHEET_READER_END*/'));
+    const served = pageHtml();
+    assert.ok(!served.includes('STALE COPY'), 'stale copy must be replaced');
+    assert.ok(served.includes('function read(o)'), 'current reader is present');
+  } finally { fs.writeFileSync(real, keep); }
+});
+
 console.log(`sheet_reader: ${n} checks passed`);
