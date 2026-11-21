@@ -1,0 +1,53 @@
+{
+ "key": "character/ghibli/aarohi/left_profile",
+ "category": "character",
+ "style": "ghibli",
+ "group": "aarohi",
+ "name": "left_profile",
+ "score": 97.82,
+ "params": {
+  "size": 420,
+  "colors": 19,
+  "blur": 0,
+  "simplify": 0.25,
+  "omit": 1.5,
+  "smooth": 0,
+  "ink": 0,
+  "seed": 1,
+  "bgtol": 40,
+  "holes": 1,
+  "clean": 2
+ },
+ "palette": [
+  "#c9835b",
+  "#252325",
+  "#1c1919",
+  "#f4c234",
+  "#9e5f42",
+  "#361409",
+  "#170d0a",
+  "#b37150",
+  "#db9d3c",
+  "#572b17",
+  "#774631",
+  "#edb852",
+  "#804214",
+  "#453d3a",
+  "#af7329",
+  "#dad5d3",
+  "#706461",
+  "#bcb5b2",
+  "#968e8b"
+ ],
+ "w": 258,
+ "h": 506,
+ "bg": {
+  "alpha": false,
+  "r": 249.6803840877915,
+  "g": 249.88863948123208,
+  "b": 249.61316872427983
+ },
+ "paths": 4128,
+ "rounds": 8,
+ "savedAt": "2026-11-20T10:33:31.757Z"
+}
