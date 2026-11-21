@@ -5,11 +5,13 @@
 const A = require('./story_art');
 const { ICONS } = require('./icons');
 const SH = require('./shots');
+const BLK = require('./blocking');
 
 const { clamp, ease, esc } = A;
 const r1 = (n) => Math.round(n * 10) / 10;
 const lerp = (a, b, p) => a + (b - a) * p;
 const FEET = 735;
+const LANE = 46; // a walker who crosses someone walks this much nearer the camera, so they pass in front instead of through
 
 function stageSvg(d, o) {
   const W = r1((1000 * o.w) / o.h);
@@ -74,8 +76,10 @@ function stageSvg(d, o) {
     (mover || p.layer === 'front' ? front : back).push(g);
   });
 
-  // actors
-  const acts = (d.actors || []).map((a, i) => {
+  // actors: blocking first (who passes in front of whom, who faces whom, no walking through people)
+  const blk = BLK.analyse(d.actors);
+  const dacts = blk.actors;
+  const acts = dacts.map((a, i) => {
     const ch = cast[a.id] || { id: a.id, name: a.id };
     const x0 = a.x0 == null ? 0.5 : a.x0;
     const x1 = a.x1 == null ? x0 : a.x1;
@@ -91,7 +95,7 @@ function stageSvg(d, o) {
     const isSp = !!speaker && speaker === a.id;
     if (!moving && !still && speaker && speaker !== 'narrator') {
       if (isSp && (pose === 'idle' || pose === 'listen')) pose = 'talk';
-      else if (!isSp && pose === 'idle' && (d.actors || []).length > 1) pose = 'listen';
+      else if (!isSp && pose === 'idle' && dacts.length > 1) pose = 'listen';
     }
     if (still && pose === 'idle' && a.speaks) pose = 'talk';
     // right after a walk ends the figure eases into its next pose instead of snapping (registry characters use it)
@@ -99,7 +103,7 @@ function stageSvg(d, o) {
     const eased = !still && dist > 0.02 && !moving && t - settle < 0.3;
     return {
       prev_pose: eased ? 'walk' : null, blend: eased ? clamp((t - settle) / 0.3) : 1,
-      id: a.id, name: ch.name, look: ch.look, x, y: FEET + ((i * 17) % 34), facing,
+      id: a.id, name: ch.name, look: ch.look, x, y: FEET + ((i * 17) % 34) + (blk.lanes[a.id] ? LANE : 0), facing,
       pose, art, expr: a.expr || 'neutral', mouth: isSp ? mouth : 0, walk: t * 9.5 + i, scale: (a.scale || 1) * 1.0, t: t + i * 0.7,
       alpha: still ? 1 : clamp((t + 0.02) / 0.18), isSp,
     };
@@ -109,7 +113,7 @@ function stageSvg(d, o) {
   // a named shot (close_up, two_shot, ...) is turned into camera numbers here, from where the people really stand
   if (cam.shot) {
     const info = acts.map((a) => {
-      const da = (d.actors || []).find((x) => x.id === a.id) || {};
+      const da = dacts.find((x) => x.id === a.id) || {};
       const x1 = da.x1 == null ? (da.x0 == null ? 0.5 : da.x0) : da.x1;
       return { id: a.id, x: x1, y: a.y, h: A.heightOf(art) * (a.look && a.look.age === 'child' ? 0.68 : 1) * (a.scale || 1), speaks: !!da.speaks };
     });
@@ -126,9 +130,9 @@ function stageSvg(d, o) {
   const actorSvg = acts.map((a) => A.person(a)).join('');
   // name tags over the speaker (only when more than one character is on screen)
   let tags = '';
-  const many = acts.length > 1 || (d.actors || []).length > 1;
+  const many = acts.length > 1 || dacts.length > 1;
   acts.forEach((a) => {
-    if (!many || !(a.isSp || (still && (d.actors || []).find((x) => x.id === a.id && x.speaks)))) return;
+    if (!many || !(a.isSp || (still && dacts.find((x) => x.id === a.id && x.speaks)))) return;
     const s = (a.look && a.look.age === 'child' ? 0.68 : 1) * (a.scale || 1) * (A.heightOf(art) / 398);
     const label = String(a.name || '').slice(0, 14);
     const wd = 34 + label.length * 17;

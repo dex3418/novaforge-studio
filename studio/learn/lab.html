@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NovaForge Live Lab</title>
+<style>
+:root{--bg:#f6f4ef;--panel:#fff;--ink:#1d1f24;--mute:#6b7078;--line:#dcd8cf;--acc:#2f5fd0;--ok:#1f8a4c;--warn:#b9770e;--bad:#b83a3a}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14161a;--panel:#1d2026;--ink:#e9eaec;--mute:#9aa0a9;--line:#2f343c;--acc:#7da2ff;--ok:#4fc283;--warn:#e0a24a;--bad:#e27676}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--panel);border-bottom:1px solid var(--line);padding:10px 16px}
+h1{font-size:17px;margin:0 0 8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.pill{font-size:12px;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--mute)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+button{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:6px 11px;font-size:14px;cursor:pointer}
+button.on,button.go{background:var(--acc);border-color:var(--acc);color:#fff}
+main{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,1fr);gap:14px;padding:14px 16px;max-width:1300px;margin:0 auto}
+@media (max-width:820px){main{grid-template-columns:1fr}}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+.stage{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;border-radius:8px;background:#222}
+label{display:block;font-size:12px;color:var(--mute);margin:8px 0 2px}
+select,input[type=text],textarea,input[type=number]{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
+textarea{min-height:200px;font:12.5px/1.4 ui-monospace,Menlo,Consolas,monospace}
+input[type=range]{width:100%}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.note{font-size:13px;margin:4px 0;padding:6px 8px;border-radius:8px;border:1px solid var(--line)}
+.note.warn{border-color:var(--warn);color:var(--warn)}.note.bad{border-color:var(--bad);color:var(--bad)}.note.ok{border-color:var(--ok);color:var(--ok)}
+.hint{color:var(--mute);font-size:13px}
+h2{font-size:15px;margin:0 0 6px}
+.hide{display:none}
+</style>
+<style id="theme">/*THEME_BEGIN*//*THEME_END*/</style>
+</head>
+<body>
+<header>
+  <h1>NovaForge Live Lab <span id="srv" class="pill">connecting…</span> <a class="pill" href="/">Learning Studio</a></h1>
+  <div class="tabs" id="tabs"><button data-tab="motion" class="on">Motion</button><button data-tab="director">Director</button></div>
+</header>
+<main>
+  <div>
+    <div class="box">
+      <div class="stage" id="stage"></div>
+      <div class="row">
+        <button id="play" class="go">Play</button>
+        <input type="range" id="scrub" min="0" max="1000" value="0" style="flex:1;min-width:140px">
+        <span class="hint" id="clock">0.0s</span>
+      </div>
+    </div>
+    <div class="box" style="margin-top:12px">
+      <h2>Notes from the engine</h2>
+      <div id="notes" class="hint">Nothing to report.</div>
+    </div>
+  </div>
+  <div>
+    <div id="tab-motion" class="box">
+      <h2>Motion lab: move a character yourself</h2>
+      <div class="hint">Pick what the character does and watch it at once. Nothing is rendered: the page draws with the same stage code as the video.</div>
+      <div class="two">
+        <div><label>Character</label><select id="m_char"></select></div>
+        <div><label>Place</label><select id="m_set"></select></div>
+        <div><label>Pose</label><select id="m_pose"></select></div>
+        <div><label>Expression</label><select id="m_expr"></select></div>
+        <div><label>Time of day</label><select id="m_time"><option>day</option><option>dusk</option><option>night</option></select></div>
+        <div><label>Drawing style</label><select id="m_art"><option value="flat">flat</option><option value="webtoon">webtoon</option><option value="chibi">chibi</option></select></div>
+      </div>
+      <label>Starts at <span id="v_x0"></span></label><input type="range" id="m_x0" min="-30" max="130" value="20">
+      <label>Walks to <span id="v_x1"></span></label><input type="range" id="m_x1" min="-30" max="130" value="70">
+      <div class="row"><label style="margin:0;display:flex;gap:6px;align-items:center"><input type="checkbox" id="m_two"> add a second person to test passing and facing</label></div>
+      <div id="m_two_box" class="hide">
+        <div class="two">
+          <div><label>Second person</label><select id="m_char2"></select></div>
+          <div><label>Speaks</label><select id="m_sp2"><option value="">nobody</option><option value="1">second person</option><option value="0">first person</option></select></div>
+        </div>
+        <label>Second person starts <span id="v_y0"></span></label><input type="range" id="m_y0" min="-30" max="130" value="55">
+        <label>Second person walks to <span id="v_y1"></span></label><input type="range" id="m_y1" min="-30" max="130" value="55">
+      </div>
+      <label>What went wrong? (optional, saved with the example)</label>
+      <input type="text" id="m_note" placeholder="e.g. walks through the other person">
+      <div class="row"><button id="m_to_dir">Send this setup to the Director tab</button></div>
+    </div>
+    <div id="tab-director" class="box hide">
+      <h2>Director lab: check and correct a beat</h2>
+      <div class="hint">Paste or edit the beat the director produced. The engine checks it exactly as a real render would, shows what it had to fix, and draws it. When it looks right, keep the fix: the director sees it as an example next time.</div>
+      <label>The script line this beat is for</label>
+      <input type="text" id="d_line" placeholder="[Naina] Come, let us go to the market.">
+      <label>Cast (comma separated ids)</label>
+      <input type="text" id="d_cast">
+      <label>Beat (JSON)</label>
+      <textarea id="d_json" spellcheck="false"></textarea>
+      <div class="row"><button id="d_check" class="go">Check and draw</button><button id="d_fix">Use the engine's corrected version</button><button id="d_keep">Keep this fix for the director</button></div>
+      <div id="d_catalog" class="hint" style="margin-top:8px"></div>
+      <details style="margin-top:8px"><summary class="hint">Fixes kept so far</summary><div id="d_list" class="hint"></div></details>
+    </div>
+  </div>
+</main>
+<script>
+(function () {
+  const $ = (s) => document.querySelector(s);
+  const S = { tab: 'motion', t: 1.4, playing: false, beat: null, dur: 4, cat: null, last: 0, before: null };
+  const toast = (m) => { $('#notes').textContent = m; };
+  let L = null;
+
+  const opts = (el, list, sel) => { el.innerHTML = list.map((v) => `<option value="${v}"${v === sel ? ' selected' : ''}>${v}</option>`).join(''); };
+  const charInfo = (id) => (S.cat.characters.find((c) => c.id === id) || { poses: ['idle'], expressions: ['neutral'] });
+  const castFor = (ids) => { const o = {}; ids.forEach((id) => { o[id] = { id, name: (charInfo(id).name) || id, look: {} }; }); return o; };
+
+  function motionBeat() {
+    const a = { id: $('#m_char').value, x0: $('#m_x0').value / 100, x1: $('#m_x1').value / 100, facing: 1, pose: $('#m_pose').value, expr: $('#m_expr').value, speaks: $('#m_sp2').value === '0' };
+    const actors = [a];
+    if ($('#m_two').checked) actors.push({ id: $('#m_char2').value === a.id ? a.id + '_2' : $('#m_char2').value, x0: $('#m_y0').value / 100, x1: $('#m_y1').value / 100, facing: -1, pose: 'idle', expr: 'neutral', speaks: $('#m_sp2').value === '1' });
+    return { setting: $('#m_set').value, time: $('#m_time').value, camera: { z0: 1, z1: 1, fx0: 0.5 }, props: [], actors };
+  }
+  function draw() {
+    if (!L || !S.beat) return;
+    const beat = S.beat;
+    const ids = beat.actors.map((a) => a.id);
+    const speakers = beat.actors.filter((a) => a.speaks).map((a) => a.id);
+    const svg = L.stageSvg(beat, { w: 1280, h: 720, t: S.t, beatSec: S.dur, art: S.tab === 'motion' ? $('#m_art').value : 'flat', cast: castFor(ids), speakers: speakers.length ? [speakers[0]] : [], wordIdx: 0, wordStarts: [0.2, 99] });
+    $('#stage').innerHTML = svg;
+    $('#scrub').value = Math.round((S.t / S.dur) * 1000);
+    $('#clock').textContent = S.t.toFixed(1) + 's';
+    const blk = L.analyse(beat.actors);
+    $('#notes').innerHTML = blk.warnings.length ? blk.warnings.map((w) => `<div class="note warn">${w.msg}</div>`).join('') : '<div class="note ok">Nothing needed fixing: nobody walks through anyone and everybody faces the right way.</div>';
+    const w = (L.CHARS.drainWarnings && L.CHARS.drainWarnings()) || [];
+    if (w.length) $('#notes').innerHTML += w.map((x) => `<div class="note bad">${typeof x === 'string' ? x : JSON.stringify(x)}</div>`).join('');
+  }
+  function refreshMotion() {
+    S.beat = motionBeat();
+    $('#v_x0').textContent = $('#m_x0').value + '%'; $('#v_x1').textContent = $('#m_x1').value + '%';
+    $('#v_y0').textContent = $('#m_y0').value + '%'; $('#v_y1').textContent = $('#m_y1').value + '%';
+    $('#m_two_box').classList.toggle('hide', !$('#m_two').checked);
+    draw();
+  }
+  function fillMotion() {
+    const ids = S.cat.characters.map((c) => c.id);
+    opts($('#m_char'), ids); opts($('#m_char2'), ids, ids[1] || ids[0]);
+    const sets = S.cat.settings.builtin.concat(S.cat.settings.learned.map((s) => s.name));
+    opts($('#m_set'), sets, sets.includes('village') ? 'village' : sets[0]);
+    const onChar = () => { const c = charInfo($('#m_char').value); opts($('#m_pose'), Array.from(new Set(['idle', 'walk', 'talk', 'listen'].concat(c.poses)))); opts($('#m_expr'), c.expressions.length ? c.expressions : ['neutral']); refreshMotion(); };
+    $('#m_char').onchange = onChar; onChar();
+    $('#d_catalog').textContent = S.cat.characters.map((c) => c.status).join('  |  ');
+  }
+
+  // ---- director tab
+  function checkBeat() {
+    let raw;
+    try { raw = JSON.parse($('#d_json').value); } catch (e) { $('#notes').innerHTML = `<div class="note bad">That is not valid JSON: ${e.message}</div>`; return null; }
+    const cast = $('#d_cast').value.split(',').map((x) => x.trim()).filter(Boolean);
+    const known = S.cat.characters.map((c) => c.id);
+    const unknown = cast.filter((c) => !known.includes(c));
+    const fixed = L.normalizeStory(raw, cast.filter((c) => known.includes(c)));
+    const dropped = (raw.actors || []).filter((a) => !fixed.actors.find((x) => x.id === a.id)).map((a) => a.id);
+    S.before = raw; S.fixed = fixed; S.beat = fixed; S.t = 1.4;
+    draw();
+    let extra = '';
+    if (unknown.length) extra += `<div class="note bad">Not in the library, so left out: ${unknown.join(', ')}</div>`;
+    if (dropped.length) extra += `<div class="note bad">The director used people who are not in the cast, so they were removed: ${dropped.join(', ')}</div>`;
+    (fixed.actors || []).forEach((a) => {
+      const c = charInfo(a.id);
+      const asked = (raw.actors || []).find((x) => x.id === a.id) || {};
+      if (asked.pose && asked.pose !== a.pose) extra += `<div class="note warn">${a.id} cannot do "${asked.pose}", so it became "${a.pose}".</div>`;
+      if (asked.expr && asked.expr !== a.expr) extra += `<div class="note warn">${a.id} has no "${asked.expr}" face, so it became "${a.expr}".</div>`;
+      void c;
+    });
+    $('#notes').innerHTML += extra;
+    return fixed;
+  }
+
+  async function api(path, body) {
+    const r = await fetch(path, body ? { method: 'POST', body: JSON.stringify(body) } : undefined);
+    return r.json();
+  }
+  async function loadList() {
+    try { const r = await api('/api/lab/examples'); $('#d_list').innerHTML = r.items.length ? r.items.map((e) => `<div>${e.line}</div>`).join('') : 'None yet.'; } catch (e) { /* offline */ }
+  }
+
+  function tab(name) {
+    S.tab = name;
+    document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === name));
+    $('#tab-motion').classList.toggle('hide', name !== 'motion');
+    $('#tab-director').classList.toggle('hide', name !== 'director');
+    if (name === 'motion') refreshMotion();
+  }
+
+  function loop(ts) {
+    if (S.playing) {
+      const dt = Math.min(0.1, (ts - S.last) / 1000);
+      S.t += dt; if (S.t >= S.dur) S.t = 0;
+      draw();
+    }
+    S.last = ts; requestAnimationFrame(loop);
+  }
+
+  async function boot() {
+    try {
+      const sc = document.createElement('script'); sc.src = '/lab/stage.js';
+      await new Promise((ok, no) => { sc.onload = ok; sc.onerror = () => no(new Error('could not load the stage code')); document.head.appendChild(sc); });
+      L = window.NFLab;
+      const c = await api('/api/catalog');
+      S.cat = c.catalog;
+      $('#srv').textContent = 'connected'; $('#srv').style.color = 'var(--ok)';
+      fillMotion(); loadList();
+      $('#d_cast').value = S.cat.characters.slice(0, 2).map((x) => x.id).join(', ');
+    } catch (e) {
+      $('#srv').textContent = 'start the save server: node tools/learn_server.js'; $('#srv').style.color = 'var(--bad)';
+      toast(e.message);
+    }
+  }
+
+  document.querySelectorAll('#tabs button').forEach((b) => { b.onclick = () => tab(b.dataset.tab); });
+  ['m_pose', 'm_expr', 'm_set', 'm_time', 'm_art', 'm_x0', 'm_x1', 'm_two', 'm_char2', 'm_sp2', 'm_y0', 'm_y1'].forEach((id) => { $('#' + id).addEventListener('input', refreshMotion); $('#' + id).addEventListener('change', refreshMotion); });
+  $('#play').onclick = () => { S.playing = !S.playing; $('#play').textContent = S.playing ? 'Pause' : 'Play'; };
+  $('#scrub').oninput = (e) => { S.playing = false; $('#play').textContent = 'Play'; S.t = (e.target.value / 1000) * S.dur; draw(); };
+  $('#m_to_dir').onclick = () => {
+    $('#d_json').value = JSON.stringify(motionBeat(), null, 1);
+    $('#d_cast').value = motionBeat().actors.map((a) => a.id).join(', ');
+    tab('director'); checkBeat();
+  };
+  $('#d_check').onclick = checkBeat;
+  $('#d_fix').onclick = () => { const f = checkBeat(); if (f) $('#d_json').value = JSON.stringify(f, null, 1); };
+  $('#d_keep').onclick = async () => {
+    const f = checkBeat(); if (!f) return;
+    const line = $('#d_line').value.trim();
+    if (!line) { $('#notes').innerHTML = '<div class="note bad">Type the script line this beat is for, so the director knows when to use it.</div>'; return; }
+    const r = await api('/api/lab/example', { line, before: S.before, after: f, note: $('#m_note').value });
+    $('#notes').innerHTML = r.ok ? '<div class="note ok">Saved. The director will see it as an example.</div>' : `<div class="note bad">${r.error}</div>`;
+    loadList();
+  };
+  requestAnimationFrame(loop);
+  boot();
+})();
+</script>
+</body>
+</html>

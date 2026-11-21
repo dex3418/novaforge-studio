@@ -21,6 +21,7 @@ const OUT = process.env.NF_OUT || path.join(__dirname, '..', 'src', 'characters_
 const LIB_OUT = process.env.NF_LIB_OUT || path.join(__dirname, '..', 'src', 'library_data.js');
 const PARTS = ['leg-left', 'leg-right', 'torso', 'arm-left', 'arm-right', 'head'];
 const r1 = (n) => Math.round(n * 10) / 10;
+const SCENE_EPS = 0.7;
 
 function pathBox(d) {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
@@ -289,6 +290,59 @@ function learnedOnlyCharacter(id, spec, L) {
   };
 }
 
+// A landscape is named by its file (library/landscape/<style>/<group>/market.svg is the setting "market"). The Learning Studio
+// names a picture scene_1 when the person left the name blank, and every group then had a scene_1, so they all collapsed into
+// one entry. Those automatic names now use the group name: street/scene_1.svg is "street", a second picture is "street_2".
+// Like every learned name it replaces a built-in one of the same name.
+function landscapeName(group, file) {
+  const m = /^scene_(\d+)$/.exec(file);
+  if (!m) return file;
+  return Number(m[1]) === 1 ? group : `${group}_${m[1]}`;
+}
+
+// Learned landscapes are traced as pixel staircases (L688 93 L687 93 L687 94 ...), about 4 MB each. Straight-line paths
+// (M, L, Z only) are simplified at bake time with Douglas-Peucker. eps is in the picture's own units (688 wide, shown ~2.5x
+// larger), so 0.7 stays well under a screen pixel. Paths that use curves are left alone.
+function dpLine(pts, eps, closed) {
+  const n = pts.length;
+  if (n < 4) return pts;
+  const keep = new Uint8Array(n);
+  const dist = (p, a, b) => {
+    const dx = b[0] - a[0], dy = b[1] - a[1], L = dx * dx + dy * dy;
+    if (!L) return Math.hypot(p[0] - a[0], p[1] - a[1]);
+    return Math.abs((p[0] - a[0]) * dy - (p[1] - a[1]) * dx) / Math.sqrt(L);
+  };
+  // a closed ring starts at its two farthest-apart anchors so the cut point does not matter
+  let i0 = 0, i1 = n - 1;
+  if (closed) { let best = -1; for (let i = 1; i < n; i++) { const d = Math.hypot(pts[i][0] - pts[0][0], pts[i][1] - pts[0][1]); if (d > best) { best = d; i1 = i; } } }
+  const stack = [];
+  keep[i0] = 1; keep[i1] = 1; stack.push([i0, i1]);
+  if (closed) stack.push([i1, n]);                       // second half: i1 .. back to i0 (index n means pts[0])
+  while (stack.length) {
+    const [a, b] = stack.pop();
+    const A = pts[a], B = b === n ? pts[0] : pts[b];
+    let md = -1, mi = -1;
+    for (let i = a + 1; i < (b === n ? n : b); i++) { const d = dist(pts[i], A, B); if (d > md) { md = d; mi = i; } }
+    if (md > eps && mi > 0) { keep[mi] = 1; stack.push([a, mi], [mi, b]); }
+  }
+  return pts.filter((_, i) => keep[i]);
+}
+function simplifyLinePaths(svg, eps) {
+  return svg.replace(/ d="([^"]*)"/g, (all, d) => {
+    if (/[^MLZ0-9.,\s-]/.test(d)) return all;           // curves or relative commands: leave as is
+    const out = [];
+    for (const sub of d.split('M').slice(1)) {
+      const closed = /Z\s*$/.test(sub);
+      const nums = sub.replace(/Z\s*$/, '').split('L').map((q) => q.trim().split(/[\s,]+/).map(Number));
+      if (nums.some((q) => q.length !== 2 || q.some((v) => !isFinite(v)))) return all;
+      const pts = dpLine(nums, eps, closed);
+      if (pts.length < 3) continue;
+      out.push('M' + pts.map((q) => `${Math.round(q[0] * 10) / 10} ${Math.round(q[1] * 10) / 10}`).join('L') + (closed ? 'Z' : ''));
+    }
+    return ` d="${out.join('')}"`;
+  });
+}
+
 function buildLibrary() {
   const want = readJson(path.join(LIB_DIR, 'config.json')).style;
   const out = { props: {}, landscapes: {} };
@@ -299,7 +353,10 @@ function buildLibrary() {
       const sdir = path.join(LIB_DIR, cat, st);
       if (!fs.existsSync(sdir)) continue;
       for (const g of fs.readdirSync(sdir).sort()) {
-        for (const it of svgFiles(path.join(sdir, g))) (found[it.name] = found[it.name] || {})[st] = { file: it.file, group: g, dir: path.join(sdir) };
+        for (const it of svgFiles(path.join(sdir, g))) {
+          const name = cat === 'landscape' ? landscapeName(g, it.name) : it.name;
+          (found[name] = found[name] || {})[st] = { file: it.file, group: g, dir: path.join(sdir), orig: it.name };
+        }
       }
     }
     for (const name of Object.keys(found).sort()) {
@@ -308,8 +365,9 @@ function buildLibrary() {
       const src = fs.readFileSync(e.file, 'utf8');
       const label = `${cat}/${st}/${e.group}`;
       if (src.length > KB_WARN * 1024) console.warn(`  note: ${label}/${name} is ${(src.length / 1024).toFixed(0)} KB`);
-      const art = buildVariantSrc(`${label}/learned/${name}`, src, { raw: true, shot: 'full' });
-      const h = hints(e.dir, e.group)[name] || {};
+      const art = buildVariantSrc(`${label}/learned/${name}`, cat === 'landscape' ? simplifyLinePaths(src, SCENE_EPS) : src, { raw: true, shot: 'full' });
+      const hs = hints(e.dir, e.group);
+      const h = hs[name] || hs[e.orig] || {};
       if (key === 'props') {
         out.props[name] = { w: art.w, h: art.h, bbox: art.bbox, svg: art.svg, ...(h.height ? { height: Number(h.height) } : {}), style: st };
       } else {
@@ -420,4 +478,4 @@ if (require.main === module) {
   console.log(`wrote ${path.relative(ROOT, OUT)} (${(fs.statSync(OUT).size / 1024).toFixed(0)} KB)`);
 }
 
-module.exports = { buildAll, render, OUT, buildLibrary, renderLib, LIB_OUT };
+module.exports = { buildAll, render, OUT, buildLibrary, renderLib, LIB_OUT, landscapeName, simplifyLinePaths };

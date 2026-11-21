@@ -18,6 +18,9 @@ const calibration = require('./calibration');
 const { wordSpeakers } = require('./story');
 const A = require('./story_art');
 const CHARS = require('./characters');
+const ASSETS = require('./assets');
+const fs = require('fs');
+const path = require('path');
 const SHOTS = require('./shots');
 const { validatePlan, segmentRanges } = require('./plan');
 
@@ -57,13 +60,22 @@ function pictureText(parsed) {
   return `PICTURES: ${n} available (numbered 0 to ${n - 1}).${m.person || m.brand ? ` The speaker is ${m.person || m.brand}${m.role ? ', ' + m.role : ''}.` : ' The speaker has no name set, so do not use profile.'} Use photo about every 3rd or 4th beat (more often if the template is gallery), cycling through the pictures; a photo beat should carry a short, strong line.\n\n`;
 }
 
+// beats a person corrected in the Live Lab (director/examples/*.json, newest last); a missing folder is fine
+function savedExamples() {
+  const dir = path.join(process.env.NF_ROOT || path.join(__dirname, '..', '..'), 'director', 'examples');
+  try { return fs.readdirSync(dir).filter((f) => f.endsWith('.json')).sort().map((f) => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'))); } catch (e) { return []; }
+}
+
 function storyText(parsed) {
   const cast = parsed.cast || [];
   if (!cast.length && !(parsed.meta && parsed.meta.mode === 'story')) return '';
   const who = cast.map((c) => `  ${c.id} = ${c.name} (${[c.look.gender === 'f' ? 'woman' : c.look.gender === 'm' ? 'man' : '', c.look.age || '', c.look.outfit || '', c.look.hair || ''].filter(Boolean).join(', ') || 'person'})`).join('\n');
+  const chars = {};
+  CHARS.ids().forEach((id) => { chars[id] = CHARS.get(id); });
+  const can = ASSETS.directorText(ASSETS.catalogFrom({ chars }), cast.map((c) => c.id));
   return `STORY MODE. The video is a story told with drawn characters. CAST (use these ids only):
 ${who || '  (no cast: use no actors)'}
-Lines tagged [name] are spoken by that character, untagged lines by the narrator (not drawn). Make about 4 of every 5 beats kind "story": show who is speaking (put them on screen with "speaks": true, others listen), where it happens (setting, time of day), and what is around (props from the library that the line mentions). Use a different pose or expression whenever the feeling changes, move people between beats (walk in, walk across, turn to each other), choose a named \"shot\" for every story beat from this library: ${SHOTS.promptText()}. \"on\" is the cast id the shot is about (the speaker; for a reaction shot the listener). Shot grammar: open a scene with an establishing shot, use medium or two_shot for ordinary dialogue, a close_up on the emotional line, extreme_close_up only for a real shock (with shake true), a reaction shot after big news, high_angle for a sad or worried person and low_angle for a proud or strong one, full when someone walks in or across, push_in to build tension and pull_out to reveal. Never use the same shot twice in a row and hold each shot long enough to read (no push_in, pull_out or pan on a beat shorter than about 2 seconds). Only these shot names exist; an unknown name is replaced by the nearest real one, and keep the same setting through a scene unless the story moves. Use counter/stats/bars/spot/kinetic only when the line is really about a number or a key fact. Never invent a character who is not in the CAST. Keep actors within 2 or 3 per beat.\n\n`;
+${can}${ASSETS.examplesText(savedExamples())}Lines tagged [name] are spoken by that character, untagged lines by the narrator (not drawn). Make about 4 of every 5 beats kind "story": show who is speaking (put them on screen with "speaks": true, others listen), where it happens (setting, time of day), and what is around (props from the library that the line mentions). Use a different pose or expression whenever the feeling changes, move people between beats (walk in, walk across, turn to each other), choose a named \"shot\" for every story beat from this library: ${SHOTS.promptText()}. \"on\" is the cast id the shot is about (the speaker; for a reaction shot the listener). Shot grammar: open a scene with an establishing shot, use medium or two_shot for ordinary dialogue, a close_up on the emotional line, extreme_close_up only for a real shock (with shake true), a reaction shot after big news, high_angle for a sad or worried person and low_angle for a proud or strong one, full when someone walks in or across, push_in to build tension and pull_out to reveal. Never use the same shot twice in a row and hold each shot long enough to read (no push_in, pull_out or pan on a beat shorter than about 2 seconds). Only these shot names exist; an unknown name is replaced by the nearest real one, and keep the same setting through a scene unless the story moves. Use counter/stats/bars/spot/kinetic only when the line is really about a number or a key fact. Never invent a character who is not in the CAST. Keep actors within 2 or 3 per beat.\n\n`;
 }
 
 const isStoryParsed = (parsed) => require('./story').isStoryMeta(parsed.meta) || !!(parsed.cast && parsed.cast.length);

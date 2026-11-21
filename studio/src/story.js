@@ -14,6 +14,7 @@
 const A = require('./story_art');
 const CHARS = require('./characters');
 const SHOTS = require('./shots');
+const BLK = require('./blocking');
 const { ICONS } = require('./icons');
 const { VOICES, DEFAULT_VOICE } = require('./catalog');
 
@@ -190,7 +191,7 @@ function normalizeStory(d, castIds, fallback) {
     const x0 = inRange(a.x0 != null ? a.x0 : a.x, -0.3, 1.3, 0.5);
     actors.push({
       id: a.id, x0, x1: inRange(a.x1 != null ? a.x1 : x0, -0.3, 1.3, x0),
-      facing: a.facing === -1 ? -1 : 1,
+      facing: a.facing === -1 ? -1 : 1, ...(Number.isFinite(Number(a.faceTo)) ? { faceTo: inRange(a.faceTo, -0.3, 1.3, 0.5) } : {}),
       pose: A.POSES.includes(a.pose) || CHARS.extraPoses().includes(a.pose) ? a.pose : 'idle', expr: A.EXPR[a.expr] || CHARS.extraExpressions().includes(a.expr) ? a.expr : 'neutral',
       speaks: !!a.speaks, ...(Number.isFinite(Number(a.delay)) ? { delay: inRange(a.delay, 0, 1.5, 0.12) } : {}),
     });
@@ -213,7 +214,9 @@ function normalizeStory(d, castIds, fallback) {
     fx0: inRange(c.fx0, 0, 1, fc.fx0 == null ? 0.5 : fc.fx0), fx1: inRange(c.fx1, 0, 1, c.fx0 != null ? inRange(c.fx0, 0, 1, 0.5) : fc.fx1 == null ? (fc.fx0 == null ? 0.5 : fc.fx0) : fc.fx1),
     ...(c.shake ? { shake: true } : {}),
   };
-  const out = { setting, time, actors: actors.length || !castIds.length ? actors : f.actors, props: props.length ? props : f.props, camera };
+  const blocked = BLK.analyse(actors.length || !castIds.length ? actors : f.actors);
+  const out = { setting, time, actors: blocked.actors, props: props.length ? props : f.props, camera };
+  if (blocked.warnings.length) out.notes = blocked.warnings.map((w) => w.msg);
   if (typeof o.icon === 'string' && ICONS[o.icon]) { out.icon = o.icon; if (castIds.includes(o.iconOf)) out.iconOf = o.iconOf; }
   return out;
 }
@@ -383,19 +386,4 @@ function applyStory(plan, parsed, helpers = {}) {
   });
 }
 
-// A script that is full of "Name: line" dialogue but has story mode off is made as a normal video, silently.
-// This returns a plain-words warning for the run report ('' when nothing looks wrong).
-function storyHint(text) {
-  const body = require('./header').splitHeader(text).body;
-  const names = new Map();
-  let n = 0;
-  for (const line of String(body).split(/\r?\n/)) {
-    if (/^\s*#/.test(line)) continue;
-    const s = speakerLine(line, [], true);
-    if (s) { n++; names.set(s.id, s.name); }
-  }
-  if (n < 4 || names.size < 2) return '';
-  return `This looks like a story (${n} spoken lines from ${[...names.values()].slice(0, 4).join(', ')}) but story mode is off, so it will be made as a normal video with no characters. Set Mode to "Story with characters" on the box page, or put "mode: story" on the first line inside the header at the very top of the script.`;
-}
-
-module.exports = { storyHint, parseCast, isStoryMeta, speakerLine, assignVoices, wordSpeakers, normalizeStory, applyStory, slug, NARRATOR, NOT_NAMES };
+module.exports = { parseCast, isStoryMeta, speakerLine, assignVoices, wordSpeakers, normalizeStory, applyStory, slug, NARRATOR, NOT_NAMES };
