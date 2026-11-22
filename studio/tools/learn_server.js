@@ -22,11 +22,15 @@ function withTheme(html) {
   try { css = fs.readFileSync(THEME, 'utf8'); } catch (e) { return html; }
   return html.replace(/\/\*THEME_BEGIN\*\/[\s\S]*?\/\*THEME_END\*\//, () => '/*THEME_BEGIN*/\n' + css + '\n/*THEME_END*/');
 }
+const CROP = path.join(__dirname, '..', 'learn', 'crop_editor.js');
+function swapIn(html, file, tag) {
+  let src;
+  try { src = fs.readFileSync(file, 'utf8').replace(/\n$/, ''); } catch (e) { return html; }
+  return html.replace(new RegExp('\\/\\*' + tag + '_BEGIN\\*\\/\\n[\\s\\S]*?\\n\\/\\*' + tag + '_END\\*\\/'), () => '/*' + tag + '_BEGIN*/\n' + src + '\n/*' + tag + '_END*/');
+}
 function pageHtml() {
   const html = withTheme(fs.readFileSync(PAGE, 'utf8'));
-  let src;
-  try { src = fs.readFileSync(READER, 'utf8').replace(/\n$/, ''); } catch (e) { return html; }
-  return html.replace(/\/\*SHEET_READER_BEGIN\*\/\n[\s\S]*?\n\/\*SHEET_READER_END\*\//, () => '/*SHEET_READER_BEGIN*/\n' + src + '\n/*SHEET_READER_END*/');
+  return swapIn(swapIn(html, READER, 'SHEET_READER'), CROP, 'CROP_EDITOR');
 }
 const PORT = Number(process.env.PORT) || 8787;
 const AUTO_PUBLISH = process.env.NF_AUTOPUBLISH === '1';

@@ -9,7 +9,7 @@
     "preview": "npx remotion studio remotion/index.jsx",
     "characters": "node tools/build_characters.js",
     "pretest": "node tools/sync_reader.js",
-    "test": "node tests/characters.test.js && node tests/story_smooth.test.js && node tests/learn_server.test.js && node tests/learned.test.js && node tests/mode_gate.test.js && node tests/probe_limiter.test.js && node tests/shots.test.js && node tests/sheet_reader.test.js && node tests/landscapes.test.js && node tests/blocking.test.js && node tests/assets.test.js && node tests/publisher.test.js && node tests/lab.test.js",
+    "test": "node tests/characters.test.js && node tests/story_smooth.test.js && node tests/learn_server.test.js && node tests/learned.test.js && node tests/mode_gate.test.js && node tests/probe_limiter.test.js && node tests/shots.test.js && node tests/sheet_reader.test.js && node tests/landscapes.test.js && node tests/blocking.test.js && node tests/assets.test.js && node tests/publisher.test.js && node tests/lab.test.js && node tests/crop_editor.test.js",
     "sheet": "node tools/character_sheet.js",
     "learn": "node tools/learn_server.js"
   },

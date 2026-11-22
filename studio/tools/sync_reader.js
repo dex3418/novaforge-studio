@@ -1,13 +1,16 @@
 'use strict';
-// Copies learn/sheet_reader.js into learn/index.html between the SHEET_READER markers.
-// The Learning Studio server serves only index.html, so the page carries its own copy.
+// Copies learn/sheet_reader.js and learn/crop_editor.js into learn/index.html between their markers.
+// The Learning Studio server serves only index.html, so the page carries its own copies.
 const fs = require('fs');
 const path = require('path');
 const dir = path.join(__dirname, '..', 'learn');
-const src = fs.readFileSync(path.join(dir, 'sheet_reader.js'), 'utf8').replace(/\n$/, '');
 const f = path.join(dir, 'index.html');
-const html = fs.readFileSync(f, 'utf8');
-const re = /\/\*SHEET_READER_BEGIN\*\/\n[\s\S]*?\n\/\*SHEET_READER_END\*\//;
-if (!re.test(html)) throw new Error('markers not found in index.html');
-fs.writeFileSync(f, html.replace(re, () => '/*SHEET_READER_BEGIN*/\n' + src + '\n/*SHEET_READER_END*/'));
-console.log('index.html now carries the current sheet_reader.js');
+let html = fs.readFileSync(f, 'utf8');
+for (const [file, tag] of [['sheet_reader.js', 'SHEET_READER'], ['crop_editor.js', 'CROP_EDITOR']]) {
+  const src = fs.readFileSync(path.join(dir, file), 'utf8').replace(/\n$/, '');
+  const re = new RegExp('\\/\\*' + tag + '_BEGIN\\*\\/\\n[\\s\\S]*?\\n\\/\\*' + tag + '_END\\*\\/');
+  if (!re.test(html)) throw new Error(tag + ' markers not found in index.html');
+  html = html.replace(re, () => '/*' + tag + '_BEGIN*/\n' + src + '\n/*' + tag + '_END*/');
+}
+fs.writeFileSync(f, html);
+console.log('index.html now carries the current sheet_reader.js and crop_editor.js');
