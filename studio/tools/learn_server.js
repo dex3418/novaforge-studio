@@ -26,11 +26,15 @@ const CROP = path.join(__dirname, '..', 'learn', 'crop_editor.js');
 function swapIn(html, file, tag) {
   let src;
   try { src = fs.readFileSync(file, 'utf8').replace(/\n$/, ''); } catch (e) { return html; }
-  return html.replace(new RegExp('\\/\\*' + tag + '_BEGIN\\*\\/\\n[\\s\\S]*?\\n\\/\\*' + tag + '_END\\*\\/'), () => '/*' + tag + '_BEGIN*/\n' + src + '\n/*' + tag + '_END*/');
+  return html.replace(new RegExp('\\/\\*' + tag + '_BEGIN\\*\\/\\n[\\s\\S]*?\\n?\\/\\*' + tag + '_END\\*\\/'), () => '/*' + tag + '_BEGIN*/\n' + src + '\n/*' + tag + '_END*/');
 }
+const SKELETON = path.join(__dirname, '..', 'src', 'rig_skeleton.js');
+const PARTS_ED = path.join(__dirname, '..', 'learn', 'parts_editor.js');
+const RIGS = require('../src/rig_skeleton');
 function pageHtml() {
-  const html = withTheme(fs.readFileSync(PAGE, 'utf8'));
-  return swapIn(swapIn(html, READER, 'SHEET_READER'), CROP, 'CROP_EDITOR');
+  let html = withTheme(fs.readFileSync(PAGE, 'utf8'));
+  for (const [file, tag] of [[READER, 'SHEET_READER'], [CROP, 'CROP_EDITOR'], [SKELETON, 'RIG_SKELETON'], [PARTS_ED, 'PARTS_EDITOR']]) html = swapIn(html, file, tag);
+  return html;
 }
 const PORT = Number(process.env.PORT) || 8787;
 const AUTO_PUBLISH = process.env.NF_AUTOPUBLISH === '1';
@@ -78,7 +82,7 @@ function afterChange(what, opt) {
   pending = pending.then(() => PUB.publish(ROOT, `Learning Studio: ${what}`)).catch((e) => ({ ok: false, error: e.message }));
   return pending.then((r) => Object.assign({ published: !!r.pushed }, r));
 }
-const CATS = ['character', 'emotion', 'pose', 'prop', 'landscape'];
+const CATS = ['character', 'emotion', 'pose', 'prop', 'landscape', 'part'];
 const STYLES = ['ghibli', 'webtoon'];
 const safe = (s) => /^[a-z0-9_-]{1,40}$/.test(String(s || ''));
 
@@ -117,7 +121,7 @@ function listLibrary() {
   const add = (dir) => {
     if (!fs.existsSync(dir)) return;
     for (const f of fs.readdirSync(dir).sort()) {
-      if (!f.endsWith('.json') || f === 'learned.json' || f === 'config.json') continue;
+      if (!f.endsWith('.json') || f === 'learned.json' || f === 'config.json' || f === 'rig.json') continue;
       const base = path.join(dir, f.slice(0, -5));
       if (!fs.existsSync(base + '.svg')) continue;
       try {
@@ -145,6 +149,25 @@ function remove(rec) {
   return true;
 }
 
+// The rig file of a universal body sits beside its part pictures: library/part/<style>/<body>/rig.json
+function rigFile(style, body) {
+  if (!STYLES.includes(style)) throw new Error('unknown style');
+  if (!safe(body)) throw new Error('bad body name');
+  return path.join(ROOT, 'library', 'part', style, body, 'rig.json');
+}
+function loadRig(style, body) {
+  try { return JSON.parse(fs.readFileSync(rigFile(style, body), 'utf8')); } catch (e) { if (e.code === 'ENOENT') return null; throw e; }
+}
+function saveRig(style, body, rig) {
+  const file = rigFile(style, body);
+  const v = RIGS.validateRig(rig);
+  if (!v.ok) throw new Error('rig rejected: ' + v.errors.slice(0, 4).join('; '));
+  if (rig.style !== style || rig.body !== body) throw new Error('rig style/body do not match the request');
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify(rig, null, 1));
+  return { path: path.relative(ROOT, file), warnings: v.warnings };
+}
+
 function handler(req, res) {
   const send = (code, body, type) => { res.writeHead(code, { 'content-type': type || 'application/json', 'cache-control': 'no-store' }); res.end(typeof body === 'string' ? body : JSON.stringify(body)); };
   const url = req.url.split('?')[0];
@@ -160,17 +183,31 @@ function handler(req, res) {
   }
   if (req.method === 'GET' && url === '/api/catalog') { try { return send(200, { ok: true, autoPublish: AUTO_PUBLISH, catalog: catalog() }); } catch (e) { return send(500, { ok: false, error: e.message }); } }
   if (req.method === 'POST' && url === '/api/publish') { PUB.publish(ROOT, 'Learning Studio: publish library').then((r) => send(200, r)); return undefined; }
+  if (req.method === 'GET' && url === '/api/rig') {
+    try { const q = new URL(req.url, 'http://x').searchParams; return send(200, { ok: true, rig: loadRig(q.get('style'), q.get('body')) }); } catch (e) { return send(400, { ok: false, error: e.message }); }
+  }
+  if (req.method === 'POST' && url === '/api/rig') {
+    const chunks = []; req.on('data', (c) => chunks.push(c));
+    req.on('end', () => {
+      try {
+        const rec = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        const out = saveRig(rec.style, rec.body, rec.rig);
+        afterChange(`rig ${rec.body}`, { refresh: false }).then((r) => send(200, Object.assign({}, r, { ok: true, path: out.path, warnings: out.warnings, publishError: r.ok === false ? r.error : undefined })));
+      } catch (e) { send(400, { ok: false, error: e.message }); }
+    });
+    return undefined;
+  }
   if (req.method === 'GET' && url === '/api/library') return send(200, { ok: true, items: listLibrary() });
   if (req.method === 'POST' && url === '/api/delete') {
     const chunks = []; req.on('data', (c) => chunks.push(c));
-    req.on('end', () => { try { const rec = JSON.parse(Buffer.concat(chunks).toString('utf8')); remove(rec); afterChange(`remove ${rec.group}/${rec.name}`).then((r) => send(200, Object.assign({ ok: true }, r, { ok: r.ok !== false }))); } catch (e) { send(400, { ok: false, error: e.message }); } });
+    req.on('end', () => { try { const rec = JSON.parse(Buffer.concat(chunks).toString('utf8')); remove(rec); afterChange(`remove ${rec.group}/${rec.name}`, rec.category === 'part' ? { refresh: false } : undefined).then((r) => send(200, Object.assign({ ok: true }, r, { ok: r.ok !== false }))); } catch (e) { send(400, { ok: false, error: e.message }); } });
     return undefined;
   }
   if (req.method === 'POST' && url === '/api/save') {
     let size = 0; const chunks = [];
     req.on('data', (c) => { size += c.length; if (size > 8e6) { send(413, { ok: false, error: 'too large' }); req.destroy(); } else chunks.push(c); });
     req.on('end', () => {
-      try { const rec = JSON.parse(Buffer.concat(chunks).toString('utf8')); const p = save(rec); afterChange(`add ${rec.group}/${rec.name}`).then((r) => send(200, Object.assign({}, r, { ok: true, path: p, publishError: r.ok === false ? r.error : undefined }))); }
+      try { const rec = JSON.parse(Buffer.concat(chunks).toString('utf8')); const p = save(rec); afterChange(`add ${rec.group}/${rec.name}`, rec.category === 'part' ? { refresh: false } : undefined).then((r) => send(200, Object.assign({}, r, { ok: true, path: p, publishError: r.ok === false ? r.error : undefined }))); }
       catch (e) { send(400, { ok: false, error: e.message }); }
     });
     return undefined;
@@ -185,4 +222,4 @@ if (require.main === module) {
     console.log('Approved vectors are written into this repo (characters/ and library/). Stop with Ctrl+C.');
   });
 }
-module.exports = { saveExample, listExamples, labBundle, catalog, refresh, afterChange, save, targetDir, handler, listLibrary, remove, pageHtml };
+module.exports = { loadRig, saveRig, rigFile, saveExample, listExamples, labBundle, catalog, refresh, afterChange, save, targetDir, handler, listLibrary, remove, pageHtml };

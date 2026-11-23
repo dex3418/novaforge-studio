@@ -69,6 +69,23 @@ canvas.prev{max-width:100%;border:1px solid var(--line);border-radius:8px;margin
 canvas.crop{cursor:crosshair;width:100%;height:auto;background:#fff}
 .sheetnote{font-size:13px;color:var(--mute);margin-top:12px}
 details summary{cursor:pointer;color:var(--acc);font-size:13px;margin-top:8px}
+.partsnote{font-size:13px;color:var(--mute);line-height:1.45}
+.partsnote code{color:var(--acc2)}
+.prow{display:grid;grid-template-columns:auto 1fr 1fr;gap:6px;align-items:center;font-size:12px;color:var(--mute)}
+.rigwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:8px 0;border:1px solid var(--line);border-radius:10px}
+.rigtable{border-collapse:collapse;width:100%;min-width:430px;font-size:12px}
+.rigtable th,.rigtable td{border:1px solid var(--line);padding:0;text-align:center}
+.rigtable th{background:var(--chk1);color:var(--mute);font-weight:600;padding:6px 2px}
+.rigtable th.rowh{text-align:left;padding:6px 8px;white-space:nowrap;position:sticky;left:0;z-index:1}
+.rigtable td button{width:100%;min-height:40px;border:0;border-radius:0;background:transparent;font-size:15px;padding:0;color:var(--mute)}
+.rigtable td.drawn button{color:var(--ok);font-weight:700}
+.rigtable td.mirrored button{color:var(--acc2)}
+.rigtable td.sel button{outline:2px solid var(--acc2);outline-offset:-2px;background:var(--chk2)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.chip{min-height:36px;padding:4px 10px;border-width:2px}
+.chip.on{background:var(--acc);color:#fff}
+.jointhead{border-top:1px dashed var(--line);margin-top:10px;padding-top:6px}
+.jointhead h3{margin:6px 0;font-size:15px}
 .namegrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:8px}
 .namegrid div{font-size:12px;color:var(--mute)}
 </style>
@@ -108,6 +125,19 @@ details summary{cursor:pointer;color:var(--acc);font-size:13px;margin-top:8px}
           </select>
         </div>
       </div>
+      <div id="partsBar" style="display:none">
+        <div class="partsnote">Body parts: draw a box around each part picture, then say which part and which view it is. Names become <code>part__view</code> (for example <code>upper_arm_l__left_profile</code>). Draw each part once: the other side and the mirror views are filled in by flipping, and the grid at the bottom shows what is still missing.</div>
+        <div class="two" style="margin-top:8px">
+          <div><label for="pPart">Part for the next box</label><select id="pPart"></select></div>
+          <div><label for="pView">View for the next box</label><select id="pView"></select></div>
+        </div>
+        <label for="pAdvance">After each box</label>
+        <select id="pAdvance">
+          <option value="view">Same part, next view (a sheet of 8 heads, 8 torsos…)</option>
+          <option value="part">Same view, next part (a sheet of different parts in one view)</option>
+          <option value="same">Keep the same part and view (name each box yourself below)</option>
+        </select>
+      </div>
       <div class="row">
         <label style="margin:0;display:flex;gap:6px;align-items:center"><input type="checkbox" id="holes"> remove background trapped in gaps (between arms, hair, legs)</label>
         <label style="margin:0;display:flex;gap:6px;align-items:center">Focus on the figure:
@@ -136,6 +166,23 @@ details summary{cursor:pointer;color:var(--acc);font-size:13px;margin-top:8px}
         <button class="ghost" id="dlSheet">Download side-by-side sheet (SVG)</button>
         <button class="ghost" id="dlPng">Download comparison (PNG)</button>
         <button class="ghost" id="dlZip">Download all vectors (zip)</button>
+      </div>
+    </section>
+    <section class="box" id="rigBox" style="display:none">
+      <h2>4. Rig: where every part bends</h2>
+      <div class="hint" id="rigInfo"></div>
+      <div class="rigwrap"><table class="rigtable" id="rigTable"></table></div>
+      <div class="hint" id="rigSummary" style="margin-top:8px"></div>
+      <details id="rigMissing"><summary>What is still missing</summary><div class="hint" id="rigMissingList"></div></details>
+      <div class="jointhead" id="jointHead" style="display:none">
+        <h3 id="jointTitle"></h3>
+        <div id="jointHost"></div>
+        <div class="row"><button class="ghost" id="jointPrev">← Previous picture</button><button class="ghost" id="jointNext">Next picture →</button></div>
+      </div>
+      <div class="btns">
+        <button class="act b-ok" id="rigSave">Save rig</button>
+        <button class="ghost" id="rigAcceptAll">Accept every guess in every picture</button>
+        <button class="ghost" id="rigDownload">Download rig.json</button>
       </div>
     </section>
   </div>
@@ -689,6 +736,350 @@ details summary{cursor:pointer;color:var(--acc);font-size:13px;margin-top:8px}
   return { MIN, norm, handlePoints, hit, apply, tighten, sortReading, mount };
 }));
 /*CROP_EDITOR_END*/
+/*RIG_SKELETON_BEGIN*/
+'use strict';
+// The shared skeleton for the universal body (NovaForge Studio, v32).
+// One definition used by the Learning Studio's Parts tab (browser) and, from v33, by the rig renderer and the clip player (node/Remotion).
+// Everything here is plain data and small pure functions: no DOM, no files.
+//
+// Conventions (written down once so nothing downstream has to guess):
+//   - "left" and "right" are the CHARACTER's own left and right, never the screen's.
+//   - A view is named for the side of the character the camera sees. left_profile: the camera is on the character's left, so the
+//     character faces screen-left and its left limbs are the near ones. right_profile is the exact mirror image of left_profile.
+//   - Joint positions are stored normalised (0..1) inside the part's own picture, so they survive any trace size.
+//   - Angles are degrees, forward positive, 0 = hanging straight down (the same convention as the extracted walk clip).
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.RigSkeleton = factory();
+}(typeof self !== 'undefined' ? self : this, function () {
+  const SKELETON_VERSION = 'nf-skeleton@1';
+  const RIG_FORMAT = 'nf-rig@1';
+
+  // the 8 views, named like the Character 360 angles so heads, bodies and outfits all agree
+  const VIEWS = ['front', 'front_left_45', 'left_profile', 'back_left_45', 'back', 'back_right_45', 'right_profile', 'front_right_45'];
+  const VIEW_LABEL = { front: 'Front', front_left_45: 'Front-left', left_profile: 'Left', back_left_45: 'Back-left', back: 'Back', back_right_45: 'Back-right', right_profile: 'Right', front_right_45: 'Front-right' };
+  const VIEW_SHORT = { front: 'F', front_left_45: 'FL', left_profile: 'L', back_left_45: 'BL', back: 'B', back_right_45: 'BR', right_profile: 'R', front_right_45: 'FR' };
+  const MIRROR_VIEW = { front: 'front', back: 'back', front_left_45: 'front_right_45', front_right_45: 'front_left_45', left_profile: 'right_profile', right_profile: 'left_profile', back_left_45: 'back_right_45', back_right_45: 'back_left_45' };
+  // which side of the character faces the camera (null = both equally)
+  const NEAR_SIDE = { front: null, back: null, front_left_45: 'l', left_profile: 'l', back_left_45: 'l', front_right_45: 'r', right_profile: 'r', back_right_45: 'r' };
+  // how much the body is turned away from the camera: 0 flat on, 1 full profile
+  const TURN = { front: 0, back: 0, front_left_45: 0.5, front_right_45: 0.5, back_left_45: 0.5, back_right_45: 0.5, left_profile: 1, right_profile: 1 };
+  const IS_BACK = (v) => v === 'back' || v === 'back_left_45' || v === 'back_right_45';
+
+  // parts. "centre" parts have no side; the others come as _l and _r.
+  const CENTRE = ['head', 'torso', 'pelvis'];
+  const LIMBS = ['upper_arm', 'forearm', 'hand', 'thigh', 'calf', 'foot'];
+  const PARTS = CENTRE.concat(...LIMBS.map((p) => [p + '_l', p + '_r']));
+  const PART_LABEL = { head: 'Head', torso: 'Torso', pelvis: 'Pelvis', upper_arm: 'Upper arm', forearm: 'Forearm', hand: 'Hand', thigh: 'Thigh', calf: 'Calf', foot: 'Foot' };
+  const sideOf = (part) => (/_l$/.test(part) ? 'l' : /_r$/.test(part) ? 'r' : null);
+  const baseOf = (part) => part.replace(/_[lr]$/, '');
+  const otherSide = (part) => (sideOf(part) === 'l' ? part.slice(0, -2) + '_r' : sideOf(part) === 'r' ? part.slice(0, -2) + '_l' : part);
+  const partLabel = (part) => PART_LABEL[baseOf(part)] + (sideOf(part) ? (sideOf(part) === 'l' ? ' (left)' : ' (right)') : '');
+
+  // joints carried by each part, in that part's own picture. The same joint name in parent and child is the point where they meet.
+  const PART_JOINTS = {
+    head: ['neck'],
+    torso: ['neck', 'waist', 'shoulder_l', 'shoulder_r'],
+    pelvis: ['waist', 'hip_l', 'hip_r'],
+    upper_arm: ['shoulder', 'elbow'],
+    forearm: ['elbow', 'wrist'],
+    hand: ['wrist'],
+    thigh: ['hip', 'knee'],
+    calf: ['knee', 'ankle'],
+    foot: ['ankle'],
+  };
+  const JOINT_LABEL = { neck: 'Neck', waist: 'Waist', shoulder: 'Shoulder', elbow: 'Elbow', wrist: 'Wrist', hip: 'Hip', knee: 'Knee', ankle: 'Ankle' };
+  const jointBase = (j) => j.replace(/_[lr]$/, '');
+  const jointLabel = (j) => JOINT_LABEL[jointBase(j)] + (/_l$/.test(j) ? ' (left)' : /_r$/.test(j) ? ' (right)' : '');
+  // the joint ids a part needs (sides resolved): upper_arm_l carries shoulder_l and elbow_l
+  function partJoints(part) {
+    const s = sideOf(part);
+    return PART_JOINTS[baseOf(part)].map((j) => (s && !/_[lr]$/.test(j) ? j + '_' + s : j));
+  }
+
+  // the skeleton: which part each joint moves, and its parent joint. pelvis is the root.
+  const JOINTS = {
+    waist: { parent: null, moves: 'torso' },
+    neck: { parent: 'waist', moves: 'head' },
+    shoulder_l: { parent: 'waist', moves: 'upper_arm_l' }, shoulder_r: { parent: 'waist', moves: 'upper_arm_r' },
+    elbow_l: { parent: 'shoulder_l', moves: 'forearm_l' }, elbow_r: { parent: 'shoulder_r', moves: 'forearm_r' },
+    wrist_l: { parent: 'elbow_l', moves: 'hand_l' }, wrist_r: { parent: 'elbow_r', moves: 'hand_r' },
+    hip_l: { parent: null, moves: 'thigh_l' }, hip_r: { parent: null, moves: 'thigh_r' },
+    knee_l: { parent: 'hip_l', moves: 'calf_l' }, knee_r: { parent: 'hip_r', moves: 'calf_r' },
+    ankle_l: { parent: 'knee_l', moves: 'foot_l' }, ankle_r: { parent: 'knee_r', moves: 'foot_r' },
+  };
+  // starting guesses for how far each joint may turn, degrees. fb = forward(+)/back(-), side = away from the body(+). Adjustable later.
+  const LIMITS = {
+    waist: { fb: [-30, 40], side: [-25, 25] }, neck: { fb: [-45, 45], side: [-40, 40] },
+    shoulder: { fb: [-60, 180], side: [-20, 170] }, elbow: { fb: [0, 150], side: [0, 0] }, wrist: { fb: [-60, 60], side: [-30, 30] },
+    hip: { fb: [-45, 120], side: [-30, 50] }, knee: { fb: [0, 140], side: [0, 0] }, ankle: { fb: [-30, 50], side: [-15, 15] },
+  };
+  function limitOf(joint, axis) { return LIMITS[jointBase(joint)][axis]; }
+  function clampAngle(joint, axis, deg) { const [a, b] = limitOf(joint, axis); return Math.max(a, Math.min(b, deg)); }
+
+  // ---------- names ----------
+  const partName = (part, view) => part + '__' + view;
+  function parsePartName(name) {
+    const m = /^([a-z_]+?)__([a-z0-9_]+)$/.exec(String(name || ''));
+    if (!m || !PARTS.includes(m[1]) || !VIEWS.includes(m[2])) return null;
+    return { part: m[1], view: m[2] };
+  }
+
+  // ---------- drawing order, back to front ----------
+  function drawOrder(view) {
+    if (!VIEWS.includes(view)) throw new Error('unknown view ' + view);
+    const near = NEAR_SIDE[view];
+    const limb = (side) => ['upper_arm', 'forearm', 'hand', 'thigh', 'calf', 'foot'].map((p) => p + '_' + side);
+    if (!near) return ['thigh_l', 'thigh_r', 'calf_l', 'calf_r', 'foot_l', 'foot_r', 'pelvis', 'torso', 'upper_arm_l', 'upper_arm_r', 'forearm_l', 'forearm_r', 'hand_l', 'hand_r', 'head'];
+    const far = near === 'l' ? 'r' : 'l';
+    const legs = (s) => ['thigh', 'calf', 'foot'].map((p) => p + '_' + s);
+    const arms = (s) => ['upper_arm', 'forearm', 'hand'].map((p) => p + '_' + s);
+    return [].concat(arms(far), legs(far), ['pelvis', 'torso'], legs(near), arms(near), ['head']);
+  }
+
+  // ---------- starting guesses for joint positions ----------
+  // Parts are drawn upright, so a joint sits near the top or bottom end of its part. Where it sits sideways depends on the view.
+  // These are only a starting point: the Parts tab marks a joint "confirmed" only after you accept or move it.
+  const ENDS = {
+    head: { neck: [0.5, 0.93] },
+    torso: { neck: [0.5, 0.05], waist: [0.5, 0.95], shoulder: [null, 0.45] },   // the chibi mannequin's shoulder stubs sit about half way down
+    pelvis: { waist: [0.5, 0.06], hip: [null, 0.58] },
+    upper_arm: { shoulder: [0.5, 0.08], elbow: [0.5, 0.92] },
+    forearm: { elbow: [0.5, 0.08], wrist: [0.5, 0.92] },
+    hand: { wrist: [0.5, 0.1] },
+    thigh: { hip: [0.5, 0.08], knee: [0.5, 0.92] },
+    calf: { knee: [0.5, 0.08], ankle: [0.5, 0.92] },
+    foot: { ankle: [0.5, 0.22] },
+  };
+  function defaultJoints(part, view) {
+    if (!PARTS.includes(part)) throw new Error('unknown part ' + part);
+    if (!VIEWS.includes(view)) throw new Error('unknown view ' + view);
+    const out = {}, turn = TURN[view], flip = IS_BACK(view) ? -1 : 1;
+    for (const j of partJoints(part)) {
+      const base = jointBase(j), side = /_([lr])$/.exec(j);
+      const e = ENDS[baseOf(part)][base];
+      let x = e[0];
+      if (x === null) {
+        // a paired joint on a centre part (shoulders on the torso, hips on the pelvis): the character's left is on screen-right when seen from the front
+        const dir = (side[1] === 'l' ? 1 : -1) * flip;
+        x = 0.5 + dir * (base === 'shoulder' ? 0.36 : 0.2) * (1 - 0.8 * turn);
+      } else if (baseOf(part) === 'foot') {
+        // the ankle sits over the heel, so it moves toward the back of the foot as the body turns to profile
+        const faces = view === 'left_profile' || view === 'front_left_45' || view === 'back_left_45' ? 1 : view === 'right_profile' || view === 'front_right_45' || view === 'back_right_45' ? -1 : 0;
+        x = 0.5 + faces * 0.15 * turn;
+      }
+      out[j] = { x: +x.toFixed(3), y: e[1], confirmed: false };
+    }
+    return out;
+  }
+
+  // ---------- mirroring: which drawn picture can stand in for a part in a view ----------
+  // A part in a view can be mirrored from (a) the opposite-side part in the same view when the view looks at the body flat on
+  // (front, back), or (b) the same part, or the opposite-side part, in the mirror view.
+  function resolve(rig, part, view) {
+    const has = (p, v) => !!(rig && rig.parts && rig.parts[p] && rig.parts[p][v]);
+    if (has(part, view)) return { part, view, flip: false };
+    const mv = MIRROR_VIEW[view];
+    const op = otherSide(part);
+    if (mv !== view && has(op, mv)) return { part: op, view: mv, flip: true };            // opposite side in the mirror view, flipped
+    if (mv === view && op !== part && has(op, view)) return { part: op, view, flip: true }; // flat-on view: the other limb, flipped
+    if (sideOf(part) === null && mv !== view && has(part, mv)) return { part, view: mv, flip: true }; // centre part in the mirror view
+    return null;
+  }
+
+  // ---------- the rig object (what is saved as rig.json) ----------
+  function emptyRig(body, style) {
+    return { format: RIG_FORMAT, skeleton: SKELETON_VERSION, body, style, parts: {}, draw_order: Object.fromEntries(VIEWS.map((v) => [v, drawOrder(v)])) };
+  }
+  // add or replace one drawn part picture. joints may be partial: any joint not given starts from the guess.
+  function setPart(rig, { part, view, asset, w, h, joints }) {
+    if (!PARTS.includes(part)) throw new Error('unknown part ' + part);
+    if (!VIEWS.includes(view)) throw new Error('unknown view ' + view);
+    const guess = defaultJoints(part, view), j = {};
+    for (const id of Object.keys(guess)) {
+      const g = joints && joints[id];
+      j[id] = g ? { x: +g.x, y: +g.y, confirmed: !!g.confirmed } : guess[id];
+    }
+    (rig.parts[part] = rig.parts[part] || {})[view] = { asset: asset || partName(part, view), w: +w, h: +h, joints: j };
+    return rig;
+  }
+  function coverage(rig) {
+    const cells = [];
+    let drawn = 0, mirrored = 0;
+    const missing = [];
+    for (const part of PARTS) for (const view of VIEWS) {
+      const r = resolve(rig, part, view);
+      const state = !r ? 'missing' : r.flip ? 'mirrored' : 'drawn';
+      cells.push({ part, view, state });
+      if (state === 'drawn') drawn++; else if (state === 'mirrored') mirrored++; else missing.push({ part, view });
+    }
+    return { total: PARTS.length * VIEWS.length, drawn, mirrored, missing, cells, complete: !missing.length };
+  }
+  function validateRig(rig) {
+    const errors = [], warnings = [];
+    if (!rig || typeof rig !== 'object') return { ok: false, errors: ['rig is not an object'], warnings };
+    if (rig.format !== RIG_FORMAT) errors.push(`format must be ${RIG_FORMAT}`);
+    if (rig.skeleton !== SKELETON_VERSION) errors.push(`skeleton must be ${SKELETON_VERSION}`);
+    if (!/^[a-z0-9_-]{1,40}$/.test(String(rig.body || ''))) errors.push('body id is missing or has odd characters');
+    if (!rig.parts || typeof rig.parts !== 'object') errors.push('parts is missing');
+    let unconfirmed = 0;
+    for (const [part, views] of Object.entries(rig.parts || {})) {
+      if (!PARTS.includes(part)) { errors.push(`unknown part "${part}"`); continue; }
+      for (const [view, e] of Object.entries(views || {})) {
+        const at = `${part}/${view}`;
+        if (!VIEWS.includes(view)) { errors.push(`${at}: unknown view`); continue; }
+        if (!(e.w > 0 && e.h > 0)) errors.push(`${at}: picture size is missing`);
+        if (!e.asset || e.asset !== partName(part, view)) errors.push(`${at}: asset must be ${partName(part, view)}`);
+        for (const need of partJoints(part)) {
+          const jt = e.joints && e.joints[need];
+          if (!jt) { errors.push(`${at}: joint ${need} is missing`); continue; }
+          if (!(jt.x >= 0 && jt.x <= 1 && jt.y >= 0 && jt.y <= 1)) errors.push(`${at}: joint ${need} is outside the picture`);
+          if (!jt.confirmed) unconfirmed++;
+        }
+      }
+    }
+    if (unconfirmed) warnings.push(`${unconfirmed} joint position${unconfirmed === 1 ? ' is' : 's are'} still a starting guess`);
+    const order = rig.draw_order || {};
+    for (const v of VIEWS) {
+      const o = order[v];
+      if (!Array.isArray(o) || o.length !== PARTS.length || new Set(o).size !== PARTS.length || o.some((p) => !PARTS.includes(p))) errors.push(`draw order for ${v} must list every part once`);
+    }
+    return { ok: !errors.length, errors, warnings };
+  }
+
+  return {
+    SKELETON_VERSION, RIG_FORMAT, VIEWS, VIEW_LABEL, VIEW_SHORT, MIRROR_VIEW, NEAR_SIDE, TURN, PARTS, PART_LABEL, CENTRE, LIMBS, JOINTS, LIMITS,
+    sideOf, baseOf, otherSide, partLabel, jointLabel, jointBase, partJoints, limitOf, clampAngle,
+    partName, parsePartName, drawOrder, defaultJoints, resolve, emptyRig, setPart, coverage, validateRig,
+  };
+}));
+/*RIG_SKELETON_END*/
+/*PARTS_EDITOR_BEGIN*/
+'use strict';
+// Joint editor for the Parts tab (v32): shows one part picture and lets you tap or drag its joints into place, by mouse or finger.
+// Pure geometry (testable in node) plus one DOM function, mount(). The page carries its own copy of this file between the
+// PARTS_EDITOR markers; the server swaps in the current file whenever it serves the page.
+// Joint positions are normalised (0..1) inside the picture, the same numbers the rig file stores.
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.PartsEditor = factory();
+}(typeof self !== 'undefined' ? self : this, function () {
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const HIT = 26;                         // how close a finger or mouse must be to grab a joint, in screen pixels
+  const COLORS = { neck: '#f59e0b', waist: '#a855f7', shoulder: '#22d3ee', elbow: '#34d399', wrist: '#fb7185', hip: '#60a5fa', knee: '#f472b6', ankle: '#facc15' };
+  const base = (id) => id.replace(/_[lr]$/, '');
+  const colorOf = (id) => COLORS[base(id)] || '#ffffff';
+
+  // a point in the picture (pixels) as 0..1 numbers, kept inside the picture
+  function toNorm(px, py, w, h) { return { x: +clamp(px / w, 0, 1).toFixed(4), y: +clamp(py / h, 0, 1).toFixed(4) }; }
+  function toPx(j, w, h) { return { x: j.x * w, y: j.y * h }; }
+  // the joint closest to a point, if it is within `radius` pixels. Distances are measured on the screen, not in 0..1 units.
+  function nearest(joints, px, py, w, h, radius) {
+    let best = null, bd = (radius === undefined ? HIT : radius);
+    for (const id of Object.keys(joints)) {
+      const p = toPx(joints[id], w, h), d = Math.hypot(p.x - px, p.y - py);
+      if (d <= bd) { bd = d; best = id; }
+    }
+    return best;
+  }
+  // put one joint somewhere; placing a joint means you have looked at it, so it counts as confirmed
+  function place(joints, id, nx, ny) {
+    if (!joints[id]) throw new Error('no joint ' + id);
+    const out = {}; for (const k of Object.keys(joints)) out[k] = Object.assign({}, joints[k]);
+    out[id] = { x: +clamp(nx, 0, 1).toFixed(4), y: +clamp(ny, 0, 1).toFixed(4), confirmed: true };
+    return out;
+  }
+  function acceptAll(joints) { const out = {}; for (const k of Object.keys(joints)) out[k] = Object.assign({}, joints[k], { confirmed: true }); return out; }
+  const unconfirmed = (joints) => Object.keys(joints).filter((k) => !joints[k].confirmed);
+  // which joint to select after one is placed: the next one still waiting, in the order the part lists them
+  function nextWaiting(joints, after) {
+    const ids = Object.keys(joints), start = Math.max(0, ids.indexOf(after));
+    for (let i = 1; i <= ids.length; i++) { const id = ids[(start + i) % ids.length]; if (!joints[id].confirmed) return id; }
+    return null;
+  }
+
+  // mount(host, { src, w, h, title?, joints:{id:{x,y,confirmed}}, labelOf?(id), onChange(joints, why) })
+  // src is any image URL (the traced vector as a data URL). Returns { get, set, select, redraw, destroy }.
+  function mount(host, o) {
+    const doc = host.ownerDocument;
+    const wrap = doc.createElement('div'); wrap.className = 'jointed';
+    const chips = doc.createElement('div'); chips.className = 'chips';
+    const cv = doc.createElement('canvas'); cv.className = 'joint-canvas'; cv.style.touchAction = 'none'; cv.style.width = '100%'; cv.style.display = 'block';
+    const bar = doc.createElement('div'); bar.className = 'row';
+    wrap.append(chips, cv, bar); host.appendChild(wrap);
+    let joints = {}; for (const k of Object.keys(o.joints)) joints[k] = Object.assign({}, o.joints[k], { confirmed: !!o.joints[k].confirmed });
+    let sel = nextWaiting(joints, null) || Object.keys(joints)[0], drag = null, moved = false, img = null;
+    const label = (id) => (o.labelOf ? o.labelOf(id) : id);
+
+    function fit() {
+      const cssW = Math.max(160, Math.min(host.clientWidth || 360, 520));
+      const cssH = Math.round(cssW * o.h / o.w);
+      const maxH = 460; const k = cssH > maxH ? maxH / cssH : 1;
+      cv.width = Math.round(cssW * k * 2); cv.height = Math.round(cssH * k * 2);      // drawn at 2x so it stays sharp on phones
+      cv.style.width = Math.round(cssW * k) + 'px'; cv.style.height = Math.round(cssH * k) + 'px';
+    }
+    function point(e) { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * o.w, y: (e.clientY - r.top) / r.height * o.h, k: o.w / r.width }; }
+    function redraw() {
+      const ctx = cv.getContext('2d');
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      const t = 16; for (let y = 0; y < cv.height; y += t) for (let x = 0; x < cv.width; x += t) { ctx.fillStyle = ((x / t + y / t) & 1) ? '#2a2549' : '#211d3d'; ctx.fillRect(x, y, t, t); }
+      if (img) ctx.drawImage(img, 0, 0, cv.width, cv.height);
+      for (const id of Object.keys(joints)) {
+        const p = toPx(joints[id], cv.width, cv.height), on = id === sel, r = (on ? 15 : 11);
+        ctx.lineWidth = 4; ctx.strokeStyle = '#000'; ctx.beginPath(); ctx.arc(p.x, p.y, r + 2, 0, 7); ctx.stroke();
+        ctx.lineWidth = 4; ctx.strokeStyle = colorOf(id); ctx.setLineDash(joints[id].confirmed ? [] : [7, 6]);
+        ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+        if (joints[id].confirmed) { ctx.fillStyle = colorOf(id); ctx.beginPath(); ctx.arc(p.x, p.y, r - 6, 0, 7); ctx.fill(); }
+      }
+    }
+    function drawChips() {
+      chips.innerHTML = '';
+      for (const id of Object.keys(joints)) {
+        const b = doc.createElement('button'); b.type = 'button'; b.className = 'ghost chip' + (id === sel ? ' on' : '');
+        b.style.borderColor = colorOf(id); b.dataset.joint = id;
+        b.textContent = (joints[id].confirmed ? '✓ ' : '○ ') + label(id);
+        b.onclick = () => select(id);
+        chips.appendChild(b);
+      }
+    }
+    function emit(why) { drawChips(); redraw(); if (o.onChange) o.onChange(get(), why); }
+    function select(id) { if (joints[id]) { sel = id; drawChips(); redraw(); } }
+    function get() { const out = {}; for (const k of Object.keys(joints)) out[k] = Object.assign({}, joints[k]); return out; }
+    function set(j) { joints = {}; for (const k of Object.keys(j)) joints[k] = Object.assign({}, j[k]); if (!joints[sel]) sel = Object.keys(joints)[0]; drawChips(); redraw(); }
+
+    cv.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      const p = point(e), hitId = nearest(joints, p.x, p.y, o.w, o.h, HIT * p.k);
+      if (hitId) { sel = hitId; drag = hitId; moved = false; try { cv.setPointerCapture(e.pointerId); } catch (er) { /* fine */ } drawChips(); redraw(); return; }
+      if (sel) { const n = toNorm(p.x, p.y, o.w, o.h); joints = place(joints, sel, n.x, n.y); sel = nextWaiting(joints, sel) || sel; emit('placed'); }
+    });
+    cv.addEventListener('pointermove', (e) => {
+      if (!drag) return; e.preventDefault();
+      const p = point(e), n = toNorm(p.x, p.y, o.w, o.h);
+      moved = true; joints = place(joints, drag, n.x, n.y); redraw();
+    });
+    // a tap on a dot says "yes, it is right here" and confirms it where it sits; a drag moves it and confirms it too
+    const up = () => {
+      if (!drag) return;
+      const id = drag; drag = null;
+      if (!moved) { const j = joints[id]; joints = place(joints, id, j.x, j.y); sel = nextWaiting(joints, id) || id; }
+      emit(moved ? 'moved' : 'confirmed');
+    };
+    cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+
+    const accept = doc.createElement('button'); accept.type = 'button'; accept.className = 'ghost'; accept.textContent = 'Accept the guesses';
+    accept.onclick = () => { joints = acceptAll(joints); emit('accepted'); };
+    const hint = doc.createElement('span'); hint.className = 'hint'; hint.textContent = 'Tap a dot to say it is right, drag it to move it, or pick a joint and tap where it bends. Dashed ring = still a guess.';
+    bar.append(accept, hint);
+
+    fit(); drawChips();
+    const im = new Image(); im.onload = () => { img = im; redraw(); }; im.onerror = () => redraw(); im.src = o.src; redraw();
+    return { get, set, select, redraw, destroy: () => wrap.remove() };
+  }
+
+  return { HIT, COLORS, colorOf, toNorm, toPx, nearest, place, acceptAll, unconfirmed, nextWaiting, mount };
+}));
+/*PARTS_EDITOR_END*/
 </script>
 <script>
 'use strict';
@@ -706,6 +1097,7 @@ const CATS = {
   character: { label: 'Character 360', group: 'Character id', ph: 'naina', names: 'front, front_left_45, left_profile, back_left_45, back, back_right_45, right_profile, front_right_45', nl: 'Angle names, one per view in picture order', bg: true, split: 'reader' },
   emotion:   { label: 'Emotions', group: 'Character id', ph: 'naina', names: 'neutral, happy, sad, angry, surprised, worried', nl: 'Emotion names, one per drawing', bg: true, split: 'reader' },
   pose:      { label: 'Poses', group: 'Character id', ph: 'naina', names: 'standing, walking, sitting, pointing, waving, talking, thinking, listening, celebrating, worried', nl: 'Pose names, one per drawing', bg: true, split: 'auto' },
+  part:      { label: 'Body parts', group: 'Body id', ph: 'mannequin', names: '', nl: 'Names come from the part and view you pick', bg: true, split: 'manual' },
   prop:      { label: 'Props', group: 'Prop set name', ph: 'office_props', names: '', nl: 'Prop names, one per drawing (blank = prop_1, prop_2…)', bg: true, split: 'auto' },
   landscape: { label: 'Landscapes', group: 'Landscape set name', ph: 'village', names: '', nl: 'Scene names, one per picture (blank = scene_1…)', bg: false, split: 'whole' },
 };
@@ -721,6 +1113,7 @@ function presetFor(cat, style) {
   const p = Object.assign({}, PRESET[style]);
   if (cat === 'landscape') { p.size = 520; p.colors += 6; p.blur = Math.max(p.blur, 1); if (style === 'webtoon') p.ink = 0.18; }
   if (cat === 'prop') p.colors = Math.max(6, p.colors - 3);
+  if (cat === 'part') { p.fringe = 5; p.clean = 1; p.colors = Math.max(8, p.colors - 4); }   // flat cel-shaded parts on a flat background: no ring of background colour, no neighbours
   return p;
 }
 const S = { cat: 'character', style: 'ghibli', sheets: [], plan: [], items: [], server: false, profile: {}, db: null, memlib: new Map(), busy: false };
@@ -730,7 +1123,7 @@ function toast(msg) { const t = $('#toast'); t.textContent = msg; t.style.displa
 function status(msg) { $('#status').textContent = msg; }
 function hash(str) { let h = 5381; for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0; return (h >>> 0).toString(36); }
 function mulberry(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
-const pkey = (p) => [p.size, p.colors, p.blur, p.simplify.toFixed(2), p.omit.toFixed(1), p.smooth, p.ink.toFixed(2), p.seed, p.bgtol, p.holes, p.clean || 0].join('|');
+const pkey = (p) => [p.size, p.colors, p.blur, p.simplify.toFixed(2), p.omit.toFixed(1), p.smooth, p.ink.toFixed(2), p.seed, p.bgtol, p.holes, p.clean || 0, p.fringe || 0].join('|');
 const svgUrl = (svg) => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
 const hex = (c) => '#' + c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
 function canvasOf(w, h) { const c = document.createElement('canvas'); c.width = Math.max(1, w); c.height = Math.max(1, h); return c; }
@@ -1024,9 +1417,49 @@ function focusFigure(fg, w, h, level, near) {
   if (level >= 2) cutBridges(fg, w, h, Math.max(2, Math.round(Math.max(w, h) * 0.006)), near);
   if (level >= 1) dropLooseBits(fg, w, h, near);
 }
+// Outlines drawn on a flat background are usually tinted with that background for a few pixels (a glow or a blend): too far from the
+// background to be dropped, too odd to belong to the shape. Traced, they become a ring of background colour around every part.
+// Step 1 cuts off the tinted pixels near the edge (the part gets a hair smaller, its outline keeps its true thickness).
+// Step 2 repaints the last pixels of the new edge from just inside. `depth` is how deep the tint reaches, in working pixels.
+function distIn(fg, w, h) {
+  const n = w * h, dist = new Int16Array(n);
+  for (let i = 0; i < n; i++) dist[i] = fg[i] ? 9999 : 0;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x; if (!dist[i]) continue;
+    dist[i] = (x === 0 || y === 0) ? 1 : Math.min(dist[i], dist[i - 1] + 1, dist[i - w] + 1);
+  }
+  for (let y = h - 1; y >= 0; y--) for (let x = w - 1; x >= 0; x--) {
+    const i = y * w + x; if (!dist[i]) continue;
+    dist[i] = (x === w - 1 || y === h - 1) ? Math.min(dist[i], 1) : Math.min(dist[i], dist[i + 1] + 1, dist[i + w] + 1);
+  }
+  return dist;
+}
+function pullInEdges(data, fg, w, h, depth, bg) {
+  if (!bg || bg.alpha) return;
+  const n = w * h, bgd = new Float32Array(n);
+  for (let i = 0; i < n; i++) { const dr = data[i * 4] - bg.r, dg = data[i * 4 + 1] - bg.g, db = data[i * 4 + 2] - bg.b; bgd[i] = Math.sqrt(dr * dr + dg * dg + db * db); }
+  let dist = distIn(fg, w, h);
+  const ref = [];                                      // how far from the background the true outline colours sit, just inside the tint
+  for (let i = 0; i < n; i++) if (fg[i] && dist[i] > depth && dist[i] <= depth + 3) ref.push(bgd[i]);
+  if (ref.length < 20) return;
+  ref.sort((x, y) => x - y);
+  const limit = 0.75 * ref[ref.length >> 1];
+  for (let i = 0; i < n; i++) if (fg[i] && dist[i] <= depth && bgd[i] < limit) fg[i] = 0;
+  dist = distIn(fg, w, h);
+  const band = Math.max(1, Math.round(depth / 3)), R = band + 2;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x; if (!fg[i] || dist[i] > band) continue;
+    let best = -1, bd = 1e9;
+    for (let dy = -R; dy <= R; dy++) { const yy = y + dy; if (yy < 0 || yy >= h) continue;
+      for (let dx = -R; dx <= R; dx++) { const xx = x + dx; if (xx < 0 || xx >= w) continue;
+        const j = yy * w + xx; if (!fg[j] || dist[j] <= band) continue;
+        const d = dx * dx + dy * dy; if (d < bd) { bd = d; best = j; } } }
+    if (best >= 0) { data[i * 4] = data[best * 4]; data[i * 4 + 1] = data[best * 4 + 1]; data[i * 4 + 2] = data[best * 4 + 2]; }
+  }
+}
 // working copy of an item at the working resolution
 function prepare(item, p) {
-  const key = [p.size, p.blur, p.bgtol, p.holes, p.clean || 0].join('|');
+  const key = [p.size, p.blur, p.bgtol, p.holes, p.clean || 0, p.fringe || 0].join('|');
   if (item._prep && item._prep.key === key) return item._prep;
   const cw = item.crop.width, ch = item.crop.height;
   const sc = Math.min(1.6, p.size / Math.max(cw, ch));
@@ -1038,6 +1471,7 @@ function prepare(item, p) {
   const img = ctx.getImageData(0, 0, w, h);
   const fg = computeFg(img, w, h, item.bg, p.bgtol, p.holes, item.nobg);
   if (p.clean && !item.nobg) focusFigure(fg, w, h, p.clean, item.near || 0);
+  if (p.fringe && !item.nobg) pullInEdges(img.data, fg, w, h, Math.max(1, Math.round(p.fringe * sc)), item.bg);    // p.fringe is in source pixels
   let work = img.data;
   for (let i = 0; i < p.blur; i++) work = median3(work, w, h);
   item._prep = { key, w, h, orig: img.data, work, fg };
@@ -1348,6 +1782,7 @@ async function doAccurate(item) {
     } catch (e) { /* browser copy is enough */ }
   }
   item.saved = true; renderCard(item); renderProfInfo();
+  if (S.cat === 'part') refreshRigSoon();
   toast(`${item.name} saved (${where}). Next ${CATS[S.cat].label.toLowerCase()} in ${STYLES[S.style]} starts from these settings.`);
 }
 
@@ -1399,11 +1834,12 @@ function renderTabs() {
   $('#gnameLabel').textContent = c.group; $('#gname').placeholder = c.ph;
   $('#namesLabel').textContent = c.nl;
   renderProfInfo();
+  partsUi();
 }
 function setCat(k) {
   if (k === '__lib') { S.libView = true; $('#view-learn').style.display = 'none'; $('#view-lib').style.display = ''; renderTabs(); renderLibrary(); return; }
   S.libView = false; $('#view-learn').style.display = ''; $('#view-lib').style.display = 'none';
-  if (k !== S.cat) { S.cat = k; clearAll(); const c = CATS[k]; $('#names').value = c.names; $('#splitMode').value = c.split; }
+  if (k !== S.cat) { S.cat = k; clearAll(); const c = CATS[k]; $('#names').value = c.names; $('#splitMode').value = c.split; $('#clean').value = k === 'part' ? '1' : '2'; closeJoints(); }
   renderTabs();
 }
 function clearAll() { S.sheets = []; S.plan = []; S.items = []; $('#cards').innerHTML = ''; $('#cardsBox').style.display = 'none'; $('#outBox').style.display = 'none'; $('#sheets').innerHTML = ''; $('#btnLearn').disabled = true; status(''); $('#files').value = ''; }
@@ -1438,6 +1874,7 @@ function readerPlan(sh, cat) {
 }
 function allBoxes() { return S.sheets.flatMap((s) => s.boxes); }
 function nextFreeName(all) {
+  if (S.cat === 'part') return nextPartName(all);
   const names = namesList(), used = new Set(all.map((b) => b.name));
   const free = names.find((n) => !used.has(n));
   if (free) return free;
@@ -1450,15 +1887,22 @@ function rebuildPlan() {
   S.plan = [];
   S.sheets.forEach((sh, si) => sh.boxes.forEach((b) => S.plan.push({ si, b, box: { x: b.x, y: b.y, w: b.w, h: b.h }, rd: b.rd && !b.edited ? b.rd : null, name: b.name })));
   const ng = $('#namegrid');
-  if (ng) {
+  if (ng && S.cat === 'part') {
+    ng.style.gridTemplateColumns = 'repeat(auto-fill,minmax(270px,1fr))';
+    ng.innerHTML = S.plan.map((p, i) => partRow(i, p.name)).join('');
+    ng.querySelectorAll('select').forEach((sel) => { sel.onchange = () => partRowChanged(+sel.dataset.i); });
+  } else if (ng) {
+    ng.style.gridTemplateColumns = '';
     ng.innerHTML = S.plan.map((p, i) => `<div>${i + 1}. <input type="text" data-plan="${i}" value="${esc(p.name)}"></div>`).join('');
     ng.querySelectorAll('input').forEach((inp) => { inp.oninput = () => { S.plan[+inp.dataset.plan].b.name = slug(inp.value) || inp.value; }; });
   }
   const names = namesList(), total = S.plan.length;
   let msg = (S.notes || []).join('\n') + `\n${total} item${total === 1 ? '' : 's'} will be learned.`;
   if (names.length && names.length !== total) msg += `\nNames: ${names.length} in the list, ${total} boxes. Extra boxes get automatic names, extra names are ignored.`;
+  const problems = S.cat === 'part' ? partNameProblems() : [];
+  if (problems.length) msg += '\n' + problems.join('\n');
   status(msg);
-  $('#btnLearn').disabled = !total || S.busy;
+  $('#btnLearn').disabled = !total || S.busy || problems.length > 0;
 }
 async function doDetect() {
   const files = [...$('#files').files];
@@ -1636,11 +2080,164 @@ function libFiles(recs) {
   return files;
 }
 
+/* ---------- body parts and the rig (v32) ---------- */
+// A part picture is learned like any other picture: draw a box, trace it, press Accurate. What is new is the name (part__view),
+// the joints (tapped on each picture) and the rig file that lists every picture, its joints and the drawing order.
+const RS = RigSkeleton, PE = PartsEditor;
+S.rig = null; S.rigSvg = {}; S.rigSel = null; S.rigEd = null; S.rigDirty = false;
+const isParts = () => S.cat === 'part' && !S.libView;
+const rigKey = (style, body) => `nf-rig/${style}/${body}`;
+function fillPartSelects() {
+  $('#pPart').innerHTML = RS.PARTS.map((p) => `<option value="${p}">${esc(RS.partLabel(p))}</option>`).join('');
+  $('#pView').innerHTML = RS.VIEWS.map((v) => `<option value="${v}">${esc(RS.VIEW_LABEL[v])}</option>`).join('');
+}
+function partsUi() {
+  const on = isParts();
+  $('#partsBar').style.display = on ? '' : 'none';
+  $('#names').style.display = on ? 'none' : ''; $('#namesLabel').style.display = on ? 'none' : '';
+  const rd = document.querySelector('#splitMode option[value="reader"]'); if (rd) rd.disabled = on;
+  if (on) refreshRigSoon(); else { $('#rigBox').style.display = 'none'; closeJoints(); }
+}
+// the name for the next box: the part and view you picked, then stepping along as the "After each box" choice says
+function nextPartName(all) {
+  const used = new Set(all.map((b) => b.name).filter(Boolean));
+  let p = $('#pPart').value, v = $('#pView').value; const adv = $('#pAdvance').value;
+  for (let i = 0; i < 200; i++) {
+    if (!used.has(RS.partName(p, v))) break;
+    if (adv === 'view') v = RS.VIEWS[(RS.VIEWS.indexOf(v) + 1) % RS.VIEWS.length];
+    else if (adv === 'part') p = RS.PARTS[(RS.PARTS.indexOf(p) + 1) % RS.PARTS.length];
+    else break;
+  }
+  return RS.partName(p, v);    // a repeat is flagged in the list and the person renames it
+}
+function partRow(i, name) {
+  const pn = RS.parsePartName(name) || { part: '', view: '' };
+  const po = (pn.part ? '' : '<option value="" selected>choose part…</option>') + RS.PARTS.map((p) => `<option value="${p}"${p === pn.part ? ' selected' : ''}>${esc(RS.partLabel(p))}</option>`).join('');
+  const vo = (pn.view ? '' : '<option value="" selected>choose view…</option>') + RS.VIEWS.map((v) => `<option value="${v}"${v === pn.view ? ' selected' : ''}>${esc(RS.VIEW_LABEL[v])}</option>`).join('');
+  return `<div class="prow"><span>${i + 1}.</span><select data-i="${i}" data-ppart="${i}">${po}</select><select data-i="${i}" data-pview="${i}">${vo}</select></div>`;
+}
+function partRowChanged(i) {
+  const ng = $('#namegrid'), p = ng.querySelector(`[data-ppart="${i}"]`).value, v = ng.querySelector(`[data-pview="${i}"]`).value;
+  if (!p || !v || !S.plan[i]) { if (S.plan[i]) { S.plan[i].b.name = ''; S.plan[i].name = ''; } } else { const nm = RS.partName(p, v); S.plan[i].b.name = nm; S.plan[i].name = nm; }
+  const problems = partNameProblems();
+  status((S.notes || []).join('\n') + `\n${S.plan.length} item${S.plan.length === 1 ? '' : 's'} will be learned.` + (problems.length ? '\n' + problems.join('\n') : ''));
+  $('#btnLearn').disabled = !S.plan.length || S.busy || problems.length > 0;
+}
+// every box needs a known part and view, and two boxes may not be the same picture
+function partNameProblems() {
+  const out = [], seen = new Map();
+  S.plan.forEach((p, i) => {
+    if (!RS.parsePartName(p.name)) { out.push(`Box ${i + 1}: pick its part and view.`); return; }
+    if (seen.has(p.name)) out.push(`Boxes ${seen.get(p.name) + 1} and ${i + 1} are both ${p.name}: change one of them.`); else seen.set(p.name, i);
+  });
+  return out;
+}
+
+let rigTimer = null;
+function refreshRigSoon() { clearTimeout(rigTimer); rigTimer = setTimeout(refreshRig, 250); }
+async function refreshRig() {
+  const box = $('#rigBox');
+  if (!isParts()) { box.style.display = 'none'; return; }
+  box.style.display = '';
+  const body = slug($('#gname').value);
+  if (!body) {
+    S.rig = null; closeJoints(); $('#rigTable').innerHTML = ''; $('#rigSummary').textContent = ''; $('#rigMissingList').textContent = '';
+    $('#rigInfo').textContent = 'Type a Body id above (for example mannequin). The rig is saved under that name.'; return;
+  }
+  if (!S.partsSynced) { S.partsSynced = true; await syncFromServer(); }          // pictures saved by the server earlier show up in a fresh browser too
+  const recs = (await libAll()).filter((r) => r.category === 'part' && r.style === S.style && r.group === body);
+  let server = null, local = null;
+  if (S.server) { try { const j = await (await fetch(`/api/rig?style=${S.style}&body=${encodeURIComponent(body)}`)).json(); if (j.ok) server = j.rig; } catch (e) { /* the browser copy is used */ } }
+  try { local = JSON.parse(localStorage.getItem(rigKey(S.style, body)) || 'null'); } catch (e) { local = null; }
+  const saved = [server, local].filter(Boolean).sort((a, b) => String(b.savedAt || '').localeCompare(String(a.savedAt || '')))[0] || null;   // the newer copy wins
+  const rig = RS.emptyRig(body, S.style), svgs = {};
+  for (const r of recs) {
+    const pn = RS.parsePartName(r.name); if (!pn) continue;
+    const prev = saved && saved.parts && saved.parts[pn.part] && saved.parts[pn.part][pn.view];
+    RS.setPart(rig, { part: pn.part, view: pn.view, asset: r.name, w: r.w, h: r.h, joints: prev && prev.joints });
+    svgs[r.name] = r.svg;
+  }
+  S.rig = rig; S.rigSvg = svgs; S.rigDirty = false;
+  const sel = S.rigSel; S.rigSel = null;
+  $('#rigInfo').textContent = `Body "${body}", ${STYLES[S.style]}. ✓ drawn and saved, ⇄ filled by flipping another picture, · missing. Tap a ✓ to place its joints. On a phone, slide the table sideways to see all 8 views.`;
+  if (sel && rig.parts[sel.part] && rig.parts[sel.part][sel.view]) openJoints(sel.part, sel.view); else { closeJoints(); renderRig(); }
+}
+function drawnCells() { return RS.coverage(S.rig).cells.filter((c) => c.state === 'drawn'); }
+function renderRig() {
+  if (!S.rig) return;
+  const cov = RS.coverage(S.rig), states = {};
+  cov.cells.forEach((c) => { states[c.part + '|' + c.view] = c.state; });
+  const head = '<tr><th class="rowh"></th>' + RS.VIEWS.map((v) => `<th title="${RS.VIEW_LABEL[v]}">${RS.VIEW_SHORT[v]}</th>`).join('') + '</tr>';
+  const rows = RS.PARTS.map((p) => '<tr><th class="rowh">' + esc(RS.partLabel(p)) + '</th>' + RS.VIEWS.map((v) => {
+    const st = states[p + '|' + v], on = S.rigSel && S.rigSel.part === p && S.rigSel.view === v;
+    return `<td class="${st}${on ? ' sel' : ''}"><button type="button" data-rig="${p}|${v}" title="${esc(RS.partLabel(p))}, ${RS.VIEW_LABEL[v]}: ${st}"${st === 'missing' ? ' disabled' : ''}>${st === 'drawn' ? '✓' : st === 'mirrored' ? '⇄' : '·'}</button></td>`;
+  }).join('') + '</tr>').join('');
+  $('#rigTable').innerHTML = head + rows;
+  let guesses = 0;
+  for (const part of Object.keys(S.rig.parts)) for (const view of Object.keys(S.rig.parts[part])) for (const j of Object.values(S.rig.parts[part][view].joints)) if (!j.confirmed) guesses++;
+  $('#rigSummary').textContent = `${cov.drawn} drawn, ${cov.mirrored} filled by flipping, ${cov.missing.length} missing of ${cov.total}. ` + (cov.drawn ? (guesses ? `${guesses} joint position${guesses === 1 ? ' is' : 's are'} still a starting guess.` : 'Every joint position is confirmed.') : 'Save part pictures with Accurate and they appear here.') + (S.rigDirty ? ' Unsaved changes.' : '');
+  const byView = RS.VIEWS.map((v) => { const m = cov.missing.filter((c) => c.view === v).map((c) => RS.partLabel(c.part)); return m.length ? `<p><b>${RS.VIEW_LABEL[v]}:</b> ${m.map(esc).join(', ')}</p>` : ''; }).join('');
+  $('#rigMissingList').innerHTML = byView || '<p>Nothing missing: the body is complete in all 8 views.</p>';
+}
+function closeJoints() {
+  if (S.rigEd) { S.rigEd.destroy(); S.rigEd = null; }
+  S.rigSel = null; const h = $('#jointHead'); if (h) h.style.display = 'none';
+}
+function openJoints(part, view) {
+  if (!S.rig) return;
+  const r = RS.resolve(S.rig, part, view); if (!r) return;
+  part = r.part; view = r.view;                              // a flipped cell opens the picture it is flipped from
+  const e = S.rig.parts[part][view];
+  if (S.rigEd) { S.rigEd.destroy(); S.rigEd = null; }
+  S.rigSel = { part, view };
+  $('#jointHead').style.display = '';
+  $('#jointTitle').textContent = `${RS.partLabel(part)} · ${RS.VIEW_LABEL[view]}   (${e.w}×${e.h})`;
+  S.rigEd = PE.mount($('#jointHost'), { src: svgUrl(S.rigSvg[e.asset]), w: e.w, h: e.h, joints: e.joints, labelOf: RS.jointLabel, onChange: (j) => { e.joints = j; rigEdited(); } });
+  renderRig();
+}
+function stepJoint(dir) {
+  if (!S.rig) return;
+  const cells = drawnCells(); if (!cells.length) return;
+  let i = S.rigSel ? cells.findIndex((c) => c.part === S.rigSel.part && c.view === S.rigSel.view) : -1;
+  i = i < 0 ? 0 : (i + dir + cells.length) % cells.length;
+  openJoints(cells[i].part, cells[i].view);
+}
+function rigEdited() {
+  S.rigDirty = true;
+  try { localStorage.setItem(rigKey(S.rig.style, S.rig.body), JSON.stringify(Object.assign({}, S.rig, { savedAt: new Date().toISOString() }))); } catch (e) { /* ignore */ }
+  renderRig();
+}
+function rigAcceptAll() {
+  if (!S.rig) return;
+  for (const part of Object.keys(S.rig.parts)) for (const view of Object.keys(S.rig.parts[part])) for (const j of Object.values(S.rig.parts[part][view].joints)) j.confirmed = true;
+  if (S.rigSel && S.rigEd) S.rigEd.set(S.rig.parts[S.rigSel.part][S.rigSel.view].joints);
+  rigEdited(); toast('Every joint guess accepted. Press Save rig to keep it.');
+}
+async function saveRigNow() {
+  if (!S.rig) return toast('Type a Body id first');
+  const rig = S.rig; rig.savedAt = new Date().toISOString();
+  const v = RS.validateRig(rig);
+  if (!v.ok) return toast('Cannot save: ' + v.errors[0]);
+  try { localStorage.setItem(rigKey(rig.style, rig.body), JSON.stringify(rig)); } catch (e) { /* ignore */ }
+  if (!S.server) { S.rigDirty = false; renderRig(); return toast('Rig saved in this browser. Use Download rig.json to keep a file.'); }
+  try {
+    const j = await (await fetch('/api/rig', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ style: rig.style, body: rig.body, rig }) })).json();
+    if (j.ok) { S.rigDirty = false; renderRig(); toast(`Rig saved to ${j.path}` + (v.warnings.length ? ` (${v.warnings[0]})` : '')); } else toast('Saved in the browser; server said: ' + j.error);
+  } catch (e) { toast('Saved in the browser; the save server did not answer'); }
+}
+function rigDownload() { if (S.rig) download(`rig_${S.rig.body}.json`, JSON.stringify(S.rig, null, 1), 'application/json'); }
+
 /* ---------- wiring ---------- */
 document.addEventListener('click', async (e) => {
   const t = e.target.closest('button,[data-act]'); if (!t) return;
   if (t.dataset.cat) return setCat(t.dataset.cat);
   if (t.dataset.style) { S.style = t.dataset.style; return renderTabs(); }
+  if (t.dataset.rig) { const [rp, rv] = t.dataset.rig.split('|'); return openJoints(rp, rv); }
+  if (t.id === 'rigSave') return saveRigNow();
+  if (t.id === 'rigAcceptAll') return rigAcceptAll();
+  if (t.id === 'rigDownload') return rigDownload();
+  if (t.id === 'jointPrev') return stepJoint(-1);
+  if (t.id === 'jointNext') return stepJoint(1);
   if (t.dataset.lib) {
     if (t.dataset.lib === 'open1') { const all = await libAll(); return reopen(all.filter((r) => r.key === t.dataset.key)); }
     const arr = S.libGroups.get(t.dataset.k) || [];
@@ -1681,6 +2278,8 @@ $('#files').addEventListener('change', () => { if ($('#files').files.length) doD
   $('#srv').textContent = S.server ? 'save server connected: Accurate writes into the repo folder' : 'browser-only mode: Accurate saves in this browser, use Library to download';
   $('#srv').className = 'pill' + (S.server ? ' on' : '');
   $('#names').value = CATS.character.names; $('#splitMode').value = CATS.character.split;
+  fillPartSelects();
+  $('#gname').addEventListener('input', () => { if (isParts()) refreshRigSoon(); });
   renderTabs();
   window.NFL = { dropLooseBits, cutBridges, focusFigure, reopen, syncFromServer, S, CATS, PRESET, detectBoxes, readSheet, evalParams, doRefine, doDifferent, doAccurate, libAll, zipBlob, crc32, traceMask, doDetect, doLearn };
 })();
