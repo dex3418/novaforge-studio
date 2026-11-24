@@ -1,13 +1,16 @@
 'use strict';
 // Voice for one scene.
 //   engine 'edge'   : free Edge voices, exact word timing (default)
-// Only the free Edge voices are offered for now. A script that still says engine: gemini is voiced by Edge too.
-// (Paid voices such as ElevenLabs can come back later as another engine.)
+//   engine 'edge'       : free Edge voices, exact word timing (default)
+//   engine 'elevenlabs' : ElevenLabs voices (needs ELEVENLABS_API_KEY), exact word timing, cached on disk
+// ElevenLabs failing for any reason (no key, no credits, network) falls back to Edge, so a post is never lost.
+// Anything else a script asks for (an old engine: gemini) is voiced by Edge.
 
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { VOICES, DEFAULT_VOICE } = require('./catalog');
+const { elevenSynth } = require('./elevenlabs_tts');
 const natural = require('./natural');
 
 const hasDevanagari = (t) => /[ऀ-ॿ]/.test(t);
@@ -106,6 +109,18 @@ function edgeSynth(text, outFile, voice, rate, emotion) {
 // rate: "+6%" style string. Returns { timing, engine, voice }.
 async function synth(text, outFile, o = {}) {
   const rate = /^[+-]\d+%$/.test(o.rate || '') ? o.rate : '+0%';
+  if (o.engine === 'elevenlabs') {
+    const voice = o.voice && /^[A-Za-z0-9]{10,40}$/.test(o.voice) ? o.voice : DEFAULT_VOICE.elevenlabs;
+    try {
+      const r = await elevenSynth(text, outFile, { voice, rate });
+      const note = r.timing ? '' : 'ElevenLabs gave no word timing, captions are approximate';
+      return { timing: r.timing, engine: 'elevenlabs', voice, note, cached: r.cached };
+    } catch (e) {
+      console.warn(`  ElevenLabs voice failed (${e.message}). Using the Edge voice instead.`);
+      const r = edgeSynth(text, outFile, '', rate, o.emotion);
+      return { ...r, engine: 'edge', note: `ElevenLabs failed (${e.message.slice(0, 140)}), used Edge` };
+    }
+  }
   const r = edgeSynth(text, outFile, o.voice, rate, o.emotion);
   return { ...r, engine: 'edge' };
 }

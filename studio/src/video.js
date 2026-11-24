@@ -27,7 +27,7 @@ async function makeAudio(parsed, plan, root) {
   const dir = path.join(root, 'public', parsed.slug);
   fs.mkdirSync(dir, { recursive: true });
   const byIndex = new Map(plan.scenes.map((s) => [s.index, s]));
-  const engine = 'edge';           // the only voice engine offered for now
+  const engine = parsed.meta.engine === 'elevenlabs' ? 'elevenlabs' : 'edge';
   const out = [];
   for (const s of parsed.scenes) {
     const p = byIndex.get(s.index) || { kind: 'caption', data: {}, emotion: 'neutral', emphasis: [], voice: { rateDelta: 0, style: '' } };

@@ -161,6 +161,7 @@ jobs:
           CALIBRATION: ${{ github.event.inputs.calibration }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: ${{ secrets.GEMINI_MODEL }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
         run: |
           if [ -n "$ONLY" ]; then
             node src/build.js $FILES --only "$ONLY"

@@ -31,7 +31,7 @@ const WORD = {
 };
 
 function allVoices() {
-  return VOICES.edge.map((v) => ({ id: v.id, engine: 'edge' }));
+  return [...VOICES.edge.map((v) => ({ id: v.id, engine: 'edge' })), ...VOICES.elevenlabs.map((v) => ({ id: v.id, engine: 'elevenlabs' }))];
 }
 function matchVoice(tok) {
   const t = tok.toLowerCase().replace(/[^a-z]/g, '');
@@ -91,14 +91,15 @@ function speakerLine(line, known, loose) {
 
 // give everyone a distinct voice that fits the engine (explicit ones win)
 function assignVoices(cast, engine, narratorVoice, lines) {
-  const pools = { m: ['en-IN-PrabhatNeural', 'hi-IN-MadhurNeural', 'en-US-AndrewMultilingualNeural', 'en-US-BrianMultilingualNeural'], f: ['en-IN-NeerjaExpressiveNeural', 'hi-IN-SwaraNeural', 'en-US-AvaMultilingualNeural', 'en-US-EmmaMultilingualNeural'], c: ['hi-IN-SwaraNeural', 'en-US-AvaMultilingualNeural', 'en-IN-NeerjaExpressiveNeural'] };
-  const ok = (id) => VOICES.edge.some((v) => v.id === id);
-  const used = new Set([narratorVoice || DEFAULT_VOICE.edge]);
+  const eleven = engine === 'elevenlabs';
+  const pools = eleven ? { m: ['pNInz6obpgDQGcFmaJgB', 'ErXwobaYiN019PkySvjV'], f: ['21m00Tcm4TlvDq8ikWAM', 'EXAVITQu4vr4xnSDxMaL'], c: ['EXAVITQu4vr4xnSDxMaL', '21m00Tcm4TlvDq8ikWAM'] } : { m: ['en-IN-PrabhatNeural', 'hi-IN-MadhurNeural', 'en-US-AndrewMultilingualNeural', 'en-US-BrianMultilingualNeural'], f: ['en-IN-NeerjaExpressiveNeural', 'hi-IN-SwaraNeural', 'en-US-AvaMultilingualNeural', 'en-US-EmmaMultilingualNeural'], c: ['hi-IN-SwaraNeural', 'en-US-AvaMultilingualNeural', 'en-IN-NeerjaExpressiveNeural'] };
+  const ok = (id) => VOICES[eleven ? 'elevenlabs' : 'edge'].some((v) => v.id === id);
+  const used = new Set([narratorVoice || DEFAULT_VOICE[eleven ? 'elevenlabs' : 'edge']]);
   cast.forEach((c) => { if (c.voice && ok(c.voice)) used.add(c.voice); });
   cast.forEach((c, i) => {
     if (c.voice && ok(c.voice)) return;
     const g = c.look.age === 'child' ? 'c' : c.look.gender || (A.hashStr(c.name) % 2 ? 'm' : 'f');
-    const hindi = (lines || []).some((l) => l.who === c.id && /[ऀ-ॿ]/.test(l.text));
+    const hindi = !eleven && (lines || []).some((l) => l.who === c.id && /[ऀ-ॿ]/.test(l.text));
     let pool = pools[g] || pools.m;
     if (hindi) pool = [...pool.filter((v) => /^hi-IN/.test(v)), ...pool.filter((v) => !/^hi-IN/.test(v))];
     c.voice = pool.find((v) => !used.has(v)) || pool[i % pool.length];
@@ -261,7 +262,7 @@ function applyStory(plan, parsed, helpers = {}) {
   const cast = parsed.cast || [];
   if (!isStoryMeta(meta) && !cast.length) return;
   const ids = cast.map((c) => c.id);
-  assignVoices(cast, 'edge', meta.voice, parsed.scenes.flatMap((s) => s.lines || []));
+  assignVoices(cast, meta.engine === 'elevenlabs' ? 'elevenlabs' : 'edge', meta.voice, parsed.scenes.flatMap((s) => s.lines || []));
   plan.art = ['chibi', 'webtoon'].includes(String(meta.art || '').toLowerCase()) ? String(meta.art).toLowerCase() : 'flat';
   plan.cast = cast.map((c) => ({ id: c.id, name: c.name, look: c.look, voice: c.voice }));
   const defaultSetting = A.SETTINGS.includes(meta.setting) ? meta.setting : 'village';

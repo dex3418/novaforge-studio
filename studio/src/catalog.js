@@ -103,7 +103,7 @@ const ALIGNS = ['center', 'top', 'bottom'];
 const KINDS = [
   'caption', 'kinetic', 'counter', 'checklist', 'steps', 'quote',
   'qa', 'mythfact', 'compare', 'progress', 'alert', 'cta', 'keyword', 'stats', 'bars', 'spot',
-  'terminal', 'photo', 'profile', 'story',
+  'terminal', 'photo', 'profile', 'story', 'explainer',
 ];
 
 const EMOTIONS = ['neutral', 'excited', 'serious', 'curious', 'calm'];
@@ -120,7 +120,14 @@ const VOICES = {
     { id: 'en-US-EmmaMultilingualNeural', label: 'Emma - multilingual (test first)' },
     { id: 'en-US-BrianMultilingualNeural', label: 'Brian - multilingual (test first)' },
   ],
+  // ElevenLabs premade voices; any voice id from your own account (including a cloned one) also works as "voice:"
+  elevenlabs: [
+    { id: '21m00Tcm4TlvDq8ikWAM', label: 'Rachel - ElevenLabs, female' },
+    { id: 'EXAVITQu4vr4xnSDxMaL', label: 'Sarah - ElevenLabs, female' },
+    { id: 'pNInz6obpgDQGcFmaJgB', label: 'Adam - ElevenLabs, male' },
+    { id: 'ErXwobaYiN019PkySvjV', label: 'Antoni - ElevenLabs, male' },
+  ],
 };
-const DEFAULT_VOICE = { edge: 'en-IN-NeerjaNeural' };
+const DEFAULT_VOICE = { edge: 'en-IN-NeerjaNeural', elevenlabs: '21m00Tcm4TlvDq8ikWAM' };
 
 module.exports = { FAMILIES, PALETTES, TEXTURES, TEMPLATES, TRANSITIONS, SCHEMES, DECORS, HEADERS, CSTYLES, ALIGNS, KINDS, EMOTIONS, VOICES, DEFAULT_VOICE };

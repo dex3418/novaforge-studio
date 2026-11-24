@@ -1,9 +1,9 @@
 'use strict';
-// Only the free Edge voices are offered; a script that still asks for Gemini voices is voiced by Edge.
+// Gemini voices are gone (Edge and ElevenLabs remain); a script that still asks for Gemini voices is voiced by Edge.
 const assert = require('assert'), fs = require('fs'), path = require('path');
 const { VOICES, DEFAULT_VOICE } = require('../src/catalog');
-assert.deepStrictEqual(Object.keys(VOICES), ['edge']);
-assert.deepStrictEqual(Object.keys(DEFAULT_VOICE), ['edge']);
+assert.deepStrictEqual(Object.keys(VOICES), ['edge', 'elevenlabs']);   // no Gemini voices
+assert.deepStrictEqual(Object.keys(DEFAULT_VOICE), ['edge', 'elevenlabs']);
 assert.ok(!fs.existsSync(path.join(__dirname, '..', 'src', 'gemini_tts.js')));
 const story = require('../src/story');
 const cast = [{ id: 'a', name: 'Asha', look: { gender: 'f' } }, { id: 'b', name: 'Ravi', look: { gender: 'm' } }];

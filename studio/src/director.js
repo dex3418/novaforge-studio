@@ -45,6 +45,7 @@ VISUAL TYPES (kind) and their "data":
 - keyword  {"word":"1-2 words","line":"max 12 words"}  the ONE key term of the beat shown huge (a name, a number word, a concept). Both copied from the beat.
 - stats    {"items":[{"value":number,"prefix":"₹" or "","suffix":"%" or " crore" or "","label":"max 4 words"}, ... 2 to 4]}  several numbers in one beat shown as count-up cards. Every value must appear in the spoken text.
 - bars     {"items":[{"value":number,"label":"max 3 words"}, ... 2 to 5],"prefix":"","suffix":""}  compare amounts as horizontal bars. Values must appear in the text.
+- explainer {"chart":"bars"|"flow","look":"clean"|"neon","title":"max 6 words","values":[2 to 8 numbers],"labels":["optional, max 2 words each"],"nodes":[{"id":"a","label":"max 3 words"}, ... 2 to 6],"links":[{"from":"a","to":"b","label":""}],"cues":[{"frac":0-1,"op":"...","target":...,"to":...,"tone":"good|bad|buy|neutral","text":"max 4 words"}, ... up to 12]}  a small diagram drawn step by step while the beat is spoken. Use it when the beat explains HOW something works: a comparison of values (chart "bars", use "values") or a process / pipeline (chart "flow", use "nodes" and "links"). "frac" is how much of the beat has been said when the step happens (0 = start, 0.5 = halfway), in increasing order. Ops for bars: hi (light bar "target", a 0-based number), tag (label under bar "target" with "text"), arc (curve from bar "target" to bar "to", optional "text"), dim (keep only bar "target" bright), note (a headline "text" at the top), strike (cross out the latest note). Ops for flow: show (reveal box "target" by id), hi, tag, note, strike. Tones: good = the right path, bad = the wrong one, buy = a starting point, neutral. Draw ONLY what the beat says; do not add facts.
 - spot     {"icon":"one of: ${ICON_NAMES.join(', ')}","line":"max 12 words copied from the beat"}  a big icon with one line, for a concrete thing (money, time, place, document, phone, safety).
 - terminal {"lines":[{"cmd":"cat name.txt"},{"out":"a line copied from the beat, max 14 words"}, ...up to 8]}  a terminal window that types the lines. "cmd" lines are only short file or shell commands (letters, digits, dot, dash, slash, space; e.g. "cat hook.txt", "ls"). Only "out" lines carry script text. Good for steps, tech and developer topics, 1 to 4 lines of output.
 - photo    {"pic":0,"line":"max 14 words copied from the beat"}  a full-screen picture with the line over it. ONLY when PICTURES are available below. "pic" is the picture number.
@@ -152,7 +153,7 @@ function parseJson(text) {
 
 // ---------------------------------------------------------------- review (the checker)
 
-const BOLD = new Set(['counter', 'stats', 'bars', 'spot', 'checklist', 'steps', 'qa', 'mythfact', 'compare', 'progress', 'alert', 'kinetic', 'keyword', 'quote', 'terminal', 'photo', 'profile', 'story', 'cta']);
+const BOLD = new Set(['counter', 'stats', 'bars', 'spot', 'checklist', 'steps', 'qa', 'mythfact', 'compare', 'progress', 'alert', 'kinetic', 'keyword', 'quote', 'terminal', 'photo', 'profile', 'story', 'cta', 'explainer']);
 
 // units of a plan: every beat of a multi-beat scene, or the scene itself
 function planUnits(plan) {

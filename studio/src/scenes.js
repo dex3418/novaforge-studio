@@ -263,6 +263,11 @@ function slideParas(ctx, size) {
 // ---------------------------------------------------------------- scene types
 
 const STAGES = {
+  // a small diagram (bars or boxes and arrows) drawn step by step while the words are spoken
+  explainer(ctx, sc) {
+    return require('./explainer').explainer(ctx, sc);
+  },
+
   // heading + caption (video) or heading + paragraph (slide)
   caption(ctx, sc) {
     const u = ctx.u;

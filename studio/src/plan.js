@@ -351,6 +351,7 @@ function locate(text, beatText) {
 
 // fills the timing fractions the renderer needs and trims anything too long for the screen
 function finalize(kind, d, beatText) {
+  if (kind === 'explainer') return require('./explainer').normalize(d) || d;     // cues are cleaned and timed there
   const o = JSON.parse(JSON.stringify(d));
   const spread = (items, key) => {
     let prev = -1;
@@ -864,6 +865,7 @@ const CHECK = {
   alert: (d) => isStr(d.text),
   cta: (d) => isStr(d.text),
   story: (d) => !!d && typeof d === 'object',
+  explainer: (d) => !!require('./explainer').normalize(d),
 };
 
 // Makes any plan (rules or AI) safe: unknown things are replaced, never trusted.
