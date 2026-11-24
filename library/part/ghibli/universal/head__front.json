@@ -1,0 +1,45 @@
+{
+ "key": "part/ghibli/universal/head__front",
+ "category": "part",
+ "style": "ghibli",
+ "group": "universal",
+ "name": "head__front",
+ "score": 98.7,
+ "params": {
+  "size": 420,
+  "colors": 12,
+  "blur": 1,
+  "simplify": 1,
+  "omit": 10,
+  "smooth": 1,
+  "ink": 0,
+  "seed": 1,
+  "bgtol": 40,
+  "holes": 0,
+  "clean": 1,
+  "fringe": 5
+ },
+ "palette": [
+  "#feb98d",
+  "#50371b",
+  "#c78062",
+  "#603021",
+  "#ecae8c",
+  "#6d3a26",
+  "#ac7158",
+  "#d39878",
+  "#905942",
+  "#7e4932"
+ ],
+ "w": 256,
+ "h": 293,
+ "bg": {
+  "alpha": false,
+  "r": 5.224350940017905,
+  "g": 252.07573858549688,
+  "b": 3.648880931065354
+ },
+ "paths": 146,
+ "rounds": 1,
+ "savedAt": "2026-11-24T12:59:18.845Z"
+}

@@ -1,0 +1,45 @@
+{
+ "key": "part/ghibli/universal/torso__right_profile",
+ "category": "part",
+ "style": "ghibli",
+ "group": "universal",
+ "name": "torso__right_profile",
+ "score": 97.7,
+ "params": {
+  "size": 420,
+  "colors": 12,
+  "blur": 1,
+  "simplify": 1,
+  "omit": 10,
+  "smooth": 1,
+  "ink": 0,
+  "seed": 1,
+  "bgtol": 40,
+  "holes": 0,
+  "clean": 1,
+  "fringe": 5
+ },
+ "palette": [
+  "#feb98b",
+  "#cd8465",
+  "#643223",
+  "#57371f",
+  "#763f2c",
+  "#b1735b",
+  "#8a513c",
+  "#ebab88",
+  "#9e624b",
+  "#d89a78"
+ ],
+ "w": 165,
+ "h": 313,
+ "bg": {
+  "alpha": false,
+  "r": 5.224350940017905,
+  "g": 252.07573858549688,
+  "b": 3.648880931065354
+ },
+ "paths": 246,
+ "rounds": 1,
+ "savedAt": "2026-11-24T12:59:20.130Z"
+}

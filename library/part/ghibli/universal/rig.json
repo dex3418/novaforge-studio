@@ -1,0 +1,640 @@
+{
+ "format": "nf-rig@1",
+ "skeleton": "nf-skeleton@1",
+ "body": "universal",
+ "style": "ghibli",
+ "parts": {
+  "head": {
+   "back": {
+    "asset": "head__back",
+    "w": 252,
+    "h": 283,
+    "joints": {
+     "neck": {
+      "x": 0.5,
+      "y": 0.93,
+      "confirmed": false
+     }
+    }
+   },
+   "back_left_45": {
+    "asset": "head__back_left_45",
+    "w": 256,
+    "h": 346,
+    "joints": {
+     "neck": {
+      "x": 0.5,
+      "y": 0.93,
+      "confirmed": false
+     }
+    }
+   },
+   "back_right_45": {
+    "asset": "head__back_right_45",
+    "w": 255,
+    "h": 346,
+    "joints": {
+     "neck": {
+      "x": 0.5,
+      "y": 0.93,
+      "confirmed": false
+     }
+    }
+   },
+   "front": {
+    "asset": "head__front",
+    "w": 256,
+    "h": 293,
+    "joints": {
+     "neck": {
+      "x": 0.5,
+      "y": 0.93,
+      "confirmed": false
+     }
+    }
+   },
+   "front_left_45": {
+    "asset": "head__front_left_45",
+    "w": 247,
+    "h": 343,
+    "joints": {
+     "neck": {
+      "x": 0.5,
+      "y": 0.93,
+      "confirmed": false
+     }
+    }
+   },
+   "front_right_45": {
+    "asset": "head__front_right_45",
+    "w": 247,
+    "h": 343,
+    "joints": {
+     "neck": {
+      "x": 0.5,
+      "y": 0.93,
+      "confirmed": false
+     }
+    }
+   },
+   "left_profile": {
+    "asset": "head__left_profile",
+    "w": 247,
+    "h": 346,
+    "joints": {
+     "neck": {
+      "x": 0.5,
+      "y": 0.93,
+      "confirmed": false
+     }
+    }
+   },
+   "right_profile": {
+    "asset": "head__right_profile",
+    "w": 247,
+    "h": 346,
+    "joints": {
+     "neck": {
+      "x": 0.5,
+      "y": 0.93,
+      "confirmed": false
+     }
+    }
+   }
+  },
+  "pelvis": {
+   "back": {
+    "asset": "pelvis__back",
+    "w": 220,
+    "h": 185,
+    "joints": {
+     "waist": {
+      "x": 0.5,
+      "y": 0.06,
+      "confirmed": false
+     },
+     "hip_l": {
+      "x": 0.3,
+      "y": 0.58,
+      "confirmed": false
+     },
+     "hip_r": {
+      "x": 0.7,
+      "y": 0.58,
+      "confirmed": false
+     }
+    }
+   },
+   "back_left_45": {
+    "asset": "pelvis__back_left_45",
+    "w": 208,
+    "h": 186,
+    "joints": {
+     "waist": {
+      "x": 0.5,
+      "y": 0.06,
+      "confirmed": false
+     },
+     "hip_l": {
+      "x": 0.38,
+      "y": 0.58,
+      "confirmed": false
+     },
+     "hip_r": {
+      "x": 0.62,
+      "y": 0.58,
+      "confirmed": false
+     }
+    }
+   },
+   "back_right_45": {
+    "asset": "pelvis__back_right_45",
+    "w": 208,
+    "h": 186,
+    "joints": {
+     "waist": {
+      "x": 0.5,
+      "y": 0.06,
+      "confirmed": false
+     },
+     "hip_l": {
+      "x": 0.38,
+      "y": 0.58,
+      "confirmed": false
+     },
+     "hip_r": {
+      "x": 0.62,
+      "y": 0.58,
+      "confirmed": false
+     }
+    }
+   },
+   "front": {
+    "asset": "pelvis__front",
+    "w": 217,
+    "h": 185,
+    "joints": {
+     "waist": {
+      "x": 0.5,
+      "y": 0.06,
+      "confirmed": false
+     },
+     "hip_l": {
+      "x": 0.7,
+      "y": 0.58,
+      "confirmed": false
+     },
+     "hip_r": {
+      "x": 0.3,
+      "y": 0.58,
+      "confirmed": false
+     }
+    }
+   },
+   "front_left_45": {
+    "asset": "pelvis__front_left_45",
+    "w": 208,
+    "h": 184,
+    "joints": {
+     "waist": {
+      "x": 0.5,
+      "y": 0.06,
+      "confirmed": false
+     },
+     "hip_l": {
+      "x": 0.62,
+      "y": 0.58,
+      "confirmed": false
+     },
+     "hip_r": {
+      "x": 0.38,
+      "y": 0.58,
+      "confirmed": false
+     }
+    }
+   },
+   "front_right_45": {
+    "asset": "pelvis__front_right_45",
+    "w": 225,
+    "h": 227,
+    "joints": {
+     "waist": {
+      "x": 0.5,
+      "y": 0.06,
+      "confirmed": false
+     },
+     "hip_l": {
+      "x": 0.62,
+      "y": 0.58,
+      "confirmed": false
+     },
+     "hip_r": {
+      "x": 0.38,
+      "y": 0.58,
+      "confirmed": false
+     }
+    }
+   },
+   "left_profile": {
+    "asset": "pelvis__left_profile",
+    "w": 168,
+    "h": 186,
+    "joints": {
+     "waist": {
+      "x": 0.5,
+      "y": 0.06,
+      "confirmed": false
+     },
+     "hip_l": {
+      "x": 0.54,
+      "y": 0.58,
+      "confirmed": false
+     },
+     "hip_r": {
+      "x": 0.46,
+      "y": 0.58,
+      "confirmed": false
+     }
+    }
+   },
+   "right_profile": {
+    "asset": "pelvis__right_profile",
+    "w": 168,
+    "h": 185,
+    "joints": {
+     "waist": {
+      "x": 0.5,
+      "y": 0.06,
+      "confirmed": false
+     },
+     "hip_l": {
+      "x": 0.54,
+      "y": 0.58,
+      "confirmed": false
+     },
+     "hip_r": {
+      "x": 0.46,
+      "y": 0.58,
+      "confirmed": false
+     }
+    }
+   }
+  },
+  "torso": {
+   "back": {
+    "asset": "torso__back",
+    "w": 216,
+    "h": 313,
+    "joints": {
+     "neck": {
+      "x": 0.5,
+      "y": 0.05,
+      "confirmed": false
+     },
+     "waist": {
+      "x": 0.5,
+      "y": 0.95,
+      "confirmed": false
+     },
+     "shoulder_l": {
+      "x": 0.14,
+      "y": 0.45,
+      "confirmed": false
+     },
+     "shoulder_r": {
+      "x": 0.86,
+      "y": 0.45,
+      "confirmed": false
+     }
+    }
+   },
+   "back_left_45": {
+    "asset": "torso__back_left_45",
+    "w": 194,
+    "h": 312,
+    "joints": {
+     "neck": {
+      "x": 0.5,
+      "y": 0.05,
+      "confirmed": false
+     },
+     "waist": {
+      "x": 0.5,
+      "y": 0.95,
+      "confirmed": false
+     },
+     "shoulder_l": {
+      "x": 0.284,
+      "y": 0.45,
+      "confirmed": false
+     },
+     "shoulder_r": {
+      "x": 0.716,
+      "y": 0.45,
+      "confirmed": false
+     }
+    }
+   },
+   "back_right_45": {
+    "asset": "torso__back_right_45",
+    "w": 194,
+    "h": 312,
+    "joints": {
+     "neck": {
+      "x": 0.5,
+      "y": 0.05,
+      "confirmed": false
+     },
+     "waist": {
+      "x": 0.5,
+      "y": 0.95,
+      "confirmed": false
+     },
+     "shoulder_l": {
+      "x": 0.284,
+      "y": 0.45,
+      "confirmed": false
+     },
+     "shoulder_r": {
+      "x": 0.716,
+      "y": 0.45,
+      "confirmed": false
+     }
+    }
+   },
+   "front": {
+    "asset": "torso__front",
+    "w": 217,
+    "h": 313,
+    "joints": {
+     "neck": {
+      "x": 0.5,
+      "y": 0.05,
+      "confirmed": false
+     },
+     "waist": {
+      "x": 0.5,
+      "y": 0.95,
+      "confirmed": false
+     },
+     "shoulder_l": {
+      "x": 0.86,
+      "y": 0.45,
+      "confirmed": false
+     },
+     "shoulder_r": {
+      "x": 0.14,
+      "y": 0.45,
+      "confirmed": false
+     }
+    }
+   },
+   "front_left_45": {
+    "asset": "torso__front_left_45",
+    "w": 198,
+    "h": 313,
+    "joints": {
+     "neck": {
+      "x": 0.5,
+      "y": 0.05,
+      "confirmed": false
+     },
+     "waist": {
+      "x": 0.5,
+      "y": 0.95,
+      "confirmed": false
+     },
+     "shoulder_l": {
+      "x": 0.716,
+      "y": 0.45,
+      "confirmed": false
+     },
+     "shoulder_r": {
+      "x": 0.284,
+      "y": 0.45,
+      "confirmed": false
+     }
+    }
+   },
+   "front_right_45": {
+    "asset": "torso__front_right_45",
+    "w": 198,
+    "h": 313,
+    "joints": {
+     "neck": {
+      "x": 0.5,
+      "y": 0.05,
+      "confirmed": false
+     },
+     "waist": {
+      "x": 0.5,
+      "y": 0.95,
+      "confirmed": false
+     },
+     "shoulder_l": {
+      "x": 0.716,
+      "y": 0.45,
+      "confirmed": false
+     },
+     "shoulder_r": {
+      "x": 0.284,
+      "y": 0.45,
+      "confirmed": false
+     }
+    }
+   },
+   "left_profile": {
+    "asset": "torso__left_profile",
+    "w": 165,
+    "h": 313,
+    "joints": {
+     "neck": {
+      "x": 0.5,
+      "y": 0.05,
+      "confirmed": false
+     },
+     "waist": {
+      "x": 0.5,
+      "y": 0.95,
+      "confirmed": false
+     },
+     "shoulder_l": {
+      "x": 0.572,
+      "y": 0.45,
+      "confirmed": false
+     },
+     "shoulder_r": {
+      "x": 0.428,
+      "y": 0.45,
+      "confirmed": false
+     }
+    }
+   },
+   "right_profile": {
+    "asset": "torso__right_profile",
+    "w": 165,
+    "h": 313,
+    "joints": {
+     "neck": {
+      "x": 0.5,
+      "y": 0.05,
+      "confirmed": false
+     },
+     "waist": {
+      "x": 0.5,
+      "y": 0.95,
+      "confirmed": false
+     },
+     "shoulder_l": {
+      "x": 0.572,
+      "y": 0.45,
+      "confirmed": false
+     },
+     "shoulder_r": {
+      "x": 0.428,
+      "y": 0.45,
+      "confirmed": false
+     }
+    }
+   }
+  }
+ },
+ "draw_order": {
+  "front": [
+   "thigh_l",
+   "thigh_r",
+   "calf_l",
+   "calf_r",
+   "foot_l",
+   "foot_r",
+   "pelvis",
+   "torso",
+   "upper_arm_l",
+   "upper_arm_r",
+   "forearm_l",
+   "forearm_r",
+   "hand_l",
+   "hand_r",
+   "head"
+  ],
+  "front_left_45": [
+   "upper_arm_r",
+   "forearm_r",
+   "hand_r",
+   "thigh_r",
+   "calf_r",
+   "foot_r",
+   "pelvis",
+   "torso",
+   "thigh_l",
+   "calf_l",
+   "foot_l",
+   "upper_arm_l",
+   "forearm_l",
+   "hand_l",
+   "head"
+  ],
+  "left_profile": [
+   "upper_arm_r",
+   "forearm_r",
+   "hand_r",
+   "thigh_r",
+   "calf_r",
+   "foot_r",
+   "pelvis",
+   "torso",
+   "thigh_l",
+   "calf_l",
+   "foot_l",
+   "upper_arm_l",
+   "forearm_l",
+   "hand_l",
+   "head"
+  ],
+  "back_left_45": [
+   "upper_arm_r",
+   "forearm_r",
+   "hand_r",
+   "thigh_r",
+   "calf_r",
+   "foot_r",
+   "pelvis",
+   "torso",
+   "thigh_l",
+   "calf_l",
+   "foot_l",
+   "upper_arm_l",
+   "forearm_l",
+   "hand_l",
+   "head"
+  ],
+  "back": [
+   "thigh_l",
+   "thigh_r",
+   "calf_l",
+   "calf_r",
+   "foot_l",
+   "foot_r",
+   "pelvis",
+   "torso",
+   "upper_arm_l",
+   "upper_arm_r",
+   "forearm_l",
+   "forearm_r",
+   "hand_l",
+   "hand_r",
+   "head"
+  ],
+  "back_right_45": [
+   "upper_arm_l",
+   "forearm_l",
+   "hand_l",
+   "thigh_l",
+   "calf_l",
+   "foot_l",
+   "pelvis",
+   "torso",
+   "thigh_r",
+   "calf_r",
+   "foot_r",
+   "upper_arm_r",
+   "forearm_r",
+   "hand_r",
+   "head"
+  ],
+  "right_profile": [
+   "upper_arm_l",
+   "forearm_l",
+   "hand_l",
+   "thigh_l",
+   "calf_l",
+   "foot_l",
+   "pelvis",
+   "torso",
+   "thigh_r",
+   "calf_r",
+   "foot_r",
+   "upper_arm_r",
+   "forearm_r",
+   "hand_r",
+   "head"
+  ],
+  "front_right_45": [
+   "upper_arm_l",
+   "forearm_l",
+   "hand_l",
+   "thigh_l",
+   "calf_l",
+   "foot_l",
+   "pelvis",
+   "torso",
+   "thigh_r",
+   "calf_r",
+   "foot_r",
+   "upper_arm_r",
+   "forearm_r",
+   "hand_r",
+   "head"
+  ]
+ }
+}

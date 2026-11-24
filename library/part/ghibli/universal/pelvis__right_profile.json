@@ -1,0 +1,43 @@
+{
+ "key": "part/ghibli/universal/pelvis__right_profile",
+ "category": "part",
+ "style": "ghibli",
+ "group": "universal",
+ "name": "pelvis__right_profile",
+ "score": 97.86,
+ "params": {
+  "size": 420,
+  "colors": 12,
+  "blur": 1,
+  "simplify": 1,
+  "omit": 10,
+  "smooth": 1,
+  "ink": 0,
+  "seed": 1,
+  "bgtol": 40,
+  "holes": 0,
+  "clean": 1,
+  "fringe": 5
+ },
+ "palette": [
+  "#c97f60",
+  "#fbb68a",
+  "#622f23",
+  "#b1725b",
+  "#6f3728",
+  "#9d604b",
+  "#7c4232",
+  "#8b503d"
+ ],
+ "w": 168,
+ "h": 185,
+ "bg": {
+  "alpha": false,
+  "r": 5.224350940017905,
+  "g": 252.07573858549688,
+  "b": 3.648880931065354
+ },
+ "paths": 88,
+ "rounds": 1,
+ "savedAt": "2026-11-24T12:59:20.726Z"
+}

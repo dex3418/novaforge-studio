@@ -1,0 +1,45 @@
+{
+ "key": "part/ghibli/universal/torso__left_profile",
+ "category": "part",
+ "style": "ghibli",
+ "group": "universal",
+ "name": "torso__left_profile",
+ "score": 97.5,
+ "params": {
+  "size": 420,
+  "colors": 12,
+  "blur": 1,
+  "simplify": 1,
+  "omit": 10,
+  "smooth": 1,
+  "ink": 0,
+  "seed": 1,
+  "bgtol": 40,
+  "holes": 0,
+  "clean": 1,
+  "fringe": 5
+ },
+ "palette": [
+  "#fdb98c",
+  "#ca8162",
+  "#57381f",
+  "#612f22",
+  "#6c3728",
+  "#824935",
+  "#af725a",
+  "#985d47",
+  "#ebab87",
+  "#d99a79"
+ ],
+ "w": 165,
+ "h": 313,
+ "bg": {
+  "alpha": false,
+  "r": 5.224350940017905,
+  "g": 252.07573858549688,
+  "b": 3.648880931065354
+ },
+ "paths": 226,
+ "rounds": 1,
+ "savedAt": "2026-11-24T12:59:19.773Z"
+}

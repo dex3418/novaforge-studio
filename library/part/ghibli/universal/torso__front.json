@@ -1,0 +1,46 @@
+{
+ "key": "part/ghibli/universal/torso__front",
+ "category": "part",
+ "style": "ghibli",
+ "group": "universal",
+ "name": "torso__front",
+ "score": 98.49,
+ "params": {
+  "size": 420,
+  "colors": 12,
+  "blur": 1,
+  "simplify": 1,
+  "omit": 10,
+  "smooth": 1,
+  "ink": 0,
+  "seed": 1,
+  "bgtol": 40,
+  "holes": 0,
+  "clean": 1,
+  "fringe": 5
+ },
+ "palette": [
+  "#feb98b",
+  "#cb8061",
+  "#5c3520",
+  "#763e2c",
+  "#8e543e",
+  "#bd7c62",
+  "#ebab87",
+  "#a1654d",
+  "#af7159",
+  "#d79a7a",
+  "#e29a72"
+ ],
+ "w": 217,
+ "h": 313,
+ "bg": {
+  "alpha": false,
+  "r": 5.224350940017905,
+  "g": 252.07573858549688,
+  "b": 3.648880931065354
+ },
+ "paths": 182,
+ "rounds": 1,
+ "savedAt": "2026-11-24T12:59:19.592Z"
+}

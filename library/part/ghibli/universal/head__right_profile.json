@@ -1,0 +1,45 @@
+{
+ "key": "part/ghibli/universal/head__right_profile",
+ "category": "part",
+ "style": "ghibli",
+ "group": "universal",
+ "name": "head__right_profile",
+ "score": 97.88,
+ "params": {
+  "size": 420,
+  "colors": 12,
+  "blur": 1,
+  "simplify": 1,
+  "omit": 10,
+  "smooth": 1,
+  "ink": 0,
+  "seed": 1,
+  "bgtol": 40,
+  "holes": 0,
+  "clean": 1,
+  "fringe": 5
+ },
+ "palette": [
+  "#fdbb91",
+  "#cb8263",
+  "#55351e",
+  "#643221",
+  "#7a422e",
+  "#b07159",
+  "#955b44",
+  "#eeaf8c",
+  "#e2a07d",
+  "#d49473"
+ ],
+ "w": 247,
+ "h": 346,
+ "bg": {
+  "alpha": false,
+  "r": 5.224350940017905,
+  "g": 252.07573858549688,
+  "b": 3.648880931065354
+ },
+ "paths": 238,
+ "rounds": 1,
+ "savedAt": "2026-11-24T12:59:19.430Z"
+}

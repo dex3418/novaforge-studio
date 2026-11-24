@@ -1,0 +1,44 @@
+{
+ "key": "part/ghibli/universal/torso__back_right_45",
+ "category": "part",
+ "style": "ghibli",
+ "group": "universal",
+ "name": "torso__back_right_45",
+ "score": 98.07,
+ "params": {
+  "size": 420,
+  "colors": 12,
+  "blur": 1,
+  "simplify": 1,
+  "omit": 10,
+  "smooth": 1,
+  "ink": 0,
+  "seed": 1,
+  "bgtol": 40,
+  "holes": 0,
+  "clean": 1,
+  "fringe": 5
+ },
+ "palette": [
+  "#feb98a",
+  "#ca7e5f",
+  "#633122",
+  "#573820",
+  "#703a28",
+  "#884e3a",
+  "#e4a17d",
+  "#b8795f",
+  "#a2644d"
+ ],
+ "w": 194,
+ "h": 312,
+ "bg": {
+  "alpha": false,
+  "r": 5.224350940017905,
+  "g": 252.07573858549688,
+  "b": 3.648880931065354
+ },
+ "paths": 188,
+ "rounds": 1,
+ "savedAt": "2026-11-24T12:59:20.062Z"
+}

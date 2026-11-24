@@ -1,0 +1,45 @@
+{
+ "key": "part/ghibli/universal/torso__front_left_45",
+ "category": "part",
+ "style": "ghibli",
+ "group": "universal",
+ "name": "torso__front_left_45",
+ "score": 98.05,
+ "params": {
+  "size": 420,
+  "colors": 12,
+  "blur": 1,
+  "simplify": 1,
+  "omit": 10,
+  "smooth": 1,
+  "ink": 0,
+  "seed": 1,
+  "bgtol": 40,
+  "holes": 0,
+  "clean": 1,
+  "fringe": 5
+ },
+ "palette": [
+  "#fdba8e",
+  "#ca8061",
+  "#58371f",
+  "#653223",
+  "#753d2b",
+  "#9e624c",
+  "#b4765d",
+  "#864d39",
+  "#e4a380",
+  "#d49371"
+ ],
+ "w": 198,
+ "h": 313,
+ "bg": {
+  "alpha": false,
+  "r": 5.224350940017905,
+  "g": 252.07573858549688,
+  "b": 3.648880931065354
+ },
+ "paths": 173,
+ "rounds": 1,
+ "savedAt": "2026-11-24T12:59:19.684Z"
+}

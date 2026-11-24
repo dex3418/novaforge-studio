@@ -1,0 +1,43 @@
+{
+ "key": "part/ghibli/universal/pelvis__front",
+ "category": "part",
+ "style": "ghibli",
+ "group": "universal",
+ "name": "pelvis__front",
+ "score": 98.12,
+ "params": {
+  "size": 420,
+  "colors": 12,
+  "blur": 1,
+  "simplify": 1,
+  "omit": 10,
+  "smooth": 1,
+  "ink": 0,
+  "seed": 1,
+  "bgtol": 40,
+  "holes": 0,
+  "clean": 1,
+  "fringe": 5
+ },
+ "palette": [
+  "#fdba8f",
+  "#cb8263",
+  "#5e2c21",
+  "#783e2e",
+  "#b0715b",
+  "#894e3c",
+  "#9d604b",
+  "#e0a181"
+ ],
+ "w": 217,
+ "h": 185,
+ "bg": {
+  "alpha": false,
+  "r": 5.224350940017905,
+  "g": 252.07573858549688,
+  "b": 3.648880931065354
+ },
+ "paths": 100,
+ "rounds": 1,
+ "savedAt": "2026-11-24T12:59:20.275Z"
+}

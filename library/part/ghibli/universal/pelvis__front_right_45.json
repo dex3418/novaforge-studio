@@ -1,0 +1,44 @@
+{
+ "key": "part/ghibli/universal/pelvis__front_right_45",
+ "category": "part",
+ "style": "ghibli",
+ "group": "universal",
+ "name": "pelvis__front_right_45",
+ "score": 98.01,
+ "params": {
+  "size": 420,
+  "colors": 12,
+  "blur": 1,
+  "simplify": 1,
+  "omit": 10,
+  "smooth": 1,
+  "ink": 0,
+  "seed": 1,
+  "bgtol": 40,
+  "holes": 0,
+  "clean": 1,
+  "fringe": 5
+ },
+ "palette": [
+  "#fdba8e",
+  "#cb8566",
+  "#673124",
+  "#b3745d",
+  "#9e614c",
+  "#783e2e",
+  "#894e3c",
+  "#dfa182",
+  "#5d5621"
+ ],
+ "w": 225,
+ "h": 227,
+ "bg": {
+  "alpha": false,
+  "r": 5.224350940017905,
+  "g": 252.07573858549688,
+  "b": 3.648880931065354
+ },
+ "paths": 127,
+ "rounds": 1,
+ "savedAt": "2026-11-24T12:59:20.790Z"
+}

@@ -1,0 +1,45 @@
+{
+ "key": "part/ghibli/universal/pelvis__back",
+ "category": "part",
+ "style": "ghibli",
+ "group": "universal",
+ "name": "pelvis__back",
+ "score": 98.58,
+ "params": {
+  "size": 420,
+  "colors": 12,
+  "blur": 1,
+  "simplify": 1,
+  "omit": 10,
+  "smooth": 1,
+  "ink": 0,
+  "seed": 1,
+  "bgtol": 40,
+  "holes": 0,
+  "clean": 1,
+  "fringe": 5
+ },
+ "palette": [
+  "#feba8d",
+  "#c97f60",
+  "#583221",
+  "#643124",
+  "#7a4030",
+  "#b5755e",
+  "#905541",
+  "#a46651",
+  "#e7a582",
+  "#d59373"
+ ],
+ "w": 220,
+ "h": 185,
+ "bg": {
+  "alpha": false,
+  "r": 5.224350940017905,
+  "g": 252.07573858549688,
+  "b": 3.648880931065354
+ },
+ "paths": 109,
+ "rounds": 1,
+ "savedAt": "2026-11-24T12:59:20.597Z"
+}
