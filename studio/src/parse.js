@@ -26,8 +26,14 @@ const story = require('./story');
 const path = require('path');
 
 function parseFrontmatter(src) {
-  const h = require('./header').splitHeader(src);
-  return h.matched ? { meta: h.meta, body: h.body } : { meta: {}, body: src };
+  const m = src.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+  if (!m) return { meta: {}, body: src };
+  const meta = {};
+  for (const line of m[1].split(/\r?\n/)) {
+    const i = line.indexOf(':');
+    if (i > 0) meta[line.slice(0, i).trim()] = line.slice(i + 1).trim();
+  }
+  return { meta, body: src.slice(m[0].length) };
 }
 
 function clean(s) {
@@ -101,9 +107,18 @@ function parseText(src, slug) {
   const caption = [];
   let cur = null;
   let capMode = false;
+  let fence = null;        // an ```explainer block being read: the author draws this scene's diagram by hand
 
   for (const raw of body.split(/\r?\n/)) {
     const line = raw.trimEnd();
+    if (fence) {
+      if (/^\s*```\s*$/.test(line)) {
+        try { cur.explainer = JSON.parse(fence.join('\n')); } catch (e) { cur.explainerError = 'the explainer block is not valid JSON: ' + String(e.message).slice(0, 80); }
+        fence = null;
+      } else fence.push(line);
+      continue;
+    }
+    if (cur && /^\s*```\s*explainer\s*$/i.test(line)) { fence = []; continue; }
     if (/^\s*([-*_])\1{2,}\s*$/.test(line)) continue; // horizontal rules
     const dir = line.match(/^\s*<!--\s*dir:\s*(.*?)\s*-->\s*$/);
     if (dir) {
@@ -197,6 +212,8 @@ function parseText(src, slug) {
       narration: lines ? lines.map((l) => l.narration).join(' ') : speakable(narration),
       ...(lines ? { lines } : {}),
       direction: (s.direction || []).slice(0, 8),
+      ...(s.explainer ? { explainer: s.explainer } : {}),
+      ...(s.explainerError ? { explainerError: s.explainerError } : {}),
       isTitle,
     };
   });

@@ -64,4 +64,17 @@ ok('an AI plan with an explainer beat keeps it (cleaned); a broken one is replac
   assert.ok(!kinds(bad).includes('explainer'), kinds(bad).join());
   assert.ok(/explainer/.test(buildPrompt(parsed, {}) || ''), 'the director is told about it');
 });
+ok('a diagram written into the script (```explainer block) is read, kept out of the spoken words, and wins over the AI', () => {
+  const fs = require('fs'), path = require('path');
+  const { parseText } = require('../src/parse'); const { validatePlan, rulePlan } = require('../src/plan');
+  const parsed = parseText(fs.readFileSync(path.join(__dirname, '..', 'scripts', 'explainer_demo.md'), 'utf8'), 'demo');
+  assert.ok(parsed.scenes.every((sc) => sc.explainer && !/explainer|chart|cues/.test(sc.narration)), 'the block is not spoken');
+  assert.deepStrictEqual(rulePlan(parsed).scenes.map((x) => x.kind), ['explainer', 'explainer']);
+  const ai = validatePlan({ source: 'ai', template: 'tips', scenes: parsed.scenes.map((sc) => ({ index: sc.index, kind: 'caption', data: {} })) }, parsed, rulePlan(parsed));
+  assert.deepStrictEqual(ai.scenes.map((x) => x.kind), ['explainer', 'explainer']);
+  const broken = parseText('---\ntitle: T\n---\n\n## A\nSome words here.\n\n```explainer\n{ not json\n```\n', 'b');
+  assert.ok(/not valid JSON/.test(broken.scenes[0].explainerError)); assert.notStrictEqual(rulePlan(broken).scenes[0].kind, 'explainer');
+  const thin = parseText('---\ntitle: T\n---\n\n## A\nSome words here.\n\n```explainer\n{"chart":"bars","values":[1]}\n```\n', 't');
+  assert.ok(validatePlan(rulePlan(thin), thin, rulePlan(thin)).notes.some((x) => /cannot be drawn/.test(x)));
+});
 console.log(`explainer.test.js: ${n} tests passed`);

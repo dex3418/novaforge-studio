@@ -870,7 +870,24 @@ const CHECK = {
 
 // Makes any plan (rules or AI) safe: unknown things are replaced, never trusted.
 // `fallback` = a validated rule plan; used wherever the given plan has nothing usable.
+// A diagram the author wrote into the script (an ```explainer block) always wins over what the rules or the AI picked for that scene.
+function applyAuthored(plan, parsed) {
+  if (!plan || !parsed || !Array.isArray(plan.scenes)) return plan;
+  const X = require('./explainer');
+  for (const sc of parsed.scenes || []) {
+    if (!sc.explainer) continue;
+    const d = X.normalize(sc.explainer);
+    const ps = plan.scenes.find((x) => x.index === sc.index);
+    if (!ps) continue;
+    if (!d) { (plan.notes = plan.notes || []).push(`scene ${sc.index}: the explainer block cannot be drawn (needs chart bars with 2 to 8 values, or flow with 2 to 6 boxes), so it was skipped`); continue; }
+    ps.kind = 'explainer'; ps.data = d; ps.beats = null;
+  }
+  return plan;
+}
 function validatePlan(plan, parsed, fallback, diag) {
+  return applyAuthored(validatePlanBase(plan, parsed, fallback, diag), parsed);
+}
+function validatePlanBase(plan, parsed, fallback, diag) {
   setContext(parsed);
   const p = plan && typeof plan === 'object' ? plan : {};
   const fb = fallback || null;

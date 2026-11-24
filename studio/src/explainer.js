@@ -126,7 +126,7 @@ function explainer(ctx, sc) {
   if (d.chart === 'bars') {
     const n = d.values.length, max = Math.max(...d.values, 1);
     const x0 = 40, x1 = W - 40, slot = (x1 - x0) / n, bw = Math.min(110, slot * 0.58);
-    const base = H - (d.labels.some(Boolean) ? 110 : 80), top = 150, span = base - top - 30;
+    const base = H - (d.labels.some(Boolean) ? 130 : 80), top = 150, span = base - top - 30;
     const cx = (i) => x0 + slot * (i + 0.5);
     const barTop = (i) => base - (d.values[i] / max) * span * (ctx.video ? ease((ctx.t - i * 0.07 / ctx.speed) / 0.8) : 1);
     // which bars stay bright after the latest dim cue
@@ -137,7 +137,7 @@ function explainer(ctx, sc) {
       const y = barTop(i), h = base - y, hi = hiOf(i), c = hi ? col(hi.c.tone) : muted, a = hi ? P[hi.k] : 0;
       const fill = hi ? alpha(c, 0.18 * a) : alpha(muted, 0.08);
       const stroke = hi ? c : alpha(muted, 0.75);
-      const lab = d.labels[i] ? `<text x="${cx(i)}" y="${base + 78}" text-anchor="middle" font-size="30" fill="${muted}" opacity="${dimA(i)}">${esc(d.labels[i])}</text>` : '';
+      const lab = d.labels[i] ? `<text x="${cx(i)}" y="${base + 90}" text-anchor="middle" font-size="30" fill="${muted}" opacity="${dimA(i)}">${esc(d.labels[i])}</text>` : '';
       return `<g opacity="${dimA(i)}" style="${hi ? glow(c) : ''}"><rect x="${cx(i) - bw / 2}" y="${y}" width="${bw}" height="${Math.max(0, h)}" rx="8" fill="${fill}" stroke="${stroke}" stroke-width="${hi ? 5 : 3}"/>` +
         `<text x="${cx(i)}" y="${y - 14}" text-anchor="middle" font-size="46" font-weight="700" fill="${hi ? c : text}">${Number.isInteger(v) ? v : Math.round(v * 100) / 100}</text></g>${lab}`;
     }).join('');
