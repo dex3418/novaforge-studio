@@ -120,14 +120,23 @@ const VOICES = {
     { id: 'en-US-EmmaMultilingualNeural', label: 'Emma - multilingual (test first)' },
     { id: 'en-US-BrianMultilingualNeural', label: 'Brian - multilingual (test first)' },
   ],
-  // ElevenLabs premade voices; any voice id from your own account (including a cloned one) also works as "voice:"
+  // ElevenLabs premade voices of the account. The free plan cannot use library voices (Rachel, Adam, Antoni, ...)
+  // through the API (error 402), so only premade ones are listed. A voice id from your own account also works as "voice:".
   elevenlabs: [
-    { id: '21m00Tcm4TlvDq8ikWAM', label: 'Rachel - ElevenLabs, female' },
-    { id: 'EXAVITQu4vr4xnSDxMaL', label: 'Sarah - ElevenLabs, female' },
-    { id: 'pNInz6obpgDQGcFmaJgB', label: 'Adam - ElevenLabs, male' },
-    { id: 'ErXwobaYiN019PkySvjV', label: 'Antoni - ElevenLabs, male' },
+    { id: 'EXAVITQu4vr4xnSDxMaL', label: 'Sarah - ElevenLabs, female, reassuring' },
+    { id: 'Xb7hH8MSUJpSbSDYk0k2', label: 'Alice - ElevenLabs, female, clear educator' },
+    { id: 'XrExE9yKIg1WjnnlVkGX', label: 'Matilda - ElevenLabs, female, professional' },
+    { id: 'FGY2WhTYpPnrIDTdsKH5', label: 'Laura - ElevenLabs, female, quirky' },
+    { id: 'CwhRBWXzGAHq8TQ4Fs17', label: 'Roger - ElevenLabs, male, laid-back' },
+    { id: 'JBFqnCBsd6RMkjVDRZzb', label: 'George - ElevenLabs, male, warm storyteller' },
+    { id: 'IKne3meq5aSn9XLyUdCD', label: 'Charlie - ElevenLabs, male, deep and energetic' },
+    { id: 'bIHbv24MWmeRgasZH58o', label: 'Will - ElevenLabs, male, relaxed' },
+    { id: 'N2lVS1w4EtoT3dr4eOWO', label: 'Callum - ElevenLabs, male, husky' },
+    { id: 'TX3LPaxmHKxFdv7VOQHJ', label: 'Liam - ElevenLabs, male, energetic' },
+    { id: 'SAz9YHcvj6GT2YYXdXww', label: 'River - ElevenLabs, neutral, informative' },
+    { id: 'SOYHLrjzK2X1ezoPC6cr', label: 'Harry - ElevenLabs, male, fierce' },
   ],
 };
-const DEFAULT_VOICE = { edge: 'en-IN-NeerjaNeural', elevenlabs: '21m00Tcm4TlvDq8ikWAM' };
+const DEFAULT_VOICE = { edge: 'en-IN-NeerjaNeural', elevenlabs: 'EXAVITQu4vr4xnSDxMaL' };
 
 module.exports = { FAMILIES, PALETTES, TEXTURES, TEMPLATES, TRANSITIONS, SCHEMES, DECORS, HEADERS, CSTYLES, ALIGNS, KINDS, EMOTIONS, VOICES, DEFAULT_VOICE };

@@ -92,7 +92,7 @@ function speakerLine(line, known, loose) {
 // give everyone a distinct voice that fits the engine (explicit ones win)
 function assignVoices(cast, engine, narratorVoice, lines) {
   const eleven = engine === 'elevenlabs';
-  const pools = eleven ? { m: ['pNInz6obpgDQGcFmaJgB', 'ErXwobaYiN019PkySvjV'], f: ['21m00Tcm4TlvDq8ikWAM', 'EXAVITQu4vr4xnSDxMaL'], c: ['EXAVITQu4vr4xnSDxMaL', '21m00Tcm4TlvDq8ikWAM'] } : { m: ['en-IN-PrabhatNeural', 'hi-IN-MadhurNeural', 'en-US-AndrewMultilingualNeural', 'en-US-BrianMultilingualNeural'], f: ['en-IN-NeerjaExpressiveNeural', 'hi-IN-SwaraNeural', 'en-US-AvaMultilingualNeural', 'en-US-EmmaMultilingualNeural'], c: ['hi-IN-SwaraNeural', 'en-US-AvaMultilingualNeural', 'en-IN-NeerjaExpressiveNeural'] };
+  const pools = eleven ? { m: ['CwhRBWXzGAHq8TQ4Fs17', 'JBFqnCBsd6RMkjVDRZzb', 'IKne3meq5aSn9XLyUdCD', 'bIHbv24MWmeRgasZH58o', 'N2lVS1w4EtoT3dr4eOWO'], f: ['EXAVITQu4vr4xnSDxMaL', 'Xb7hH8MSUJpSbSDYk0k2', 'XrExE9yKIg1WjnnlVkGX', 'FGY2WhTYpPnrIDTdsKH5'], c: ['TX3LPaxmHKxFdv7VOQHJ', 'FGY2WhTYpPnrIDTdsKH5'] } : { m: ['en-IN-PrabhatNeural', 'hi-IN-MadhurNeural', 'en-US-AndrewMultilingualNeural', 'en-US-BrianMultilingualNeural'], f: ['en-IN-NeerjaExpressiveNeural', 'hi-IN-SwaraNeural', 'en-US-AvaMultilingualNeural', 'en-US-EmmaMultilingualNeural'], c: ['hi-IN-SwaraNeural', 'en-US-AvaMultilingualNeural', 'en-IN-NeerjaExpressiveNeural'] };
   const ok = (id) => VOICES[eleven ? 'elevenlabs' : 'edge'].some((v) => v.id === id);
   const used = new Set([narratorVoice || DEFAULT_VOICE[eleven ? 'elevenlabs' : 'edge']]);
   cast.forEach((c) => { if (c.voice && ok(c.voice)) used.add(c.voice); });
