@@ -77,7 +77,8 @@ function listExamples() {
 }
 let pending = Promise.resolve();
 function afterChange(what, opt) {
-  try { if (!opt || opt.refresh !== false) refresh(); } catch (e) { return Promise.resolve({ ok: false, error: 'refresh failed: ' + e.message }); }
+  // the bake is rebuilt the next time something asks for it (catalog, Live Lab), not on every save: saving eight pictures used to rebuild all characters eight times
+  if (!opt || opt.refresh !== false) { baked = null; labJs = null; labFor = null; }
   if (!AUTO_PUBLISH) return Promise.resolve({ ok: true, published: false });
   pending = pending.then(() => PUB.publish(ROOT, `Learning Studio: ${what}`)).catch((e) => ({ ok: false, error: e.message }));
   return pending.then((r) => Object.assign({ published: !!r.pushed }, r));
@@ -115,8 +116,10 @@ function save(rec) {
   return path.relative(ROOT, path.join(dir, rec.name + '.svg'));
 }
 
-// every approved item on disk, with its vector, settings and the picture it was learned from
-function listLibrary() {
+// every approved item on disk. opt: { meta: true } leaves out the vector and the original picture (a light list),
+// { category, style, group } reads only that folder, { original: false } leaves out the original picture.
+function listLibrary(opt) {
+  opt = opt || {};
   const out = [];
   const add = (dir) => {
     if (!fs.existsSync(dir)) return;
@@ -127,19 +130,31 @@ function listLibrary() {
       try {
         const meta = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
         if (!CATS.includes(meta.category) || !STYLES.includes(meta.style) || !safe(meta.group) || !safe(meta.name)) continue;
-        meta.svg = fs.readFileSync(base + '.svg', 'utf8');
-        if (fs.existsSync(base + '.original.png')) meta.original = 'data:image/png;base64,' + fs.readFileSync(base + '.original.png').toString('base64');
+        if (opt.category && meta.category !== opt.category) continue;
+        if (opt.style && meta.style !== opt.style) continue;
+        if (opt.group && meta.group !== opt.group) continue;
+        if (!opt.meta) {
+          meta.svg = fs.readFileSync(base + '.svg', 'utf8');
+          if (opt.original !== false && fs.existsSync(base + '.original.png')) meta.original = 'data:image/png;base64,' + fs.readFileSync(base + '.original.png').toString('base64');
+        }
         out.push(meta);
       } catch (e) { /* skip unreadable item */ }
     }
   };
   const cd = path.join(ROOT, 'characters');
-  if (fs.existsSync(cd)) for (const id of fs.readdirSync(cd)) for (const st of STYLES) add(path.join(cd, id, 'learned', st));
-  for (const c of CATS.filter((x) => x !== 'character')) for (const st of STYLES) {
+  if (fs.existsSync(cd) && (!opt.category || opt.category === 'character')) for (const id of fs.readdirSync(cd)) { if (opt.group && id !== opt.group) continue; for (const st of STYLES) add(path.join(cd, id, 'learned', st)); }
+  for (const c of CATS.filter((x) => x !== 'character')) { if (opt.category && c !== opt.category) continue; for (const st of STYLES) {
+    if (opt.style && st !== opt.style) continue;
     const d = path.join(ROOT, 'library', c, st);
-    if (fs.existsSync(d)) for (const g of fs.readdirSync(d)) add(path.join(d, g));
-  }
+    if (fs.existsSync(d)) for (const g of fs.readdirSync(d)) { if (opt.group && g !== opt.group) continue; add(path.join(d, g)); }
+  } }
   return out;
+}
+// one item with its vector and original picture, by key (category/style/group/name)
+function getItem(key) {
+  const m = /^([a-z]+)\/([a-z]+)\/([a-z0-9_-]{1,40})\/([a-z0-9_-]{1,40})$/.exec(String(key || ''));
+  if (!m) return null;
+  return listLibrary({ category: m[1], style: m[2], group: m[3] }).find((i) => i.name === m[4]) || null;
 }
 function remove(rec) {
   const dir = targetDir(Object.assign({}, rec, { svg: '<svg>' }));
@@ -197,7 +212,15 @@ function handler(req, res) {
     });
     return undefined;
   }
-  if (req.method === 'GET' && url === '/api/library') return send(200, { ok: true, items: listLibrary() });
+  if (req.method === 'GET' && url === '/api/library') {
+    // ?meta=1 gives a light list (no vectors, no pictures); category, style, group narrow it; original=0 leaves the pictures out
+    const q = new URL(req.url, 'http://x').searchParams;
+    return send(200, { ok: true, items: listLibrary({ meta: q.get('meta') === '1', original: q.get('original') !== '0', category: q.get('category') || undefined, style: q.get('style') || undefined, group: q.get('group') || undefined }) });
+  }
+  if (req.method === 'GET' && url === '/api/item') {
+    const it = getItem(new URL(req.url, 'http://x').searchParams.get('key'));
+    return send(it ? 200 : 404, it ? { ok: true, item: it } : { ok: false, error: 'no such item' });
+  }
   if (req.method === 'POST' && url === '/api/delete') {
     const chunks = []; req.on('data', (c) => chunks.push(c));
     req.on('end', () => { try { const rec = JSON.parse(Buffer.concat(chunks).toString('utf8')); remove(rec); afterChange(`remove ${rec.group}/${rec.name}`, rec.category === 'part' ? { refresh: false } : undefined).then((r) => send(200, Object.assign({ ok: true }, r, { ok: r.ok !== false }))); } catch (e) { send(400, { ok: false, error: e.message }); } });
@@ -222,4 +245,4 @@ if (require.main === module) {
     console.log('Approved vectors are written into this repo (characters/ and library/). Stop with Ctrl+C.');
   });
 }
-module.exports = { loadRig, saveRig, rigFile, saveExample, listExamples, labBundle, catalog, refresh, afterChange, save, targetDir, handler, listLibrary, remove, pageHtml };
+module.exports = { loadRig, saveRig, rigFile, saveExample, listExamples, labBundle, catalog, refresh, afterChange, save, targetDir, handler, listLibrary, getItem, remove, pageHtml };

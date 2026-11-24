@@ -1127,6 +1127,13 @@ const pkey = (p) => [p.size, p.colors, p.blur, p.simplify.toFixed(2), p.omit.toF
 const svgUrl = (svg) => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
 const hex = (c) => '#' + c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
 function canvasOf(w, h) { const c = document.createElement('canvas'); c.width = Math.max(1, w); c.height = Math.max(1, h); return c; }
+// Draws an SVG string without leaving it in the browser's picture cache: a blob address is handed back as soon as the picture has loaded,
+// where a data: address of several hundred KB per trace (the old way) is cached by the browser once for every candidate that was scored.
+async function loadSvgImg(svg) {
+  const u = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+  try { const img = await loadImg(u); return img; } finally { URL.revokeObjectURL(u); }
+}
+function dropImg(img) { if (img) img.src = ''; }
 function loadImg(url) { return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('image failed to load')); i.src = url; }); }
 
 /* ---------- storage: IndexedDB library + localStorage profile ---------- */
@@ -1142,8 +1149,32 @@ function openDb() {
 }
 const dbTx = (mode) => S.db.transaction('lib', mode).objectStore('lib');
 const dbReq = (r) => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
-async function libPut(rec) { S.memlib.set(rec.key, rec); if (S.db) try { await dbReq(dbTx('readwrite').put(rec)); } catch (e) { /* memory copy kept */ } }
-async function libAll() { if (S.db) try { return await dbReq(dbTx('readonly').getAll()); } catch (e) { /* fallthrough */ } return [...S.memlib.values()]; }
+// Saved items live in IndexedDB only. The in-memory map is the fallback for a browser without IndexedDB, so it is not filled when the database works
+// (it used to hold a second copy of every vector and original picture, which grew with every character).
+async function libPut(rec) { if (S.db) { try { await dbReq(dbTx('readwrite').put(rec)); S.memlib.delete(rec.key); return; } catch (e) { /* fall back to memory */ } } S.memlib.set(rec.key, rec); }
+const keyRange = (prefix) => (prefix ? IDBKeyRange.bound(prefix, prefix + '\uffff') : null);
+// every saved item (with its original picture), optionally only keys that start with prefix. Use libEach for anything big.
+async function libAll(prefix) {
+  if (S.db) try { return await dbReq(dbTx('readonly').getAll(keyRange(prefix))); } catch (e) { /* fallthrough */ }
+  return [...S.memlib.values()].filter((r) => !prefix || r.key.startsWith(prefix));
+}
+// walk the saved items one at a time and keep only what fn returns, so the original pictures never pile up in memory
+async function libEach(fn, prefix) {
+  if (S.db) {
+    try {
+      return await new Promise((res, rej) => {
+        const out = []; const req = dbTx('readonly').openCursor(keyRange(prefix));
+        req.onsuccess = () => { const c = req.result; if (!c) return res(out); const v = fn(c.value); if (v !== undefined) out.push(v); c.continue(); };
+        req.onerror = () => rej(req.error);
+      });
+    } catch (e) { /* fallthrough */ }
+  }
+  const out = []; for (const r of S.memlib.values()) if (!prefix || r.key.startsWith(prefix)) { const v = fn(r); if (v !== undefined) out.push(v); } return out;
+}
+async function libGet(key) {
+  if (S.db) try { const r = await dbReq(dbTx('readonly').get(key)); if (r) return r; } catch (e) { /* fallthrough */ }
+  return S.memlib.get(key) || null;
+}
 async function libDel(key) { S.memlib.delete(key); if (S.db) try { await dbReq(dbTx('readwrite').delete(key)); } catch (e) { /* ignore */ } }
 function loadProfile() { try { S.profile = JSON.parse(localStorage.getItem('nf-learn-profile') || '{}'); } catch (e) { S.profile = {}; } }
 function saveProfile() { try { localStorage.setItem('nf-learn-profile', JSON.stringify(S.profile)); } catch (e) { /* ignore */ } }
@@ -1165,6 +1196,7 @@ async function readSheet(file) {
   c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
   const ctx = c.getContext('2d', { willReadFrequently: true });
   const bg = detectBg(ctx.getImageData(0, 0, c.width, c.height));
+  if (bmp.close) bmp.close();                      // hand the decoded picture back now instead of waiting for the garbage collector
   return { name: file.name, canvas: c, w: c.width, h: c.height, bg };
 }
 // background = the most common colour on the outer ring of the picture; transparent PNGs use alpha instead
@@ -1469,6 +1501,7 @@ function prepare(item, p) {
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(item.crop, 0, 0, w, h);
   const img = ctx.getImageData(0, 0, w, h);
+  freeCanvas(c);
   const fg = computeFg(img, w, h, item.bg, p.bgtol, p.holes, item.nobg);
   if (p.clean && !item.nobg) focusFigure(fg, w, h, p.clean, item.near || 0);
   if (p.fringe && !item.nobg) pullInEdges(img.data, fg, w, h, Math.max(1, Math.round(p.fringe * sc)), item.bg);    // p.fringe is in source pixels
@@ -1477,6 +1510,14 @@ function prepare(item, p) {
   item._prep = { key, w, h, orig: img.data, work, fg };
   return item._prep;
 }
+// The working copy of a picture (three full-size pixel arrays) is only needed while that picture is being traced or refined.
+// Keep it for the newest pictures and let go of the rest; prepare() builds it again if you come back to one.
+function trimPrep(keep) {
+  const live = S.items.filter((i) => i._prep);
+  for (const it of live.slice(0, Math.max(0, live.length - 2))) if (it !== keep) it._prep = null;
+}
+// give a canvas's pixel memory back right away (a dropped canvas can otherwise sit in memory until the browser decides to collect it)
+function freeCanvas(c) { if (c) { c.width = 0; c.height = 0; } }
 function kmeans(pts, k, seed, iters = 8) {
   const rnd = mulberry(seed * 7919 + 13);
   const n = pts.length / 3;
@@ -1652,11 +1693,13 @@ function buildSvg(prep, q, p, item) {
 }
 // raster the vector again and compare with the picture (only where picture or vector has content)
 async function scoreSvg(prep, svg, wantDiff) {
-  const img = await loadImg(svgUrl(svg));
+  const img = await loadSvgImg(svg);
   const { w, h, orig, fg } = prep;
   const c = canvasOf(w, h), ctx = c.getContext('2d', { willReadFrequently: true });
   ctx.drawImage(img, 0, 0, w, h);
+  dropImg(img);
   const v = ctx.getImageData(0, 0, w, h).data;
+  freeCanvas(c);
   let tot = 0, cnt = 0;
   let dctx = null, dimg = null;
   if (wantDiff) { const dc = canvasOf(w, h); dctx = dc.getContext('2d'); dimg = dctx.createImageData(w, h); wantDiff.canvas = dc; }
@@ -1758,6 +1801,9 @@ async function finishRound(item) {
   const rec = item.history[item.cur];
   const d = {}; await scoreSvg(prepare(item, rec.p), rec.svg, d);
   rec.diffUrl = d.canvas ? d.canvas.toDataURL() : '';
+  freeCanvas(d.canvas);
+  for (const h of item.history) if (h !== rec) h.diffUrl = '';       // a difference picture is rebuilt when you pick that round, so only the current one is kept
+  trimPrep(item);
   status(''); renderCard(item); renderOutput();
 }
 async function doAccurate(item) {
@@ -1771,6 +1817,7 @@ async function doAccurate(item) {
     key, category: S.cat, style: S.style, group, name: item.name, svg: rec.svg, score: +rec.score.toFixed(2), params: rec.p,
     palette: rec.palette, w: item.ow || item.crop.width, h: item.oh || item.crop.height, bg: item.bg, paths: rec.paths, rounds: item.history.length, original: orig.toDataURL('image/png'), savedAt: new Date().toISOString(),
   };
+  freeCanvas(orig);
   await libPut(record);
   const pf = prof(); pf.acc.push({ p: rec.p, score: rec.score, t: Date.now() }); pf.acc = pf.acc.slice(-40); saveProfile();
   let where = 'this browser';
@@ -1788,18 +1835,21 @@ async function doAccurate(item) {
 
 /* ---------- UI: cards and output ---------- */
 function swatches(pal) { return `<div class="sw">${pal.map((c) => `<i style="background:${c}" title="${c}"></i>`).join('')}</div>`; }
+// One short blob address per traced round instead of a data: address of the whole drawing repeated in the page for every redraw of the card
+function roundUrl(h) { return h.url || (h.url = URL.createObjectURL(new Blob([h.svg], { type: 'image/svg+xml' }))); }
+function freeRounds(item) { for (const h of item.history) if (h.url) { URL.revokeObjectURL(h.url); h.url = null; } }
 function renderCard(item) {
   const el = item.el || (item.el = document.createElement('div'));
   const rec = item.history[item.cur];
   el.className = 'card' + (item.saved ? ' saved' : '');
   el.dataset.id = item.id;
-  const hist = item.history.map((h, i) => `<div class="h ${i === item.cur ? 'cur' : ''}" data-act="pick" data-i="${i}"><img src="${svgUrl(h.svg)}" alt=""><div>#${h.round} · ${h.score.toFixed(1)}%</div></div>`).join('');
+  const hist = item.history.map((h, i) => `<div class="h ${i === item.cur ? 'cur' : ''}" data-act="pick" data-i="${i}"><img src="${roundUrl(h)}" alt=""><div>#${h.round} · ${h.score.toFixed(1)}%</div></div>`).join('');
   el.innerHTML = `
     <h3>${esc(item.name)} <span class="badge">match ${rec.score.toFixed(1)}%</span> <span class="badge">${rec.paths} shapes · ${(rec.bytes / 1024).toFixed(1)} KB</span>
       <span class="badge">round ${rec.round}${rec.note ? ' · ' + esc(rec.note) : ''}</span>${item.saved ? '<span class="badge ok">saved to library</span>' : ''}</h3>
     <div class="trio">
       <div><div class="pic"><img src="${item.origUrl}" alt="original"></div><div class="cap">What you gave</div></div>
-      <div><div class="pic"><img src="${svgUrl(rec.svg)}" alt="vector"></div><div class="cap">Vector (round ${rec.round})</div></div>
+      <div><div class="pic"><img src="${roundUrl(rec)}" alt="vector"></div><div class="cap">Vector (round ${rec.round})</div></div>
       <div class="d"><div class="pic"><img src="${rec.diffUrl || ''}" alt="difference"></div><div class="cap">Difference (darker red = further from your picture)</div></div>
     </div>
     ${swatches(rec.palette)}
@@ -1809,7 +1859,7 @@ function renderCard(item) {
       <button class="act b-warn" data-act="refine">Needs refinement</button>
       <button class="act b-bad" data-act="diff">Different</button>
     </div>
-    <details><summary>Vector code</summary><textarea readonly rows="5" onclick="this.select()">${esc(rec.svg)}</textarea>
+    <details><summary>Vector code</summary><textarea readonly rows="5" onclick="this.select()"></textarea>
       <div class="btns"><button class="ghost" data-act="dl">Download this SVG</button><button class="ghost" data-act="copy">Copy SVG</button></div></details>`;
   return el;
 }
@@ -1842,7 +1892,8 @@ function setCat(k) {
   if (k !== S.cat) { S.cat = k; clearAll(); const c = CATS[k]; $('#names').value = c.names; $('#splitMode').value = c.split; $('#clean').value = k === 'part' ? '1' : '2'; closeJoints(); }
   renderTabs();
 }
-function clearAll() { S.sheets = []; S.plan = []; S.items = []; $('#cards').innerHTML = ''; $('#cardsBox').style.display = 'none'; $('#outBox').style.display = 'none'; $('#sheets').innerHTML = ''; $('#btnLearn').disabled = true; status(''); $('#files').value = ''; }
+function clearAll() { for (const sh of S.sheets) freeCanvas(sh.canvas); for (const it of S.items) { freeCanvas(it.crop); it._prep = null; freeRounds(it); }
+  S.sheets = []; S.plan = []; S.items = []; $('#cards').innerHTML = ''; $('#cardsBox').style.display = 'none'; $('#outBox').style.display = 'none'; $('#sheets').innerHTML = ''; $('#btnLearn').disabled = true; status(''); $('#files').value = ''; }
 
 /* ---------- detect and learn ---------- */
 function namesList() { return $('#names').value.split(/[\n,]+/).map((s) => slug(s)).filter(Boolean); }
@@ -1908,6 +1959,7 @@ async function doDetect() {
   const files = [...$('#files').files];
   if (!files.length) return toast('Choose at least one picture first');
   status('Reading pictures…'); await sleep(0);
+  for (const sh of S.sheets) freeCanvas(sh.canvas);
   S.sheets = [];
   for (const f of files) { try { S.sheets.push(await readSheet(f)); } catch (e) { toast(`Could not read ${f.name}`); } }
   const names = namesList();
@@ -1940,13 +1992,13 @@ async function doLearn() {
     S.items = []; $('#cards').innerHTML = ''; $('#cardsBox').style.display = '';
     document.querySelectorAll('[data-plan]').forEach((i) => { S.plan[+i.dataset.plan].name = slug(i.value) || S.plan[+i.dataset.plan].name; });
     const used = new Map(); S.plan.forEach((p) => { const k = used.get(p.name) || 0; used.set(p.name, k + 1); if (k) p.name += '_' + (k + 1); });
-    const p0 = initialParams();
+    const p0 = initialParams(); const fullPx = {};
     for (let i = 0; i < S.plan.length; i++) {
       const pl = S.plan[i], sh = S.sheets[pl.si];
       status(`Learning ${pl.name} (${i + 1}/${S.plan.length})…`); await sleep(0);
       const crop = canvasOf(pl.box.w, pl.box.h);
       if (pl.rd) { // smart reader: only this figure's silhouette, neighbours, labels and the pale ground shadow are transparent
-        const full = sh.canvas.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, sh.w, sh.h).data;
+        const full = fullPx[pl.si] || (fullPx[pl.si] = sh.canvas.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, sh.w, sh.h).data);   // read each sheet once, not once per figure
         const cr = SheetReader.cropRgba(pl.rd.res, pl.rd.item, full, sh.w, sh.h);
         crop.getContext('2d').putImageData(new ImageData(cr.rgba, cr.w, cr.h), 0, 0);
       } else crop.getContext('2d').drawImage(sh.canvas, pl.box.x, pl.box.y, pl.box.w, pl.box.h, 0, 0, pl.box.w, pl.box.h);
@@ -1957,11 +2009,13 @@ async function doLearn() {
       const rec = await evalParams(item, Object.assign({}, p0, { holes, clean: Number($('#clean').value) }));
       rec.round = 1; rec.note = 'first trace'; rec.t = Date.now();
       item.history.push(rec);
-      const d = {}; await scoreSvg(prepare(item, rec.p), rec.svg, d); rec.diffUrl = d.canvas ? d.canvas.toDataURL() : '';
-      S.items.push(item);
+      const d = {}; await scoreSvg(prepare(item, rec.p), rec.svg, d); rec.diffUrl = d.canvas ? d.canvas.toDataURL() : ''; freeCanvas(d.canvas);
+      freeCanvas(view);
+      S.items.push(item); trimPrep(item);
       $('#cards').appendChild(renderCard(item));
       renderOutput();
     }
+    for (const k of Object.keys(fullPx)) delete fullPx[k];
     status(`Done: ${S.items.length} item${S.items.length === 1 ? '' : 's'} traced. Judge each one with the three buttons.`);
   } catch (e) { console.error(e); status('Something failed: ' + e.message); }
   S.busy = false; $('#btnLearn').disabled = false;
@@ -2010,19 +2064,28 @@ function sheetSvg(items) {
 }
 async function comparisonPng(items) {
   const svg = sheetSvg(items);
-  const img = await loadImg(svgUrl(svg));
+  const img = await loadSvgImg(svg);
   const m = /viewBox="0 0 (\d+) (\d+)"/.exec(svg), c = canvasOf(+m[1], +m[2]);
-  c.getContext('2d').drawImage(img, 0, 0);
-  return new Promise((r) => c.toBlob(r, 'image/png'));
+  c.getContext('2d').drawImage(img, 0, 0); dropImg(img);
+  return new Promise((r) => c.toBlob((blob) => { freeCanvas(c); r(blob); }, 'image/png'));
 }
 
 /* ---------- library view ---------- */
 // items saved by the server live in the repo folders: any browser sees them, so nothing has to be learned twice
-async function syncFromServer() {
+// Asks the server for a light list (no vectors, no pictures), then fetches one item at a time, and only the ones this browser lacks or has an older copy of.
+// scope narrows it to one folder, for example { category: 'part', style: 'ghibli', group: 'mannequin' }.
+async function syncFromServer(scope) {
   if (!S.server) return;
   try {
-    const j = await (await fetch('/api/library')).json();
-    for (const it of j.items || []) { it.key = it.key || `${it.category}/${it.style}/${it.group}/${it.name}`; await libPut(it); }
+    const q = new URLSearchParams(Object.assign({ meta: '1' }, scope || {}));
+    const j = await (await fetch('/api/library?' + q)).json();
+    const have = new Map(await libEach((r) => [r.key, r.savedAt || '']));
+    for (const m of j.items || []) {
+      const key = m.key || `${m.category}/${m.style}/${m.group}/${m.name}`;
+      if (have.has(key) && String(have.get(key)) >= String(m.savedAt || '')) continue;
+      const it = (await (await fetch('/api/item?key=' + encodeURIComponent(key))).json()).item;
+      if (it) { it.key = key; await libPut(it); }
+    }
   } catch (e) { /* the browser copy is still there */ }
 }
 // open saved items again as cards: keep refining, try a different approach, or approve again
@@ -2046,8 +2109,8 @@ async function reopen(recs) {
       const p = Object.assign(presetFor(rec.category, rec.style), rec.params || {});
       const item = { id: 'i' + i, name: rec.name, crop, ow: rec.w || crop.width, oh: rec.h || crop.height, bg, nobg: !CATS[rec.category].bg, near: rec.category === 'pose' || rec.category === 'emotion' ? 0.12 : 0, history: [], cur: 0, saved: true, origUrl: rec.original };
       const h = { p, svg: rec.svg, score: rec.score, paths: rec.paths || 0, bytes: rec.svg.length, palette: rec.palette || [], round: 1, note: 'reopened from library', t: Date.now() };
-      const d = {}; await scoreSvg(prepare(item, p), h.svg, d); h.diffUrl = d.canvas ? d.canvas.toDataURL() : '';
-      item.history.push(h); S.items.push(item);
+      const d = {}; await scoreSvg(prepare(item, p), h.svg, d); h.diffUrl = d.canvas ? d.canvas.toDataURL() : ''; freeCanvas(d.canvas);
+      item.history.push(h); S.items.push(item); trimPrep(item);
       $('#cards').appendChild(renderCard(item));
     }
     renderOutput(); status(`Opened ${S.items.length} saved item${S.items.length === 1 ? '' : 's'}. Press Needs refinement or Different to continue, Accurate to save again.`);
@@ -2056,7 +2119,8 @@ async function reopen(recs) {
 }
 async function renderLibrary() {
   await syncFromServer();
-  const all = (await libAll()).sort((a, b) => a.key.localeCompare(b.key));
+  // the list only needs the vector, name and score; the original pictures stay in the database until a group is reopened or zipped
+  const all = (await libEach((r) => ({ key: r.key, category: r.category, style: r.style, group: r.group, name: r.name, score: r.score, svg: r.svg }))).sort((a, b) => a.key.localeCompare(b.key));
   $('#libSrv').textContent = S.server ? ' and written to the repo by the save server' : '';
   if (!all.length) { $('#libList').innerHTML = '<p class="hint">Nothing saved yet. Press Accurate on a picture to save it here.</p>'; return; }
   const groups = new Map();
@@ -2144,8 +2208,9 @@ async function refreshRig() {
     S.rig = null; closeJoints(); $('#rigTable').innerHTML = ''; $('#rigSummary').textContent = ''; $('#rigMissingList').textContent = '';
     $('#rigInfo').textContent = 'Type a Body id above (for example mannequin). The rig is saved under that name.'; return;
   }
-  if (!S.partsSynced) { S.partsSynced = true; await syncFromServer(); }          // pictures saved by the server earlier show up in a fresh browser too
-  const recs = (await libAll()).filter((r) => r.category === 'part' && r.style === S.style && r.group === body);
+  const scope = `part/${S.style}/${body}`;
+  if (!S.partsSynced || S.partsSynced !== scope) { S.partsSynced = scope; await syncFromServer({ category: 'part', style: S.style, group: body }); }   // pictures saved by the server earlier show up in a fresh browser too; only this body is fetched
+  const recs = await libEach((r) => ({ name: r.name, w: r.w, h: r.h, svg: r.svg }), scope + '/');       // no original pictures, no other bodies
   let server = null, local = null;
   if (S.server) { try { const j = await (await fetch(`/api/rig?style=${S.style}&body=${encodeURIComponent(body)}`)).json(); if (j.ok) server = j.rig; } catch (e) { /* the browser copy is used */ } }
   try { local = JSON.parse(localStorage.getItem(rigKey(S.style, body)) || 'null'); } catch (e) { local = null; }
@@ -2239,10 +2304,10 @@ document.addEventListener('click', async (e) => {
   if (t.id === 'jointPrev') return stepJoint(-1);
   if (t.id === 'jointNext') return stepJoint(1);
   if (t.dataset.lib) {
-    if (t.dataset.lib === 'open1') { const all = await libAll(); return reopen(all.filter((r) => r.key === t.dataset.key)); }
+    if (t.dataset.lib === 'open1') { const r = await libGet(t.dataset.key); return reopen(r ? [r] : []); }
     const arr = S.libGroups.get(t.dataset.k) || [];
-    if (t.dataset.lib === 'open') return reopen(arr);
-    if (t.dataset.lib === 'zip') download(t.dataset.k.replace(/\//g, '_') + '.zip', zipBlob(libFiles(arr)));
+    if (t.dataset.lib === 'open') return reopen(await libAll(t.dataset.k + '/'));
+    if (t.dataset.lib === 'zip') download(t.dataset.k.replace(/\//g, '_') + '.zip', zipBlob(libFiles(await libAll(t.dataset.k + '/'))));
     if (t.dataset.lib === 'del' && confirm('Delete this group from the browser library?')) { for (const r of arr) { await libDel(r.key); if (S.server) { try { await fetch('/api/delete', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(r) }); } catch (e) { /* ignore */ } } } renderLibrary(); }
     return;
   }
@@ -2281,7 +2346,12 @@ $('#files').addEventListener('change', () => { if ($('#files').files.length) doD
   fillPartSelects();
   $('#gname').addEventListener('input', () => { if (isParts()) refreshRigSoon(); });
   renderTabs();
-  window.NFL = { dropLooseBits, cutBridges, focusFigure, reopen, syncFromServer, S, CATS, PRESET, detectBoxes, readSheet, evalParams, doRefine, doDifferent, doAccurate, libAll, zipBlob, crc32, traceMask, doDetect, doLearn };
+  document.addEventListener('toggle', (e) => {          // the vector code is written into the box only when you open it
+  const d = e.target; if (!d || d.tagName !== 'DETAILS' || !d.open) return;
+  const card = d.closest && d.closest('.card'); const ta = d.querySelector('textarea'); if (!card || !ta || ta.value) return;
+  const item = S.items.find((i) => i.id === card.dataset.id); if (item) ta.value = item.history[item.cur].svg;
+}, true);
+window.NFL = { dropLooseBits, cutBridges, focusFigure, reopen, syncFromServer, S, CATS, PRESET, detectBoxes, readSheet, evalParams, doRefine, doDifferent, doAccurate, libAll, zipBlob, crc32, traceMask, doDetect, doLearn };
 })();
 </script>
 </body>
