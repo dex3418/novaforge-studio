@@ -1,0 +1,30 @@
+name: api-check
+
+# Tap "Run workflow". It makes ONE tiny ElevenLabs voice request and runs the real AI director on a
+# 2-scene script, then prints which of the two works (and why not, if it does not). Uses the repo
+# secrets ELEVENLABS_API_KEY and GEMINI_API_KEY; keys are never printed.
+
+run-name: api-check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check ElevenLabs and Gemini
+        working-directory: studio
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ secrets.GEMINI_MODEL }}
+        run: node tools/api_check.js
