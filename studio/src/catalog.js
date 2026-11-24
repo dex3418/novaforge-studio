@@ -120,11 +120,7 @@ const VOICES = {
     { id: 'en-US-EmmaMultilingualNeural', label: 'Emma - multilingual (test first)' },
     { id: 'en-US-BrianMultilingualNeural', label: 'Brian - multilingual (test first)' },
   ],
-  gemini: ['Kore', 'Puck', 'Charon', 'Zephyr', 'Fenrir', 'Leda', 'Aoede', 'Sulafat', 'Achird', 'Sadaltager', 'Callirrhoe', 'Orus', 'Gacrux', 'Algieba'].map((n) => ({
-    id: n,
-    label: n + ' (Gemini)',
-  })),
 };
-const DEFAULT_VOICE = { edge: 'en-IN-NeerjaNeural', gemini: 'Kore' };
+const DEFAULT_VOICE = { edge: 'en-IN-NeerjaNeural' };
 
 module.exports = { FAMILIES, PALETTES, TEXTURES, TEMPLATES, TRANSITIONS, SCHEMES, DECORS, HEADERS, CSTYLES, ALIGNS, KINDS, EMOTIONS, VOICES, DEFAULT_VOICE };

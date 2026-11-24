@@ -7,7 +7,16 @@
 //   - there is a small pause between sentences
 // This file only decides those numbers (pure, no network) so it can be tested.
 
-const { sentences } = require('./gemini_tts');
+// Split at whitespace after . ! ? or the Hindi danda; never inside 3.5 or after Dr. / Rs. / No.
+function sentences(text) {
+  const parts = String(text).trim().split(/(?<=[.!?\u0964])\s+/);
+  const out = [];
+  for (const s of parts) {
+    if (out.length && /(?:^|\s)(?:Dr|Mr|Mrs|Ms|St|No|Rs|vs|Sr|Jr|Prof)\.$/i.test(out[out.length - 1])) out[out.length - 1] += ' ' + s;
+    else out.push(s);
+  }
+  return out.map((s) => s.trim()).filter(Boolean);
+}
 
 const EMO = {
   excited: { pitch: 2, rate: 3, vol: 4, pause: -30 },
@@ -106,4 +115,4 @@ function plan(text, baseRate = 0, emotion = 'neutral') {
 
 const { POLISH } = require('./natural_polish');
 
-module.exports = { plan, clauses, POLISH, EMO };
+module.exports = { sentences, plan, clauses, POLISH, EMO };
