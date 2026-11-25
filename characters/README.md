@@ -86,3 +86,13 @@ Rules that keep it safe:
 - Style: one style per character (`learned_style` in `character.json`, otherwise ghibli, then webtoon). For props and landscapes `library/config.json` `{"style":"webtoon"}` decides when a name exists in both styles.
 - Optional hints next to the drawings: `library/pose/<style>/<id>.json` `{"waving":{"faces":-1}}` (which way the drawing looks: 1 right, -1 left, 0 never mirrored; poses default to 1, emotions to 0), `library/prop/<style>/<set>.json` `{"tablet":{"height":300}}` (stage units; a person is about 400, default 240).
 - Heavy drawings make heavy frames. The build warns above 500 KB per drawing; Needs refinement adds detail and size.
+
+## Casting (from v37): every person in a story is a Ghibli character
+
+In story mode nobody is drawn as the old flat figure any more. Each person in the cast gets a trained character that fits them:
+
+1. **Named like a character** ("Mangal", "Zoya", "Iaraphi", "Naina") gets that character.
+2. **Everyone else** gets the best fit from the trained characters that have a profile in `studio/src/casting_data.js`: gender first, then age group (child / grown-up / elder), then the look words of the cast line (`turban`, `glasses`, `beard`, `moustache`, `saree`, `kurta`, `uniform`, `bun`, `cap`).
+3. **Nobody shares a character** while a free one is left. Heights follow the age in the profile (baby 0.42, child 0.56 to 0.80, teen to 0.98, grown-up 1, elder 0.95), because all sheets are trained at the same height.
+
+To add a character to the casting: train it in the Learning Studio under `characters/<id>/`, and add one line with the same id to `studio/src/casting_data.js` (name, gender, age in years, tags for what you can see on the drawing). Profiles for characters not trained yet are skipped. `npm test` has `casting.test.js` for the rules.

@@ -132,7 +132,7 @@ function drawOne(a, ch, baseH) {
   const m = motion(pose, t, a.walk || 0, a.mouth || 0, facing);
 
   const age = a.look && a.look.age;
-  const sc = (a.scale || 1) * (age === 'child' ? 0.68 : age === 'elder' ? 0.95 : 1);
+  const sc = (a.scale || 1) * (a.sized ? 1 : age === 'child' ? 0.68 : age === 'elder' ? 0.95 : 1); // a casted character already carries its own height in scale
   const k = (baseH * sc) / (art.stand_h || art.bbox.y1 - art.bbox.y0);
   // a drawing that faces the wrong way is mirrored around its feet anchor
   const flip = art.faces !== 0 && art.faces !== facing && variant ? -1 : 1;

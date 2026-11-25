@@ -103,8 +103,8 @@ function stageSvg(d, o) {
     const eased = !still && dist > 0.02 && !moving && t - settle < 0.3;
     return {
       prev_pose: eased ? 'walk' : null, blend: eased ? clamp((t - settle) / 0.3) : 1,
-      id: a.id, name: ch.name, look: ch.look, x, y: FEET + ((i * 17) % 34) + (blk.lanes[a.id] ? LANE : 0), facing,
-      pose, art, expr: a.expr || 'neutral', mouth: isSp ? mouth : 0, walk: t * 9.5 + i, scale: (a.scale || 1) * 1.0, t: t + i * 0.7,
+      id: a.id, artId: ch.art || '', name: ch.name, look: ch.look, x, y: FEET + ((i * 17) % 34) + (blk.lanes[a.id] ? LANE : 0), facing,
+      pose, art, expr: a.expr || 'neutral', mouth: isSp ? mouth : 0, walk: t * 9.5 + i, scale: (a.scale || 1) * (ch.scale || 1), sized: !!ch.scale, t: t + i * 0.7,
       alpha: still ? 1 : clamp((t + 0.02) / 0.18), isSp,
     };
   });
@@ -115,7 +115,7 @@ function stageSvg(d, o) {
     const info = acts.map((a) => {
       const da = dacts.find((x) => x.id === a.id) || {};
       const x1 = da.x1 == null ? (da.x0 == null ? 0.5 : da.x0) : da.x1;
-      return { id: a.id, x: x1, y: a.y, h: A.heightOf(art) * (a.look && a.look.age === 'child' ? 0.68 : 1) * (a.scale || 1), speaks: !!da.speaks };
+      return { id: a.id, x: x1, y: a.y, h: A.heightOf(art) * (a.look && a.look.age === 'child' && !a.sized ? 0.68 : 1) * (a.scale || 1), speaks: !!da.speaks };
     });
     const f = SH.frame(cam, { W, H: 1000, actors: info });
     if (f) {

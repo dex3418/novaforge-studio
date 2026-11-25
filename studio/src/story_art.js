@@ -192,7 +192,7 @@ function mouth(kind, open) {
 // a = { id, name, look, x (world), y, facing 1|-1, pose, expr, mouth 0..1, walk (phase), scale, t, alpha }
 function person(a) {
   // a character with real artwork in the registry is drawn from that artwork, never redrawn
-  const asset = CHARS.get(a.id);
+  const asset = CHARS.get(a.artId || a.id);
   if (asset) {
     const drawn = assetPerson(a, asset, heightOf(a.art === 'chibi' || a.art === 'webtoon' ? a.art : 'flat'));
     if (drawn != null) return drawn; // null = nothing drawable in the registry, use the procedural figure

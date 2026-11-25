@@ -17,6 +17,7 @@ const SHOTS = require('./shots');
 const BLK = require('./blocking');
 const { ICONS } = require('./icons');
 const { VOICES, DEFAULT_VOICE } = require('./catalog');
+const CASTING = require('./casting');
 
 const slug = (s) => String(s).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '').slice(0, 20) || 'x';
 const NARRATOR = 'narrator';
@@ -269,7 +270,9 @@ function applyStory(plan, parsed, helpers = {}) {
   const ids = cast.map((c) => c.id);
   assignVoices(cast, ['elevenlabs', 'gemini'].includes(meta.engine) ? meta.engine : 'edge', meta.voice, parsed.scenes.flatMap((s) => s.lines || []));
   plan.art = ['chibi', 'webtoon'].includes(String(meta.art || '').toLowerCase()) ? String(meta.art).toLowerCase() : 'flat';
-  plan.cast = cast.map((c) => ({ id: c.id, name: c.name, look: c.look, voice: c.voice }));
+  // every person is drawn as a trained library character that fits them (gender, age, looks), never the old flat figure
+  const artOf = CASTING.assign(cast, (id) => CHARS.ids().includes(id), (c) => c.look.gender || (A.hashStr(c.name) % 2 ? 'm' : 'f'));
+  plan.cast = cast.map((c) => ({ id: c.id, name: c.name, look: c.look, voice: c.voice, art: artOf[c.id] || '', scale: artOf[c.id] ? CASTING.sizeOf(artOf[c.id]) : 0 }));
   const defaultSetting = A.SETTINGS.includes(meta.setting) ? meta.setting : 'village';
   const words = (t) => String(t).split(/\s+/).filter(Boolean);
   const pos = {}; // id -> x at the end of the previous beat

@@ -35,7 +35,7 @@ const PORT = Number(process.env.PORT || 8787);
 const WORKFLOW = 'studio.yml';
 const FORMATS = ['carousel', 'reel', 'long'];
 const CAT = require(path.join(__dirname, '..', 'studio', 'src', 'catalog.js'));
-const ENGINES = ['edge', 'elevenlabs'];
+const ENGINES = Object.keys(CAT.VOICES || { edge: [] }); // whatever voice engines the studio catalog has (edge, elevenlabs, gemini)
 const FB = require('./feedback');
 const ALL_VOICES = Object.values(CAT.VOICES || {}).flatMap((list) => (Array.isArray(list) ? list : [])).map((v) => v.id);
 const choice = (v, list) => (list.includes(String(v || '').toLowerCase()) ? String(v).toLowerCase() : '');
