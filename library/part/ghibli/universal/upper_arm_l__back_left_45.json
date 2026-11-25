@@ -1,0 +1,45 @@
+{
+ "key": "part/ghibli/universal/upper_arm_l__back_left_45",
+ "category": "part",
+ "style": "ghibli",
+ "group": "universal",
+ "name": "upper_arm_l__back_left_45",
+ "score": 98.53,
+ "params": {
+  "size": 420,
+  "colors": 12,
+  "blur": 1,
+  "simplify": 1,
+  "omit": 10,
+  "smooth": 1,
+  "ink": 0,
+  "seed": 1,
+  "bgtol": 40,
+  "holes": 0,
+  "clean": 1,
+  "fringe": 5
+ },
+ "palette": [
+  "#c1815b",
+  "#1f0b08",
+  "#94583b",
+  "#2e1008",
+  "#b37b5b",
+  "#a36b4e",
+  "#774e3c",
+  "#412014",
+  "#5c3627",
+  "#9e9998"
+ ],
+ "w": 176,
+ "h": 244,
+ "bg": {
+  "alpha": false,
+  "r": 255,
+  "g": 255,
+  "b": 255
+ },
+ "paths": 93,
+ "rounds": 1,
+ "savedAt": "2026-11-25T05:16:30.224Z"
+}

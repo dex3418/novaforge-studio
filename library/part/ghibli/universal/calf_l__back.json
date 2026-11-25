@@ -1,0 +1,46 @@
+{
+ "key": "part/ghibli/universal/calf_l__back",
+ "category": "part",
+ "style": "ghibli",
+ "group": "universal",
+ "name": "calf_l__back",
+ "score": 98.37,
+ "params": {
+  "size": 420,
+  "colors": 12,
+  "blur": 1,
+  "simplify": 1,
+  "omit": 10,
+  "smooth": 1,
+  "ink": 0,
+  "seed": 1,
+  "bgtol": 40,
+  "holes": 0,
+  "clean": 1,
+  "fringe": 5
+ },
+ "palette": [
+  "#c07e59",
+  "#210c0a",
+  "#9d5e44",
+  "#2f110c",
+  "#b98266",
+  "#ac7051",
+  "#8f5b47",
+  "#492015",
+  "#7c4c3b",
+  "#5e2e1b",
+  "#6c3c2c"
+ ],
+ "w": 127,
+ "h": 197,
+ "bg": {
+  "alpha": false,
+  "r": 255,
+  "g": 255,
+  "b": 255
+ },
+ "paths": 67,
+ "rounds": 1,
+ "savedAt": "2026-11-25T05:14:47.223Z"
+}

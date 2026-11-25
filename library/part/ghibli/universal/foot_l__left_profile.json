@@ -1,0 +1,44 @@
+{
+ "key": "part/ghibli/universal/foot_l__left_profile",
+ "category": "part",
+ "style": "ghibli",
+ "group": "universal",
+ "name": "foot_l__left_profile",
+ "score": 97.38,
+ "params": {
+  "size": 420,
+  "colors": 12,
+  "blur": 1,
+  "simplify": 1,
+  "omit": 10,
+  "smooth": 1,
+  "ink": 0,
+  "seed": 1,
+  "bgtol": 40,
+  "holes": 0,
+  "clean": 1,
+  "fringe": 5
+ },
+ "palette": [
+  "#bf7f5a",
+  "#9b5b41",
+  "#2f0e07",
+  "#864e37",
+  "#3e140a",
+  "#ad745a",
+  "#4f2316",
+  "#724231",
+  "#603324"
+ ],
+ "w": 167,
+ "h": 124,
+ "bg": {
+  "alpha": false,
+  "r": 255,
+  "g": 255,
+  "b": 255
+ },
+ "paths": 107,
+ "rounds": 1,
+ "savedAt": "2026-11-25T05:14:46.869Z"
+}

@@ -1,0 +1,43 @@
+{
+ "key": "part/ghibli/universal/thigh_l__back",
+ "category": "part",
+ "style": "ghibli",
+ "group": "universal",
+ "name": "thigh_l__back",
+ "score": 98.84,
+ "params": {
+  "size": 420,
+  "colors": 12,
+  "blur": 1,
+  "simplify": 1,
+  "omit": 10,
+  "smooth": 1,
+  "ink": 0,
+  "seed": 1,
+  "bgtol": 40,
+  "holes": 0,
+  "clean": 1,
+  "fringe": 5
+ },
+ "palette": [
+  "#c17e57",
+  "#98583f",
+  "#220b08",
+  "#39140b",
+  "#bd8567",
+  "#a56c50",
+  "#592e22",
+  "#784939"
+ ],
+ "w": 151,
+ "h": 296,
+ "bg": {
+  "alpha": false,
+  "r": 255,
+  "g": 255,
+  "b": 255
+ },
+ "paths": 67,
+ "rounds": 1,
+ "savedAt": "2026-11-25T05:14:47.156Z"
+}

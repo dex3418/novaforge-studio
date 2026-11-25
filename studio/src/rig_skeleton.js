@@ -137,11 +137,22 @@
   // ---------- mirroring: which drawn picture can stand in for a part in a view ----------
   // A part in a view can be mirrored from (a) the opposite-side part in the same view when the view looks at the body flat on
   // (front, back), or (b) the same part, or the opposite-side part, in the mirror view.
-  function resolve(rig, part, view) {
+  // (c) the FAR limb of a turned view (the right arm seen from the left, the left leg seen from the right) is only borrowed when the
+  // caller asks for it with { far: true }: seen from the other side it has the same outline as the near limb, so the near limb's
+  // picture stands in for it, marked far:true so the renderer can shade it darker and the solver can place it with its own angles.
+  // Without the option a far limb that was not drawn is simply missing (the strict rule).
+  function resolve(rig, part, view, opts) {
+    const o = opts || {};
     const has = (p, v) => !!(rig && rig.parts && rig.parts[p] && rig.parts[p][v]);
     if (has(part, view)) return { part, view, flip: false };
     const mv = MIRROR_VIEW[view];
     const op = otherSide(part);
+    if (o.far && mv !== view && op !== part) {
+      const own = resolve(rig, part, view);
+      if (own) return own;
+      const n = resolve(rig, op, view);
+      if (n) return Object.assign({}, n, { far: true });
+    }
     if (mv !== view && has(op, mv)) return { part: op, view: mv, flip: true };            // opposite side in the mirror view, flipped
     if (mv === view && op !== part && has(op, view)) return { part: op, view, flip: true }; // flat-on view: the other limb, flipped
     if (sideOf(part) === null && mv !== view && has(part, mv)) return { part, view: mv, flip: true }; // centre part in the mirror view
@@ -164,17 +175,17 @@
     (rig.parts[part] = rig.parts[part] || {})[view] = { asset: asset || partName(part, view), w: +w, h: +h, joints: j };
     return rig;
   }
-  function coverage(rig) {
+  function coverage(rig, opts) {
     const cells = [];
-    let drawn = 0, mirrored = 0;
+    let drawn = 0, mirrored = 0, far = 0;
     const missing = [];
     for (const part of PARTS) for (const view of VIEWS) {
-      const r = resolve(rig, part, view);
-      const state = !r ? 'missing' : r.flip ? 'mirrored' : 'drawn';
+      const r = resolve(rig, part, view, opts);
+      const state = !r ? 'missing' : r.far ? 'far' : r.flip ? 'mirrored' : 'drawn';
       cells.push({ part, view, state });
-      if (state === 'drawn') drawn++; else if (state === 'mirrored') mirrored++; else missing.push({ part, view });
+      if (state === 'drawn') drawn++; else if (state === 'mirrored') mirrored++; else if (state === 'far') far++; else missing.push({ part, view });
     }
-    return { total: PARTS.length * VIEWS.length, drawn, mirrored, missing, cells, complete: !missing.length };
+    return { total: PARTS.length * VIEWS.length, drawn, mirrored, far, missing, cells, complete: !missing.length };
   }
   function validateRig(rig) {
     const errors = [], warnings = [];

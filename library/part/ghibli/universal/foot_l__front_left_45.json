@@ -1,0 +1,46 @@
+{
+ "key": "part/ghibli/universal/foot_l__front_left_45",
+ "category": "part",
+ "style": "ghibli",
+ "group": "universal",
+ "name": "foot_l__front_left_45",
+ "score": 97.05,
+ "params": {
+  "size": 420,
+  "colors": 12,
+  "blur": 1,
+  "simplify": 1,
+  "omit": 10,
+  "smooth": 1,
+  "ink": 0,
+  "seed": 1,
+  "bgtol": 40,
+  "holes": 0,
+  "clean": 1,
+  "fringe": 5
+ },
+ "palette": [
+  "#c2825c",
+  "#290e09",
+  "#9e6248",
+  "#915943",
+  "#1d0806",
+  "#ab7054",
+  "#44180b",
+  "#572a1c",
+  "#6a3c2c",
+  "#7b4c3a",
+  "#a39c9c"
+ ],
+ "w": 130,
+ "h": 114,
+ "bg": {
+  "alpha": false,
+  "r": 255,
+  "g": 255,
+  "b": 255
+ },
+ "paths": 59,
+ "rounds": 1,
+ "savedAt": "2026-11-25T05:14:46.633Z"
+}

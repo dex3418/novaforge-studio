@@ -1,0 +1,44 @@
+{
+ "key": "part/ghibli/universal/calf_l__left_profile",
+ "category": "part",
+ "style": "ghibli",
+ "group": "universal",
+ "name": "calf_l__left_profile",
+ "score": 98.2,
+ "params": {
+  "size": 420,
+  "colors": 12,
+  "blur": 1,
+  "simplify": 1,
+  "omit": 10,
+  "smooth": 1,
+  "ink": 0,
+  "seed": 1,
+  "bgtol": 40,
+  "holes": 0,
+  "clean": 1,
+  "fringe": 5
+ },
+ "palette": [
+  "#bf7e58",
+  "#985a40",
+  "#240c0a",
+  "#38120a",
+  "#855341",
+  "#50251a",
+  "#6b3d2f",
+  "#ac7053",
+  "#dfa583"
+ ],
+ "w": 149,
+ "h": 190,
+ "bg": {
+  "alpha": false,
+  "r": 255,
+  "g": 255,
+  "b": 255
+ },
+ "paths": 98,
+ "rounds": 1,
+ "savedAt": "2026-11-25T05:14:46.766Z"
+}

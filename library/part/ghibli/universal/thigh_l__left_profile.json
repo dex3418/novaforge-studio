@@ -1,0 +1,44 @@
+{
+ "key": "part/ghibli/universal/thigh_l__left_profile",
+ "category": "part",
+ "style": "ghibli",
+ "group": "universal",
+ "name": "thigh_l__left_profile",
+ "score": 98.66,
+ "params": {
+  "size": 420,
+  "colors": 12,
+  "blur": 1,
+  "simplify": 1,
+  "omit": 10,
+  "smooth": 1,
+  "ink": 0,
+  "seed": 1,
+  "bgtol": 40,
+  "holes": 0,
+  "clean": 1,
+  "fringe": 5
+ },
+ "palette": [
+  "#c17e59",
+  "#9a593f",
+  "#280d0a",
+  "#d99d78",
+  "#865342",
+  "#451d12",
+  "#6b3f30",
+  "#582c1f",
+  "#9f8e83"
+ ],
+ "w": 201,
+ "h": 311,
+ "bg": {
+  "alpha": false,
+  "r": 255,
+  "g": 255,
+  "b": 255
+ },
+ "paths": 68,
+ "rounds": 1,
+ "savedAt": "2026-11-25T05:14:46.704Z"
+}

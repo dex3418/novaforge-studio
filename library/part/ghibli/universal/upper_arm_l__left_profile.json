@@ -1,0 +1,45 @@
+{
+ "key": "part/ghibli/universal/upper_arm_l__left_profile",
+ "category": "part",
+ "style": "ghibli",
+ "group": "universal",
+ "name": "upper_arm_l__left_profile",
+ "score": 98.63,
+ "params": {
+  "size": 420,
+  "colors": 12,
+  "blur": 1,
+  "simplify": 1,
+  "omit": 10,
+  "smooth": 1,
+  "ink": 0,
+  "seed": 1,
+  "bgtol": 40,
+  "holes": 0,
+  "clean": 1,
+  "fringe": 5
+ },
+ "palette": [
+  "#c2815a",
+  "#94583c",
+  "#25120f",
+  "#d19670",
+  "#d39f7e",
+  "#ac7252",
+  "#412017",
+  "#7c5241",
+  "#5e3a2c",
+  "#9d9898"
+ ],
+ "w": 152,
+ "h": 240,
+ "bg": {
+  "alpha": false,
+  "r": 255,
+  "g": 255,
+  "b": 255
+ },
+ "paths": 69,
+ "rounds": 1,
+ "savedAt": "2026-11-25T05:16:30.131Z"
+}

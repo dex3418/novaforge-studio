@@ -1,0 +1,46 @@
+{
+ "key": "part/ghibli/universal/hand_l__back",
+ "category": "part",
+ "style": "ghibli",
+ "group": "universal",
+ "name": "hand_l__back",
+ "score": 97.84,
+ "params": {
+  "size": 420,
+  "colors": 12,
+  "blur": 1,
+  "simplify": 1,
+  "omit": 10,
+  "smooth": 1,
+  "ink": 0,
+  "seed": 1,
+  "bgtol": 40,
+  "holes": 0,
+  "clean": 1,
+  "fringe": 5
+ },
+ "palette": [
+  "#c3835b",
+  "#250e0b",
+  "#955b3f",
+  "#371810",
+  "#9d6447",
+  "#542a1b",
+  "#cf9774",
+  "#aa6f4f",
+  "#b37959",
+  "#7f523f",
+  "#693f2d"
+ ],
+ "w": 304,
+ "h": 324,
+ "bg": {
+  "alpha": false,
+  "r": 255,
+  "g": 255,
+  "b": 255
+ },
+ "paths": 113,
+ "rounds": 1,
+ "savedAt": "2026-11-25T05:14:08.640Z"
+}

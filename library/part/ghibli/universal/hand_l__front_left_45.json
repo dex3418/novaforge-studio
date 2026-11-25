@@ -1,0 +1,46 @@
+{
+ "key": "part/ghibli/universal/hand_l__front_left_45",
+ "category": "part",
+ "style": "ghibli",
+ "group": "universal",
+ "name": "hand_l__front_left_45",
+ "score": 97.32,
+ "params": {
+  "size": 420,
+  "colors": 12,
+  "blur": 1,
+  "simplify": 1,
+  "omit": 10,
+  "smooth": 1,
+  "ink": 0,
+  "seed": 1,
+  "bgtol": 40,
+  "holes": 0,
+  "clean": 1,
+  "fringe": 5
+ },
+ "palette": [
+  "#c2825b",
+  "#975f43",
+  "#200b09",
+  "#2f1610",
+  "#a56c4d",
+  "#3e1b10",
+  "#86543d",
+  "#542c1c",
+  "#d59e79",
+  "#6c412f",
+  "#c6906f"
+ ],
+ "w": 304,
+ "h": 324,
+ "bg": {
+  "alpha": false,
+  "r": 255,
+  "g": 255,
+  "b": 255
+ },
+ "paths": 49,
+ "rounds": 1,
+ "savedAt": "2026-11-25T05:14:08.160Z"
+}

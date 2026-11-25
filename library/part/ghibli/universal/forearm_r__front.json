@@ -1,0 +1,45 @@
+{
+ "key": "part/ghibli/universal/forearm_r__front",
+ "category": "part",
+ "style": "ghibli",
+ "group": "universal",
+ "name": "forearm_r__front",
+ "score": 98.24,
+ "params": {
+  "size": 420,
+  "colors": 12,
+  "blur": 1,
+  "simplify": 1,
+  "omit": 10,
+  "smooth": 1,
+  "ink": 0,
+  "seed": 1,
+  "bgtol": 40,
+  "holes": 0,
+  "clean": 1,
+  "fringe": 5
+ },
+ "palette": [
+  "#c3845d",
+  "#93593d",
+  "#220f0c",
+  "#d59872",
+  "#d7a17f",
+  "#674030",
+  "#432117",
+  "#a96c4c",
+  "#ba947f",
+  "#a77e69"
+ ],
+ "w": 256,
+ "h": 244,
+ "bg": {
+  "alpha": false,
+  "r": 255,
+  "g": 255,
+  "b": 255
+ },
+ "paths": 69,
+ "rounds": 1,
+ "savedAt": "2026-11-25T05:14:29.397Z"
+}

@@ -1,0 +1,46 @@
+{
+ "key": "part/ghibli/universal/hand_l__left_profile",
+ "category": "part",
+ "style": "ghibli",
+ "group": "universal",
+ "name": "hand_l__left_profile",
+ "score": 97.58,
+ "params": {
+  "size": 420,
+  "colors": 12,
+  "blur": 1,
+  "simplify": 1,
+  "omit": 10,
+  "smooth": 1,
+  "ink": 0,
+  "seed": 1,
+  "bgtol": 40,
+  "holes": 0,
+  "clean": 1,
+  "fringe": 5
+ },
+ "palette": [
+  "#c2825a",
+  "#9d6447",
+  "#291410",
+  "#935a3f",
+  "#200c09",
+  "#381a12",
+  "#4e2618",
+  "#a97153",
+  "#ce9875",
+  "#7b4f3b",
+  "#663b29"
+ ],
+ "w": 304,
+ "h": 324,
+ "bg": {
+  "alpha": false,
+  "r": 255,
+  "g": 255,
+  "b": 255
+ },
+ "paths": 75,
+ "rounds": 1,
+ "savedAt": "2026-11-25T05:14:08.349Z"
+}

@@ -1,0 +1,45 @@
+{
+ "key": "part/ghibli/universal/forearm_l__front_left_45",
+ "category": "part",
+ "style": "ghibli",
+ "group": "universal",
+ "name": "forearm_l__front_left_45",
+ "score": 98.22,
+ "params": {
+  "size": 420,
+  "colors": 12,
+  "blur": 1,
+  "simplify": 1,
+  "omit": 10,
+  "smooth": 1,
+  "ink": 0,
+  "seed": 1,
+  "bgtol": 40,
+  "holes": 0,
+  "clean": 1,
+  "fringe": 5
+ },
+ "palette": [
+  "#c2815a",
+  "#24100d",
+  "#93593d",
+  "#d7a17e",
+  "#d3966f",
+  "#a56d4f",
+  "#7c5341",
+  "#5b3627",
+  "#3f1d12",
+  "#b98f78"
+ ],
+ "w": 256,
+ "h": 244,
+ "bg": {
+  "alpha": false,
+  "r": 255,
+  "g": 255,
+  "b": 255
+ },
+ "paths": 65,
+ "rounds": 1,
+ "savedAt": "2026-11-25T05:14:29.548Z"
+}

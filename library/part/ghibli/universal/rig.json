@@ -4,6 +4,308 @@
  "body": "universal",
  "style": "ghibli",
  "parts": {
+  "calf_l": {
+   "back": {
+    "asset": "calf_l__back",
+    "w": 127,
+    "h": 197,
+    "joints": {
+     "knee_l": {
+      "x": 0.5,
+      "y": 0.08,
+      "confirmed": false
+     },
+     "ankle_l": {
+      "x": 0.5,
+      "y": 0.92,
+      "confirmed": false
+     }
+    }
+   },
+   "back_left_45": {
+    "asset": "calf_l__back_left_45",
+    "w": 115,
+    "h": 190,
+    "joints": {
+     "knee_l": {
+      "x": 0.5,
+      "y": 0.08,
+      "confirmed": false
+     },
+     "ankle_l": {
+      "x": 0.5,
+      "y": 0.92,
+      "confirmed": false
+     }
+    }
+   },
+   "front": {
+    "asset": "calf_l__front",
+    "w": 126,
+    "h": 193,
+    "joints": {
+     "knee_l": {
+      "x": 0.5,
+      "y": 0.08,
+      "confirmed": false
+     },
+     "ankle_l": {
+      "x": 0.5,
+      "y": 0.92,
+      "confirmed": false
+     }
+    }
+   },
+   "front_left_45": {
+    "asset": "calf_l__front_left_45",
+    "w": 134,
+    "h": 194,
+    "joints": {
+     "knee_l": {
+      "x": 0.5,
+      "y": 0.08,
+      "confirmed": false
+     },
+     "ankle_l": {
+      "x": 0.5,
+      "y": 0.92,
+      "confirmed": false
+     }
+    }
+   },
+   "left_profile": {
+    "asset": "calf_l__left_profile",
+    "w": 149,
+    "h": 190,
+    "joints": {
+     "knee_l": {
+      "x": 0.5,
+      "y": 0.08,
+      "confirmed": false
+     },
+     "ankle_l": {
+      "x": 0.5,
+      "y": 0.92,
+      "confirmed": false
+     }
+    }
+   }
+  },
+  "foot_l": {
+   "back": {
+    "asset": "foot_l__back",
+    "w": 107,
+    "h": 122,
+    "joints": {
+     "ankle_l": {
+      "x": 0.5,
+      "y": 0.22,
+      "confirmed": false
+     }
+    }
+   },
+   "back_left_45": {
+    "asset": "foot_l__back_left_45",
+    "w": 127,
+    "h": 123,
+    "joints": {
+     "ankle_l": {
+      "x": 0.575,
+      "y": 0.22,
+      "confirmed": false
+     }
+    }
+   },
+   "front": {
+    "asset": "foot_l__front",
+    "w": 106,
+    "h": 123,
+    "joints": {
+     "ankle_l": {
+      "x": 0.5,
+      "y": 0.22,
+      "confirmed": false
+     }
+    }
+   },
+   "front_left_45": {
+    "asset": "foot_l__front_left_45",
+    "w": 130,
+    "h": 114,
+    "joints": {
+     "ankle_l": {
+      "x": 0.575,
+      "y": 0.22,
+      "confirmed": false
+     }
+    }
+   },
+   "left_profile": {
+    "asset": "foot_l__left_profile",
+    "w": 167,
+    "h": 124,
+    "joints": {
+     "ankle_l": {
+      "x": 0.65,
+      "y": 0.22,
+      "confirmed": false
+     }
+    }
+   }
+  },
+  "forearm_l": {
+   "back": {
+    "asset": "forearm_l__back",
+    "w": 256,
+    "h": 244,
+    "joints": {
+     "elbow_l": {
+      "x": 0.5,
+      "y": 0.08,
+      "confirmed": false
+     },
+     "wrist_l": {
+      "x": 0.5,
+      "y": 0.92,
+      "confirmed": false
+     }
+    }
+   },
+   "back_left_45": {
+    "asset": "forearm_l__back_left_45",
+    "w": 256,
+    "h": 244,
+    "joints": {
+     "elbow_l": {
+      "x": 0.5,
+      "y": 0.08,
+      "confirmed": false
+     },
+     "wrist_l": {
+      "x": 0.5,
+      "y": 0.92,
+      "confirmed": false
+     }
+    }
+   },
+   "front_left_45": {
+    "asset": "forearm_l__front_left_45",
+    "w": 256,
+    "h": 244,
+    "joints": {
+     "elbow_l": {
+      "x": 0.5,
+      "y": 0.08,
+      "confirmed": false
+     },
+     "wrist_l": {
+      "x": 0.5,
+      "y": 0.92,
+      "confirmed": false
+     }
+    }
+   },
+   "left_profile": {
+    "asset": "forearm_l__left_profile",
+    "w": 256,
+    "h": 244,
+    "joints": {
+     "elbow_l": {
+      "x": 0.5,
+      "y": 0.08,
+      "confirmed": false
+     },
+     "wrist_l": {
+      "x": 0.5,
+      "y": 0.92,
+      "confirmed": false
+     }
+    }
+   }
+  },
+  "forearm_r": {
+   "front": {
+    "asset": "forearm_r__front",
+    "w": 256,
+    "h": 244,
+    "joints": {
+     "elbow_r": {
+      "x": 0.5,
+      "y": 0.08,
+      "confirmed": false
+     },
+     "wrist_r": {
+      "x": 0.5,
+      "y": 0.92,
+      "confirmed": false
+     }
+    }
+   }
+  },
+  "hand_l": {
+   "back": {
+    "asset": "hand_l__back",
+    "w": 304,
+    "h": 324,
+    "joints": {
+     "wrist_l": {
+      "x": 0.5,
+      "y": 0.1,
+      "confirmed": false
+     }
+    }
+   },
+   "back_left_45": {
+    "asset": "hand_l__back_left_45",
+    "w": 304,
+    "h": 324,
+    "joints": {
+     "wrist_l": {
+      "x": 0.5,
+      "y": 0.1,
+      "confirmed": false
+     }
+    }
+   },
+   "front_left_45": {
+    "asset": "hand_l__front_left_45",
+    "w": 304,
+    "h": 324,
+    "joints": {
+     "wrist_l": {
+      "x": 0.5,
+      "y": 0.1,
+      "confirmed": false
+     }
+    }
+   },
+   "left_profile": {
+    "asset": "hand_l__left_profile",
+    "w": 304,
+    "h": 324,
+    "joints": {
+     "wrist_l": {
+      "x": 0.5,
+      "y": 0.1,
+      "confirmed": false
+     }
+    }
+   }
+  },
+  "hand_r": {
+   "front": {
+    "asset": "hand_r__front",
+    "w": 304,
+    "h": 324,
+    "joints": {
+     "wrist_r": {
+      "x": 0.5,
+      "y": 0.1,
+      "confirmed": false
+     }
+    }
+   }
+  },
   "head": {
    "back": {
     "asset": "head__back",
@@ -280,6 +582,93 @@
     }
    }
   },
+  "thigh_l": {
+   "back": {
+    "asset": "thigh_l__back",
+    "w": 151,
+    "h": 296,
+    "joints": {
+     "hip_l": {
+      "x": 0.5,
+      "y": 0.08,
+      "confirmed": false
+     },
+     "knee_l": {
+      "x": 0.5,
+      "y": 0.92,
+      "confirmed": false
+     }
+    }
+   },
+   "back_left_45": {
+    "asset": "thigh_l__back_left_45",
+    "w": 251,
+    "h": 309,
+    "joints": {
+     "hip_l": {
+      "x": 0.5,
+      "y": 0.08,
+      "confirmed": false
+     },
+     "knee_l": {
+      "x": 0.5,
+      "y": 0.92,
+      "confirmed": false
+     }
+    }
+   },
+   "front": {
+    "asset": "thigh_l__front",
+    "w": 151,
+    "h": 303,
+    "joints": {
+     "hip_l": {
+      "x": 0.5,
+      "y": 0.08,
+      "confirmed": false
+     },
+     "knee_l": {
+      "x": 0.5,
+      "y": 0.92,
+      "confirmed": false
+     }
+    }
+   },
+   "front_left_45": {
+    "asset": "thigh_l__front_left_45",
+    "w": 145,
+    "h": 315,
+    "joints": {
+     "hip_l": {
+      "x": 0.5,
+      "y": 0.08,
+      "confirmed": false
+     },
+     "knee_l": {
+      "x": 0.5,
+      "y": 0.92,
+      "confirmed": false
+     }
+    }
+   },
+   "left_profile": {
+    "asset": "thigh_l__left_profile",
+    "w": 201,
+    "h": 311,
+    "joints": {
+     "hip_l": {
+      "x": 0.5,
+      "y": 0.08,
+      "confirmed": false
+     },
+     "knee_l": {
+      "x": 0.5,
+      "y": 0.92,
+      "confirmed": false
+     }
+    }
+   }
+  },
   "torso": {
    "back": {
     "asset": "torso__back",
@@ -497,6 +886,95 @@
      }
     }
    }
+  },
+  "upper_arm_l": {
+   "back": {
+    "asset": "upper_arm_l__back",
+    "w": 192,
+    "h": 240,
+    "joints": {
+     "shoulder_l": {
+      "x": 0.5,
+      "y": 0.08,
+      "confirmed": false
+     },
+     "elbow_l": {
+      "x": 0.5,
+      "y": 0.92,
+      "confirmed": false
+     }
+    }
+   },
+   "back_left_45": {
+    "asset": "upper_arm_l__back_left_45",
+    "w": 176,
+    "h": 244,
+    "joints": {
+     "shoulder_l": {
+      "x": 0.5,
+      "y": 0.08,
+      "confirmed": false
+     },
+     "elbow_l": {
+      "x": 0.5,
+      "y": 0.92,
+      "confirmed": false
+     }
+    }
+   },
+   "front_left_45": {
+    "asset": "upper_arm_l__front_left_45",
+    "w": 177,
+    "h": 244,
+    "joints": {
+     "shoulder_l": {
+      "x": 0.5,
+      "y": 0.08,
+      "confirmed": false
+     },
+     "elbow_l": {
+      "x": 0.5,
+      "y": 0.92,
+      "confirmed": false
+     }
+    }
+   },
+   "left_profile": {
+    "asset": "upper_arm_l__left_profile",
+    "w": 152,
+    "h": 240,
+    "joints": {
+     "shoulder_l": {
+      "x": 0.5,
+      "y": 0.08,
+      "confirmed": false
+     },
+     "elbow_l": {
+      "x": 0.5,
+      "y": 0.92,
+      "confirmed": false
+     }
+    }
+   }
+  },
+  "upper_arm_r": {
+   "front": {
+    "asset": "upper_arm_r__front",
+    "w": 136,
+    "h": 236,
+    "joints": {
+     "shoulder_r": {
+      "x": 0.5,
+      "y": 0.08,
+      "confirmed": false
+     },
+     "elbow_r": {
+      "x": 0.5,
+      "y": 0.92,
+      "confirmed": false
+     }
+    }
+   }
   }
  },
  "draw_order": {
@@ -636,5 +1114,6 @@
    "hand_r",
    "head"
   ]
- }
+ },
+ "savedAt": "2026-11-25T05:16:42.527Z"
 }

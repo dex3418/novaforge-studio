@@ -31,7 +31,7 @@ const WORD = {
 };
 
 function allVoices() {
-  return [...VOICES.edge.map((v) => ({ id: v.id, engine: 'edge' })), ...VOICES.elevenlabs.map((v) => ({ id: v.id, engine: 'elevenlabs' }))];
+  return [...VOICES.edge.map((v) => ({ id: v.id, engine: 'edge' })), ...VOICES.elevenlabs.map((v) => ({ id: v.id, engine: 'elevenlabs' })), ...VOICES.gemini.map((v) => ({ id: v.id, engine: 'gemini' }))];
 }
 function matchVoice(tok) {
   const t = tok.toLowerCase().replace(/[^a-z]/g, '');
@@ -91,15 +91,17 @@ function speakerLine(line, known, loose) {
 
 // give everyone a distinct voice that fits the engine (explicit ones win)
 function assignVoices(cast, engine, narratorVoice, lines) {
+  const gem = engine === 'gemini';
   const eleven = engine === 'elevenlabs';
-  const pools = eleven ? { m: ['CwhRBWXzGAHq8TQ4Fs17', 'JBFqnCBsd6RMkjVDRZzb', 'IKne3meq5aSn9XLyUdCD', 'bIHbv24MWmeRgasZH58o', 'N2lVS1w4EtoT3dr4eOWO'], f: ['EXAVITQu4vr4xnSDxMaL', 'Xb7hH8MSUJpSbSDYk0k2', 'XrExE9yKIg1WjnnlVkGX', 'FGY2WhTYpPnrIDTdsKH5'], c: ['TX3LPaxmHKxFdv7VOQHJ', 'FGY2WhTYpPnrIDTdsKH5'] } : { m: ['en-IN-PrabhatNeural', 'hi-IN-MadhurNeural', 'en-US-AndrewMultilingualNeural', 'en-US-BrianMultilingualNeural'], f: ['en-IN-NeerjaExpressiveNeural', 'hi-IN-SwaraNeural', 'en-US-AvaMultilingualNeural', 'en-US-EmmaMultilingualNeural'], c: ['hi-IN-SwaraNeural', 'en-US-AvaMultilingualNeural', 'en-IN-NeerjaExpressiveNeural'] };
-  const ok = (id) => VOICES[eleven ? 'elevenlabs' : 'edge'].some((v) => v.id === id);
-  const used = new Set([narratorVoice || DEFAULT_VOICE[eleven ? 'elevenlabs' : 'edge']]);
+  const key = gem ? 'gemini' : eleven ? 'elevenlabs' : 'edge';
+  const pools = gem ? { m: ['Puck', 'Charon', 'Fenrir', 'Orus', 'Achird', 'Algieba'], f: ['Kore', 'Leda', 'Aoede', 'Zephyr', 'Callirrhoe', 'Sulafat'], c: ['Zephyr', 'Leda', 'Puck'] } : eleven ? { m: ['CwhRBWXzGAHq8TQ4Fs17', 'JBFqnCBsd6RMkjVDRZzb', 'IKne3meq5aSn9XLyUdCD', 'bIHbv24MWmeRgasZH58o', 'N2lVS1w4EtoT3dr4eOWO'], f: ['EXAVITQu4vr4xnSDxMaL', 'Xb7hH8MSUJpSbSDYk0k2', 'XrExE9yKIg1WjnnlVkGX', 'FGY2WhTYpPnrIDTdsKH5'], c: ['TX3LPaxmHKxFdv7VOQHJ', 'FGY2WhTYpPnrIDTdsKH5'] } : { m: ['en-IN-PrabhatNeural', 'hi-IN-MadhurNeural', 'en-US-AndrewMultilingualNeural', 'en-US-BrianMultilingualNeural'], f: ['en-IN-NeerjaExpressiveNeural', 'hi-IN-SwaraNeural', 'en-US-AvaMultilingualNeural', 'en-US-EmmaMultilingualNeural'], c: ['hi-IN-SwaraNeural', 'en-US-AvaMultilingualNeural', 'en-IN-NeerjaExpressiveNeural'] };
+  const ok = (id) => VOICES[key].some((v) => v.id === id);
+  const used = new Set([narratorVoice || DEFAULT_VOICE[key]]);
   cast.forEach((c) => { if (c.voice && ok(c.voice)) used.add(c.voice); });
   cast.forEach((c, i) => {
     if (c.voice && ok(c.voice)) return;
     const g = c.look.age === 'child' ? 'c' : c.look.gender || (A.hashStr(c.name) % 2 ? 'm' : 'f');
-    const hindi = !eleven && (lines || []).some((l) => l.who === c.id && /[ऀ-ॿ]/.test(l.text));
+    const hindi = !eleven && !gem && (lines || []).some((l) => l.who === c.id && /[ऀ-ॿ]/.test(l.text));
     let pool = pools[g] || pools.m;
     if (hindi) pool = [...pool.filter((v) => /^hi-IN/.test(v)), ...pool.filter((v) => !/^hi-IN/.test(v))];
     c.voice = pool.find((v) => !used.has(v)) || pool[i % pool.length];
@@ -255,14 +257,17 @@ function toneOf(text, tone) {
 }
 
 // Apply the storyboard to a validated plan (in place). pickIcon(text) comes from plan.js.
-const KEEP = new Set(['counter', 'stats', 'bars', 'progress', 'compare', 'mythfact', 'qa', 'cta', 'alert', 'terminal', 'photo', 'profile']);
+// In story mode people are on screen in EVERY beat: even a line about a number is shown as characters speaking it.
+// Only the author's own pictures stay as planned (an author-written ```explainer block is applied afterwards and also
+// wins). The closing brand card that the video adds at the very end is separate and is not a story beat.
+const KEEP = new Set(['photo', 'profile']);
 
 function applyStory(plan, parsed, helpers = {}) {
   const meta = parsed.meta || {};
   const cast = parsed.cast || [];
   if (!isStoryMeta(meta) && !cast.length) return;
   const ids = cast.map((c) => c.id);
-  assignVoices(cast, meta.engine === 'elevenlabs' ? 'elevenlabs' : 'edge', meta.voice, parsed.scenes.flatMap((s) => s.lines || []));
+  assignVoices(cast, ['elevenlabs', 'gemini'].includes(meta.engine) ? meta.engine : 'edge', meta.voice, parsed.scenes.flatMap((s) => s.lines || []));
   plan.art = ['chibi', 'webtoon'].includes(String(meta.art || '').toLowerCase()) ? String(meta.art).toLowerCase() : 'flat';
   plan.cast = cast.map((c) => ({ id: c.id, name: c.name, look: c.look, voice: c.voice }));
   const defaultSetting = A.SETTINGS.includes(meta.setting) ? meta.setting : 'village';
@@ -313,6 +318,8 @@ function applyStory(plan, parsed, helpers = {}) {
       let onStage = [];
       if (talker) onStage.push(talker);
       inScene.forEach((id) => { if (!onStage.includes(id)) onStage.push(id); });
+      // a narrated beat that names someone puts that person on stage
+      if (!talker) cast.forEach((c) => { if (!onStage.includes(c.id) && c.name && new RegExp(`(?<![\\p{L}])${c.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}])`, 'iu').test(btext)) onStage.push(c.id); });
       if (!onStage.length && cast.length) onStage = [cast[0].id];
       onStage = onStage.slice(0, 3);
       const tn = toneOf(btext, (sc.lines || []).find((l) => l.who === talker && btext.includes(String(l.narration).split(/\s+/)[0]))?.tone);
@@ -384,4 +391,19 @@ function applyStory(plan, parsed, helpers = {}) {
   });
 }
 
-module.exports = { parseCast, isStoryMeta, speakerLine, assignVoices, wordSpeakers, normalizeStory, applyStory, slug, NARRATOR, NOT_NAMES };
+// A script that is full of "Name: line" dialogue but has story mode off is made as a normal video, silently.
+// This returns a plain-words warning for the run report ('' when nothing looks wrong).
+function storyHint(text) {
+  const body = require('./header').splitHeader(text).body;
+  const names = new Map();
+  let n = 0;
+  for (const line of String(body).split(/\r?\n/)) {
+    if (/^\s*#/.test(line)) continue;
+    const s = speakerLine(line, [], true);
+    if (s) { n++; names.set(s.id, s.name); }
+  }
+  if (n < 4 || names.size < 2) return '';
+  return `This looks like a story (${n} spoken lines from ${[...names.values()].slice(0, 4).join(', ')}) but story mode is off, so it will be made as a normal video with no characters. Set Mode to "Story with characters" on the box page, or put "mode: story" on the first line inside the header at the very top of the script.`;
+}
+
+module.exports = { storyHint, parseCast, isStoryMeta, speakerLine, assignVoices, wordSpeakers, normalizeStory, applyStory, slug, NARRATOR, NOT_NAMES };

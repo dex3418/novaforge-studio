@@ -3,14 +3,16 @@
 //   engine 'edge'   : free Edge voices, exact word timing (default)
 //   engine 'edge'       : free Edge voices, exact word timing (default)
 //   engine 'elevenlabs' : ElevenLabs voices (needs ELEVENLABS_API_KEY), exact word timing, cached on disk
+//   engine 'gemini'     : Gemini voices (needs GEMINI_API_KEY), estimated word timing, cached on disk, one model per run
 // ElevenLabs failing for any reason (no key, no credits, network) falls back to Edge, so a post is never lost.
-// Anything else a script asks for (an old engine: gemini) is voiced by Edge.
+// Gemini or ElevenLabs failing for any reason falls back to Edge. Anything else a script asks for is voiced by Edge.
 
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { VOICES, DEFAULT_VOICE } = require('./catalog');
 const { elevenSynth } = require('./elevenlabs_tts');
+const { geminiSynth } = require('./gemini_tts');
 const natural = require('./natural');
 
 const hasDevanagari = (t) => /[ऀ-ॿ]/.test(t);
@@ -119,6 +121,17 @@ async function synth(text, outFile, o = {}) {
       console.warn(`  ElevenLabs voice failed (${e.message}). Using the Edge voice instead.`);
       const r = edgeSynth(text, outFile, '', rate, o.emotion);
       return { ...r, engine: 'edge', note: `ElevenLabs failed (${e.message.slice(0, 140)}), used Edge` };
+    }
+  }
+  if (o.engine === 'gemini') {
+    const voice = o.voice && VOICES.gemini.some((v) => v.id === o.voice) ? o.voice : DEFAULT_VOICE.gemini;
+    try {
+      const r = await geminiSynth(text, outFile, { voice, style: o.emotion, delivery: o.delivery, rate });
+      return { timing: r.timing, engine: 'gemini', voice, note: 'Gemini gives no word timing, captions are approximate', cached: r.cached };
+    } catch (e) {
+      console.warn(`  Gemini voice failed (${e.message}). Using the Edge voice instead.`);
+      const r = edgeSynth(text, outFile, '', rate, o.emotion);
+      return { ...r, engine: 'edge', note: `Gemini voice failed (${String(e.message).slice(0, 140)}), used Edge` };
     }
   }
   const r = edgeSynth(text, outFile, o.voice, rate, o.emotion);

@@ -27,7 +27,12 @@ async function makeAudio(parsed, plan, root) {
   const dir = path.join(root, 'public', parsed.slug);
   fs.mkdirSync(dir, { recursive: true });
   const byIndex = new Map(plan.scenes.map((s) => [s.index, s]));
-  const engine = parsed.meta.engine === 'elevenlabs' ? 'elevenlabs' : 'edge';
+  let engine = ['elevenlabs', 'gemini'].includes(parsed.meta.engine) ? parsed.meta.engine : 'edge';
+  // Gemini: count the requests first. A script that does not fit the budget is voiced entirely by Edge, never half and half.
+  if (engine === 'gemini') {
+    const g = require('./gemini_tts').plan(parsed.scenes, !!(plan.cast && plan.cast.length));
+    if (!g.ok) { console.warn(`  Gemini voice needs ${g.need} requests but only ${g.left} are allowed this run (GEMINI_TTS_MAX_REQUESTS). The whole video is voiced by Edge so the voice stays the same.`); engine = 'edge'; }
+  }
   const out = [];
   for (const s of parsed.scenes) {
     const p = byIndex.get(s.index) || { kind: 'caption', data: {}, emotion: 'neutral', emphasis: [], voice: { rateDelta: 0, style: '' } };

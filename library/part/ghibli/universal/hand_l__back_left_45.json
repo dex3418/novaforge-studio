@@ -1,0 +1,44 @@
+{
+ "key": "part/ghibli/universal/hand_l__back_left_45",
+ "category": "part",
+ "style": "ghibli",
+ "group": "universal",
+ "name": "hand_l__back_left_45",
+ "score": 97.26,
+ "params": {
+  "size": 420,
+  "colors": 12,
+  "blur": 1,
+  "simplify": 1,
+  "omit": 10,
+  "smooth": 1,
+  "ink": 0,
+  "seed": 1,
+  "bgtol": 40,
+  "holes": 0,
+  "clean": 1,
+  "fringe": 5
+ },
+ "palette": [
+  "#c3835b",
+  "#2a120e",
+  "#996147",
+  "#8c573d",
+  "#37170e",
+  "#ab7051",
+  "#4a2314",
+  "#5e3525",
+  "#734735"
+ ],
+ "w": 304,
+ "h": 324,
+ "bg": {
+  "alpha": false,
+  "r": 255,
+  "g": 255,
+  "b": 255
+ },
+ "paths": 49,
+ "rounds": 1,
+ "savedAt": "2026-11-25T05:14:08.498Z"
+}

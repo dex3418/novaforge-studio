@@ -80,6 +80,7 @@ details summary{cursor:pointer;color:var(--acc);font-size:13px;margin-top:8px}
 .rigtable td button{width:100%;min-height:40px;border:0;border-radius:0;background:transparent;font-size:15px;padding:0;color:var(--mute)}
 .rigtable td.drawn button{color:var(--ok);font-weight:700}
 .rigtable td.mirrored button{color:var(--acc2)}
+.rigtable td.far button{color:var(--mut)}
 .rigtable td.sel button{outline:2px solid var(--acc2);outline-offset:-2px;background:var(--chk2)}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
 .chip{min-height:36px;padding:4px 10px;border-width:2px}
@@ -876,11 +877,22 @@ details summary{cursor:pointer;color:var(--acc);font-size:13px;margin-top:8px}
   // ---------- mirroring: which drawn picture can stand in for a part in a view ----------
   // A part in a view can be mirrored from (a) the opposite-side part in the same view when the view looks at the body flat on
   // (front, back), or (b) the same part, or the opposite-side part, in the mirror view.
-  function resolve(rig, part, view) {
+  // (c) the FAR limb of a turned view (the right arm seen from the left, the left leg seen from the right) is only borrowed when the
+  // caller asks for it with { far: true }: seen from the other side it has the same outline as the near limb, so the near limb's
+  // picture stands in for it, marked far:true so the renderer can shade it darker and the solver can place it with its own angles.
+  // Without the option a far limb that was not drawn is simply missing (the strict rule).
+  function resolve(rig, part, view, opts) {
+    const o = opts || {};
     const has = (p, v) => !!(rig && rig.parts && rig.parts[p] && rig.parts[p][v]);
     if (has(part, view)) return { part, view, flip: false };
     const mv = MIRROR_VIEW[view];
     const op = otherSide(part);
+    if (o.far && mv !== view && op !== part) {
+      const own = resolve(rig, part, view);
+      if (own) return own;
+      const n = resolve(rig, op, view);
+      if (n) return Object.assign({}, n, { far: true });
+    }
     if (mv !== view && has(op, mv)) return { part: op, view: mv, flip: true };            // opposite side in the mirror view, flipped
     if (mv === view && op !== part && has(op, view)) return { part: op, view, flip: true }; // flat-on view: the other limb, flipped
     if (sideOf(part) === null && mv !== view && has(part, mv)) return { part, view: mv, flip: true }; // centre part in the mirror view
@@ -903,17 +915,17 @@ details summary{cursor:pointer;color:var(--acc);font-size:13px;margin-top:8px}
     (rig.parts[part] = rig.parts[part] || {})[view] = { asset: asset || partName(part, view), w: +w, h: +h, joints: j };
     return rig;
   }
-  function coverage(rig) {
+  function coverage(rig, opts) {
     const cells = [];
-    let drawn = 0, mirrored = 0;
+    let drawn = 0, mirrored = 0, far = 0;
     const missing = [];
     for (const part of PARTS) for (const view of VIEWS) {
-      const r = resolve(rig, part, view);
-      const state = !r ? 'missing' : r.flip ? 'mirrored' : 'drawn';
+      const r = resolve(rig, part, view, opts);
+      const state = !r ? 'missing' : r.far ? 'far' : r.flip ? 'mirrored' : 'drawn';
       cells.push({ part, view, state });
-      if (state === 'drawn') drawn++; else if (state === 'mirrored') mirrored++; else missing.push({ part, view });
+      if (state === 'drawn') drawn++; else if (state === 'mirrored') mirrored++; else if (state === 'far') far++; else missing.push({ part, view });
     }
-    return { total: PARTS.length * VIEWS.length, drawn, mirrored, missing, cells, complete: !missing.length };
+    return { total: PARTS.length * VIEWS.length, drawn, mirrored, far, missing, cells, complete: !missing.length };
   }
   function validateRig(rig) {
     const errors = [], warnings = [];
@@ -2227,20 +2239,20 @@ async function refreshRig() {
   $('#rigInfo').textContent = `Body "${body}", ${STYLES[S.style]}. ✓ drawn and saved, ⇄ filled by flipping another picture, · missing. Tap a ✓ to place its joints. On a phone, slide the table sideways to see all 8 views.`;
   if (sel && rig.parts[sel.part] && rig.parts[sel.part][sel.view]) openJoints(sel.part, sel.view); else { closeJoints(); renderRig(); }
 }
-function drawnCells() { return RS.coverage(S.rig).cells.filter((c) => c.state === 'drawn'); }
+function drawnCells() { return RS.coverage(S.rig, { far: true }).cells.filter((c) => c.state === 'drawn'); }
 function renderRig() {
   if (!S.rig) return;
-  const cov = RS.coverage(S.rig), states = {};
+  const cov = RS.coverage(S.rig, { far: true }), states = {};
   cov.cells.forEach((c) => { states[c.part + '|' + c.view] = c.state; });
   const head = '<tr><th class="rowh"></th>' + RS.VIEWS.map((v) => `<th title="${RS.VIEW_LABEL[v]}">${RS.VIEW_SHORT[v]}</th>`).join('') + '</tr>';
   const rows = RS.PARTS.map((p) => '<tr><th class="rowh">' + esc(RS.partLabel(p)) + '</th>' + RS.VIEWS.map((v) => {
     const st = states[p + '|' + v], on = S.rigSel && S.rigSel.part === p && S.rigSel.view === v;
-    return `<td class="${st}${on ? ' sel' : ''}"><button type="button" data-rig="${p}|${v}" title="${esc(RS.partLabel(p))}, ${RS.VIEW_LABEL[v]}: ${st}"${st === 'missing' ? ' disabled' : ''}>${st === 'drawn' ? '✓' : st === 'mirrored' ? '⇄' : '·'}</button></td>`;
+    return `<td class="${st}${on ? ' sel' : ''}"><button type="button" data-rig="${p}|${v}" title="${esc(RS.partLabel(p))}, ${RS.VIEW_LABEL[v]}: ${st}"${st === 'missing' ? ' disabled' : ''}>${st === 'drawn' ? '✓' : st === 'mirrored' ? '⇄' : st === 'far' ? '◐' : '·'}</button></td>`;
   }).join('') + '</tr>').join('');
   $('#rigTable').innerHTML = head + rows;
   let guesses = 0;
   for (const part of Object.keys(S.rig.parts)) for (const view of Object.keys(S.rig.parts[part])) for (const j of Object.values(S.rig.parts[part][view].joints)) if (!j.confirmed) guesses++;
-  $('#rigSummary').textContent = `${cov.drawn} drawn, ${cov.mirrored} filled by flipping, ${cov.missing.length} missing of ${cov.total}. ` + (cov.drawn ? (guesses ? `${guesses} joint position${guesses === 1 ? ' is' : 's are'} still a starting guess.` : 'Every joint position is confirmed.') : 'Save part pictures with Accurate and they appear here.') + (S.rigDirty ? ' Unsaved changes.' : '');
+  $('#rigSummary').textContent = `${cov.drawn} drawn, ${cov.mirrored} filled by flipping, ${cov.far || 0} far-side limbs borrowed from the near limb, ${cov.missing.length} missing of ${cov.total}. ` + (cov.drawn ? (guesses ? `${guesses} joint position${guesses === 1 ? ' is' : 's are'} still a starting guess.` : 'Every joint position is confirmed.') : 'Save part pictures with Accurate and they appear here.') + (S.rigDirty ? ' Unsaved changes.' : '');
   const byView = RS.VIEWS.map((v) => { const m = cov.missing.filter((c) => c.view === v).map((c) => RS.partLabel(c.part)); return m.length ? `<p><b>${RS.VIEW_LABEL[v]}:</b> ${m.map(esc).join(', ')}</p>` : ''; }).join('');
   $('#rigMissingList').innerHTML = byView || '<p>Nothing missing: the body is complete in all 8 views.</p>';
 }

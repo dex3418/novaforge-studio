@@ -1,0 +1,44 @@
+{
+ "key": "part/ghibli/universal/thigh_l__back_left_45",
+ "category": "part",
+ "style": "ghibli",
+ "group": "universal",
+ "name": "thigh_l__back_left_45",
+ "score": 98.76,
+ "params": {
+  "size": 420,
+  "colors": 12,
+  "blur": 1,
+  "simplify": 1,
+  "omit": 10,
+  "smooth": 1,
+  "ink": 0,
+  "seed": 1,
+  "bgtol": 40,
+  "holes": 0,
+  "clean": 1,
+  "fringe": 5
+ },
+ "palette": [
+  "#bf7e59",
+  "#230b08",
+  "#341912",
+  "#dea47f",
+  "#d29975",
+  "#512d1f",
+  "#97644c",
+  "#754733",
+  "#af7e65"
+ ],
+ "w": 251,
+ "h": 309,
+ "bg": {
+  "alpha": false,
+  "r": 255,
+  "g": 255,
+  "b": 255
+ },
+ "paths": 111,
+ "rounds": 1,
+ "savedAt": "2026-11-25T05:14:46.942Z"
+}

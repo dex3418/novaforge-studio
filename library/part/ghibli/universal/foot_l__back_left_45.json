@@ -1,0 +1,45 @@
+{
+ "key": "part/ghibli/universal/foot_l__back_left_45",
+ "category": "part",
+ "style": "ghibli",
+ "group": "universal",
+ "name": "foot_l__back_left_45",
+ "score": 97.77,
+ "params": {
+  "size": 420,
+  "colors": 12,
+  "blur": 1,
+  "simplify": 1,
+  "omit": 10,
+  "smooth": 1,
+  "ink": 0,
+  "seed": 1,
+  "bgtol": 40,
+  "holes": 0,
+  "clean": 1,
+  "fringe": 5
+ },
+ "palette": [
+  "#c0805a",
+  "#210a08",
+  "#341912",
+  "#ae7356",
+  "#bf8668",
+  "#85533d",
+  "#52281a",
+  "#6b3d2b",
+  "#9b654d",
+  "#b2aaa8"
+ ],
+ "w": 127,
+ "h": 123,
+ "bg": {
+  "alpha": false,
+  "r": 255,
+  "g": 255,
+  "b": 255
+ },
+ "paths": 40,
+ "rounds": 1,
+ "savedAt": "2026-11-25T05:14:47.083Z"
+}

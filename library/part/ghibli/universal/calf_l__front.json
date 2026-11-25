@@ -1,0 +1,46 @@
+{
+ "key": "part/ghibli/universal/calf_l__front",
+ "category": "part",
+ "style": "ghibli",
+ "group": "universal",
+ "name": "calf_l__front",
+ "score": 98.46,
+ "params": {
+  "size": 420,
+  "colors": 12,
+  "blur": 1,
+  "simplify": 1,
+  "omit": 10,
+  "smooth": 1,
+  "ink": 0,
+  "seed": 1,
+  "bgtol": 40,
+  "holes": 0,
+  "clean": 1,
+  "fringe": 5
+ },
+ "palette": [
+  "#c07f59",
+  "#240c08",
+  "#96573e",
+  "#9a6048",
+  "#bd8566",
+  "#ac7154",
+  "#d49b7a",
+  "#331009",
+  "#4e2215",
+  "#7b4b3b",
+  "#663727"
+ ],
+ "w": 126,
+ "h": 193,
+ "bg": {
+  "alpha": false,
+  "r": 255,
+  "g": 255,
+  "b": 255
+ },
+ "paths": 67,
+ "rounds": 1,
+ "savedAt": "2026-11-25T05:14:46.367Z"
+}

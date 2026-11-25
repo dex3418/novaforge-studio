@@ -1,0 +1,46 @@
+{
+ "key": "part/ghibli/universal/upper_arm_r__front",
+ "category": "part",
+ "style": "ghibli",
+ "group": "universal",
+ "name": "upper_arm_r__front",
+ "score": 98.44,
+ "params": {
+  "size": 420,
+  "colors": 12,
+  "blur": 1,
+  "simplify": 1,
+  "omit": 10,
+  "smooth": 1,
+  "ink": 0,
+  "seed": 1,
+  "bgtol": 40,
+  "holes": 0,
+  "clean": 1,
+  "fringe": 5
+ },
+ "palette": [
+  "#c1815a",
+  "#955a3e",
+  "#d89b76",
+  "#1e0905",
+  "#22110f",
+  "#daa482",
+  "#ac7759",
+  "#37190f",
+  "#533023",
+  "#724a3a",
+  "#b9907a"
+ ],
+ "w": 136,
+ "h": 236,
+ "bg": {
+  "alpha": false,
+  "r": 255,
+  "g": 255,
+  "b": 255
+ },
+ "paths": 96,
+ "rounds": 1,
+ "savedAt": "2026-11-25T05:16:29.950Z"
+}

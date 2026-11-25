@@ -120,6 +120,21 @@ const VOICES = {
     { id: 'en-US-EmmaMultilingualNeural', label: 'Emma - multilingual (test first)' },
     { id: 'en-US-BrianMultilingualNeural', label: 'Brian - multilingual (test first)' },
   ],
+  // Gemini voices (optional engine, needs GEMINI_API_KEY; free-tier daily limits apply, see src/gemini_tts.js)
+  gemini: [
+    { id: 'Kore', label: 'Kore - Gemini, female, firm' },
+    { id: 'Leda', label: 'Leda - Gemini, female, youthful' },
+    { id: 'Aoede', label: 'Aoede - Gemini, female, breezy' },
+    { id: 'Zephyr', label: 'Zephyr - Gemini, female, bright' },
+    { id: 'Callirrhoe', label: 'Callirrhoe - Gemini, female, easy-going' },
+    { id: 'Sulafat', label: 'Sulafat - Gemini, female, warm' },
+    { id: 'Puck', label: 'Puck - Gemini, male, upbeat' },
+    { id: 'Charon', label: 'Charon - Gemini, male, informative' },
+    { id: 'Fenrir', label: 'Fenrir - Gemini, male, excitable' },
+    { id: 'Orus', label: 'Orus - Gemini, male, firm' },
+    { id: 'Achird', label: 'Achird - Gemini, male, friendly' },
+    { id: 'Algieba', label: 'Algieba - Gemini, male, smooth' },
+  ],
   // ElevenLabs premade voices of the account. The free plan cannot use library voices (Rachel, Adam, Antoni, ...)
   // through the API (error 402), so only premade ones are listed. A voice id from your own account also works as "voice:".
   elevenlabs: [
@@ -137,6 +152,6 @@ const VOICES = {
     { id: 'SOYHLrjzK2X1ezoPC6cr', label: 'Harry - ElevenLabs, male, fierce' },
   ],
 };
-const DEFAULT_VOICE = { edge: 'en-IN-NeerjaNeural', elevenlabs: 'EXAVITQu4vr4xnSDxMaL' };
+const DEFAULT_VOICE = { edge: 'en-IN-NeerjaNeural', elevenlabs: 'EXAVITQu4vr4xnSDxMaL', gemini: 'Kore' };
 
 module.exports = { FAMILIES, PALETTES, TEXTURES, TEMPLATES, TRANSITIONS, SCHEMES, DECORS, HEADERS, CSTYLES, ALIGNS, KINDS, EMOTIONS, VOICES, DEFAULT_VOICE };

@@ -1,0 +1,45 @@
+{
+ "key": "part/ghibli/universal/hand_r__front",
+ "category": "part",
+ "style": "ghibli",
+ "group": "universal",
+ "name": "hand_r__front",
+ "score": 97.33,
+ "params": {
+  "size": 420,
+  "colors": 12,
+  "blur": 1,
+  "simplify": 1,
+  "omit": 10,
+  "smooth": 1,
+  "ink": 0,
+  "seed": 1,
+  "bgtol": 40,
+  "holes": 0,
+  "clean": 1,
+  "fringe": 5
+ },
+ "palette": [
+  "#c4845c",
+  "#27110d",
+  "#b37856",
+  "#a96e4c",
+  "#996144",
+  "#673826",
+  "#8a533a",
+  "#4a2317",
+  "#d49e7c",
+  "#cf946e"
+ ],
+ "w": 304,
+ "h": 324,
+ "bg": {
+  "alpha": false,
+  "r": 255,
+  "g": 255,
+  "b": 255
+ },
+ "paths": 51,
+ "rounds": 1,
+ "savedAt": "2026-11-25T05:14:08.013Z"
+}

@@ -103,6 +103,19 @@ async function build(file, only) {
       report.add('2b Pictures', pics.warn ? (pics.pics.length ? 'warn' : 'warn') : 'ok', `${pics.pics.length} of ${pics.wanted} pictures ready`, pics.notes);
     }
 
+    // 2c ------------------------------------------------------------ who is drawn, and with which body
+    if (storyLib.isStoryMeta(parsed.meta) || (parsed.cast && parsed.cast.length)) {
+      const d = [`cast on screen in every beat: ${(parsed.cast || []).map((c) => c.name).join(', ') || '(none)'}`];
+      let st = 'ok';
+      try {
+        const R = require('./rig_skeleton');
+        const rig = JSON.parse(fs.readFileSync(path.join(root, '..', 'library', 'part', 'ghibli', 'universal', 'rig.json'), 'utf8'));
+        const c = R.coverage(rig, { far: true });
+        d.push(`universal Ghibli body: ${c.drawn} part pictures drawn, ${c.mirrored} flipped, ${c.far || 0} far-side limbs borrowed, ${c.missing.length} missing of ${c.total}${c.missing.length ? '' : '. All parts exist; the renderer that moves them is not built yet, so the existing character art is still used'}`);
+      } catch (e) { d.push('universal Ghibli body: not found in the library (existing character art is used)'); }
+      report.add('2c Characters', st, 'cast ready', d);
+    }
+
     // 3 + 4 --------------------------------------------------------- director and plan
     let plan = rulePlan(parsed);
     if (parsed.meta.director === 'rules') {

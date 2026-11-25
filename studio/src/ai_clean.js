@@ -171,7 +171,7 @@ function shapeStory(body) {
 }
 
 // Step 1 of the pipeline. Studio-format scripts skip the AI (nothing to fix).
-async function prepareScript(raw, opts = {}) {
+async function prepareCore(raw, opts = {}) {
   const rules = cleanScript(raw);
   const r = rules.report;
   // the header (mode, cast, voice, brand ...) is the person's, not the cleaner's: it is put back on whatever the cleaner returns
@@ -218,4 +218,13 @@ async function prepareScript(raw, opts = {}) {
   return { text: keep(rules.text), status: 'warn', summary: `AI cleaner unavailable, rules cleaner made ${r.scenes} scenes`, details };
 }
 
-module.exports = { aiClean, prepareScript, validate, shapeStory };
+// Plain text typed into the box (no "## " scenes, maybe a request on top, maybe "Name: line" dialogue, maybe notes to the
+// director) is read by brief.js first; whatever it returns is then a normal studio script for the steps below.
+async function prepareScript(raw, opts = {}) {
+  const b = require('./brief').interpret(raw);
+  const out = await prepareCore(b.changed ? b.text : raw, opts);
+  if (!b.changed) return out;
+  return { ...out, summary: `plain text read: ${b.scenes} scenes${b.mode && b.mode !== 'normal' ? ', ' + b.mode + ' mode' : ''}`, details: [...b.notes, ...(out.details || [])] };
+}
+
+module.exports = { aiClean, prepareScript, validate, shapeStory, SCENE_MARK };

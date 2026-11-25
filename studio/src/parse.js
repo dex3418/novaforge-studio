@@ -26,14 +26,9 @@ const story = require('./story');
 const path = require('path');
 
 function parseFrontmatter(src) {
-  const m = src.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
-  if (!m) return { meta: {}, body: src };
-  const meta = {};
-  for (const line of m[1].split(/\r?\n/)) {
-    const i = line.indexOf(':');
-    if (i > 0) meta[line.slice(0, i).trim()] = line.slice(i + 1).trim();
-  }
-  return { meta, body: src.slice(m[0].length) };
+  // the tolerant reader (phone dashes, "Mode:" in capitals, code fences); keys come back in lower case
+  const h = require('./header').splitHeader(src);
+  return h.matched ? { meta: h.meta, body: h.body } : { meta: {}, body: src };
 }
 
 function clean(s) {
@@ -153,13 +148,13 @@ function parseText(src, slug) {
   }
 
   // a story pasted without "## " headings: group its lines into scenes of up to 3 lines instead of failing
-  if (!scenes.length && storyMode) {
+  if (!scenes.length) {
     const lines = body.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !/^#/.test(l) && !/^([-*_])\1{2,}$/.test(l) && !/^<!--/.test(l));
     for (let i = 0; i < lines.length; i += 3) {
       const sc = { heading: `Scene ${scenes.length + 1}`, paras: [] };
       for (const raw of lines.slice(i, i + 3)) {
         let para = raw.replace(/^[>\-*\u2022]\s+/, '');
-        const sl = story.speakerLine(para, cast, loose);
+        const sl = storyMode ? story.speakerLine(para, cast, loose) : null;
         if (sl) {
           if (sl.isNew && !cast.find((c) => c.id === sl.id) && sl.id !== story.NARRATOR) cast.push({ id: sl.id, name: sl.name, look: {}, voice: '', explicit: {} });
           para = `\u0001${sl.id}\u0003${sl.tone}\u0002${sl.text}`;
@@ -182,6 +177,9 @@ function parseText(src, slug) {
       s.paras = s.lines.map((l) => l.text);
     }
   });
+
+  // a story always has someone on screen: no cast and no speakers means one default presenter who carries the narration
+  if (storyMode && !cast.length) cast.push({ id: 'guide', name: 'Guide', look: {}, voice: '', explicit: {} });
 
   let titleFromScene = false;
   if (!title) {
