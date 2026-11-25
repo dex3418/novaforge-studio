@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 
 const SRC = path.join(__dirname, '..', 'src');
-const FILES = ['story_stage', 'story_art', 'story', 'characters', 'character_art', 'library_art', 'icons', 'shots', 'blocking', 'catalog', 'assets'];
+const FILES = ['story_stage', 'story_art', 'story', 'characters', 'character_art', 'library_art', 'icons', 'shots', 'blocking', 'catalog', 'assets', 'casting', 'casting_data'];
 
 // bundle({ chars, lib }) -> javascript text defining window.NFLab = { stageSvg, normalizeStory, analyse, CHARS, A, catalog }
 function bundle(baked) {
