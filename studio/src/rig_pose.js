@@ -75,6 +75,8 @@
   }
   const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 
+  function partWidth(rig, part) { const e = Object.assign({}, PROPORTIONS, rig.proportions || {})[RS.baseOf(part)]; return e && e.w != null ? +e.w : 1; }
+
   // pixels per picture pixel for a part, the same for all its views (measured in its front view when it has one)
   function partScale(rig, part, U, pic) {
     const base = RS.baseOf(part);
@@ -88,7 +90,8 @@
   }
 
   // a frame places one picture: picture point A lands on P, the picture's A->B direction follows the screen direction t, shortened by f
-  function makeFrame(pic, A, B, P, t, f, s) {
+  function makeFrame(pic, A, B, P, t, f, s, w) {
+    const wd = (w == null ? 1 : w); // width factor across the part, for pictures drawn chunkier than the body they belong to
     const lp = dist(A, B) || 1;
     const uv = [(B[0] - A[0]) / lp, (B[1] - A[1]) / lp];
     const nv = [-uv[1], uv[0]];
@@ -96,7 +99,7 @@
     const map = (p) => {
       const q = [p[0] - A[0], p[1] - A[1]];
       const al = q[0] * uv[0] + q[1] * uv[1], ac = q[0] * nv[0] + q[1] * nv[1];
-      return [P[0] + t[0] * al * s * f + tn[0] * ac * s, P[1] + t[1] * al * s * f + tn[1] * ac * s];
+      return [P[0] + t[0] * al * s * f + tn[0] * ac * s * wd, P[1] + t[1] * al * s * f + tn[1] * ac * s * wd];
     };
     const o = map([0, 0]), ex = map([1, 0]), ey = map([0, 1]);
     const a = ex[0] - o[0], b = ex[1] - o[1], c = ey[0] - o[0], d = ey[1] - o[1];
@@ -127,7 +130,19 @@
   }
 
   // ---------- the solver ----------
-  function solve(rig, pose) {
+  // angles added on top of the rig's own rest pose (rig.rest.angles): 0 means "relaxed", which for the chibi body has the arms slightly out
+  function withRest(rig, pose) {
+    const rest = (rig.rest && rig.rest.angles) || {};
+    const out = {};
+    for (const j of new Set(Object.keys(rest).concat(Object.keys(pose.angles || {})))) {
+      const a = rest[j] || {}, b = (pose.angles && pose.angles[j]) || {};
+      out[j] = { fb: (+a.fb || 0) + (+b.fb || 0), side: (+a.side || 0) + (+b.side || 0) };
+    }
+    return Object.assign({}, pose, { angles: out });
+  }
+
+  function solve(rig, rawPose) {
+    const pose = withRest(rig, rawPose);
     const view = pose.view || 'front';
     if (!RS.VIEWS.includes(view)) throw new Error('unknown view ' + view);
     const U = pose.unit || 100;
@@ -141,7 +156,7 @@
     const pel = need('pelvis');
     const sPel = partScale(rig, 'pelvis', U, pel);
     const waistP = jointPx(pel, 'waist');
-    const fPel = makeFrame(pel, waistP, [waistP[0], waistP[1] + 1], root, [0, 1], 1, sPel);
+    const fPel = makeFrame(pel, waistP, [waistP[0], waistP[1] + 1], root, [0, 1], 1, sPel, partWidth(rig, 'pelvis'));
     put('pelvis', pel, fPel);
     joints.waist = root.slice();
     const hipW = { l: fPel.map(jointPx(pel, 'hip_l')), r: fPel.map(jointPx(pel, 'hip_r')) };
@@ -155,7 +170,7 @@
     const torWaist = jointPx(tor, 'waist'), torNeck = jointPx(tor, 'neck');
     const lap = (OVERLAP * U);
     const torRoot = [root[0] - sw.t[0] * lap, root[1] - sw.t[1] * lap]; // sunk into the pelvis so no gap shows at the waist
-    const fTor = makeFrame(tor, torWaist, torNeck, torRoot, sw.t, sw.f, sTor);
+    const fTor = makeFrame(tor, torWaist, torNeck, torRoot, sw.t, sw.f, sTor, partWidth(rig, 'torso'));
     put('torso', tor, fTor);
     joints.neck = fTor.map(torNeck);
     const shoulderW = { l: fTor.map(jointPx(tor, 'shoulder_l')), r: fTor.map(jointPx(tor, 'shoulder_r')) };
@@ -167,7 +182,7 @@
     const Rn = mul(Rw, localUp(pose, 'neck'));
     const sn = seg(Rn, true, view);
     const hdNeck = jointPx(hd, 'neck');
-    put('head', hd, makeFrame(hd, hdNeck, [hdNeck[0], 0], [joints.neck[0] + sn.t[0] * 0, joints.neck[1] + 0], sn.t, sn.f, sHd));
+    put('head', hd, makeFrame(hd, hdNeck, [hdNeck[0], 0], [joints.neck[0] + sn.t[0] * 0, joints.neck[1] + 0], sn.t, sn.f, sHd, partWidth(rig, 'head')));
 
     // a hanging chain: parts[] = [{ part, local joint rotation, kneeLike }], first starts at P with rotation R0
     function chain(side, names, P, R0, defs) {
@@ -182,7 +197,7 @@
         // segment end: the next joint when there is one, else straight down the picture
         const B = jb ? jointPx(pic, jb) : [A[0], pic.h];
         const sg = seg(R, false, view);
-        const fr = makeFrame(pic, A, B, at, sg.t, sg.f, s);
+        const fr = makeFrame(pic, A, B, at, sg.t, sg.f, s, partWidth(rig, part));
         put(part, pic, fr);
         if (jb) joints[jb] = fr.map(B);
         rot = R;
