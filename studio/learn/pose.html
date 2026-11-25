@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NovaForge: Pose and walk</title>
+<style>
+body{margin:0;font:14px system-ui,sans-serif;background:#1c1f24;color:#e8e8e8}
+header{padding:10px 14px;background:#14161a;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+header a{color:#8fc7ff}
+main{display:flex;flex-wrap:wrap;gap:12px;padding:12px}
+#stage{background:#f4efe6;border-radius:8px;width:min(100%,520px);aspect-ratio:2/3;touch-action:none}
+#panel{flex:1;min-width:260px;max-width:520px}
+select,button{font:inherit;padding:6px 10px;border-radius:6px;border:1px solid #444;background:#2a2e35;color:#eee}
+button.on{background:#2f6fed;border-color:#2f6fed}
+.row{display:grid;grid-template-columns:90px 1fr 42px;align-items:center;gap:6px;margin:3px 0}
+.row input{width:100%}
+h3{margin:12px 0 4px;font-size:13px;color:#9aa}
+#msg{color:#9aa;margin:6px 0;min-height:1.2em}
+</style></head><body>
+<header><b>Pose and walk</b><a href="/">Learning Studio</a>
+<label>View <select id="view"></select></label>
+<button id="play">Play walk</button><button id="rest">Reset pose</button>
+<label>Size <input id="unit" type="range" min="40" max="140" value="100"></label></header>
+<main><svg id="stage" viewBox="-260 -520 520 780"></svg>
+<div id="panel"><div id="msg"></div><div id="sliders"></div></div></main>
+<script src="/pose/rig_skeleton.js"></script><script src="/pose/rig_pose.js"></script>
+<script>
+(function(){
+  var RS=window.RigSkeleton,P=window.RigPose,style='ghibli',body='universal';
+  var rig=null,angles={},playing=false,t0=0,clip=null,view='left_profile';
+  var $=function(i){return document.getElementById(i)};
+  var JOINT_ORDER=['waist','neck','shoulder_l','elbow_l','wrist_l','shoulder_r','elbow_r','wrist_r','hip_l','knee_l','ankle_l','hip_r','knee_r','ankle_r'];
+  RS.VIEWS.forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent=RS.VIEW_LABEL[v];$('view').appendChild(o)});
+  $('view').value=view;
+  var href=function(n){return '/pose/part/'+style+'/'+body+'/'+n+'.svg'};
+  function pose(a){return {view:view,x:0,y:0,unit:+$('unit').value,angles:a}}
+  function draw(a){
+    if(!rig)return;var p=P.plant(rig,pose(a),0);
+    var s;try{s=P.solve(rig,p)}catch(e){$('msg').textContent=e.message;return}
+    var svg=P.toSvg(s,{href:href,viewBox:[-260,-520,520,780],pad:0});
+    $('stage').innerHTML=svg.replace(/^<svg[^>]*>/,'').replace(/<\/svg>$/,'');
+  }
+  function sliders(){
+    var h='';JOINT_ORDER.forEach(function(j){var lim=['fb','side'];h+='<h3>'+RS.jointLabel(j)+'</h3>';lim.forEach(function(ax){var r=RS.limitOf(j,ax);var v=(angles[j]&&angles[j][ax])||0;
+      h+='<div class="row"><span>'+(ax==='fb'?'forward':'sideways')+'</span><input type="range" data-j="'+j+'" data-ax="'+ax+'" min="'+r[0]+'" max="'+r[1]+'" value="'+v+'"'+(r[0]===r[1]?' disabled':'')+'><span>'+Math.round(v)+'</span></div>'})});
+    $('sliders').innerHTML=h;
+  }
+  $('sliders').addEventListener('input',function(e){var el=e.target;if(!el.dataset.j)return;var j=el.dataset.j;(angles[j]=angles[j]||{fb:0,side:0})[el.dataset.ax]=+el.value;el.nextSibling.textContent=Math.round(+el.value);if(!playing)draw(angles)});
+  $('view').onchange=function(){view=$('view').value;clip=null;draw(angles)};
+  $('unit').oninput=function(){if(!playing)draw(angles)};
+  $('rest').onclick=function(){angles={};sliders();draw(angles)};
+  $('play').onclick=function(){
+    playing=!playing;$('play').classList.toggle('on',playing);$('play').textContent=playing?'Stop':'Play walk';
+    if(playing){clip=P.walkClip();clip.speed=P.measureSpeed(rig,clip,view,100);t0=performance.now();
+      $('msg').textContent=(RS.NEAR_SIDE[view]?'':'The walk is made for the side views; the front and back views only show the leg swing. ')+'Walk speed '+clip.speed.toFixed(2)+' torso heights per second.';
+      (function loop(){if(!playing)return;var t=(performance.now()-t0)/1000;draw(P.sampleAngles(clip,t));requestAnimationFrame(loop)})();}
+    else{draw(angles)}
+  };
+  fetch('/api/rig?style='+style+'&body='+body).then(function(r){return r.json()}).then(function(j){
+    if(!j.ok){$('msg').textContent=j.error;return}rig=j.rig;var c=RS.coverage(rig,{far:true});
+    $('msg').textContent=c.missing.length?c.missing.length+' part pictures are missing':'';sliders();draw(angles)});
+})();
+</script></body></html>

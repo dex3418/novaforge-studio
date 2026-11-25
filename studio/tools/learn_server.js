@@ -190,6 +190,9 @@ function handler(req, res) {
   if (req.method === 'GET' && url === '/api/ping') return send(200, { ok: true, root: path.basename(ROOT) });
   if (req.method === 'GET' && url === '/lab') { try { return send(200, withTheme(fs.readFileSync(LAB_PAGE, 'utf8')), 'text/html; charset=utf-8'); } catch (e) { return send(404, { ok: false, error: 'lab page missing' }); } }
   if (req.method === 'GET' && url === '/lab/stage.js') { try { return send(200, labBundle(), 'application/javascript; charset=utf-8'); } catch (e) { return send(500, '/* ' + e.message + ' */', 'application/javascript'); } }
+  if (req.method === 'GET' && url === '/pose') { try { return send(200, withTheme(fs.readFileSync(path.join(__dirname, '..', 'learn', 'pose.html'), 'utf8')), 'text/html; charset=utf-8'); } catch (e) { return send(404, { ok: false, error: 'pose page missing' }); } }
+  if (req.method === 'GET' && (url === '/pose/rig_pose.js' || url === '/pose/rig_skeleton.js')) { try { return send(200, fs.readFileSync(path.join(__dirname, '..', 'src', url.split('/').pop()), 'utf8'), 'application/javascript; charset=utf-8'); } catch (e) { return send(500, '/* ' + e.message + ' */', 'application/javascript'); } }
+  { const m = /^\/pose\/part\/([a-z0-9_-]+)\/([a-z0-9_-]+)\/([a-z0-9_]+)\.svg$/.exec(url); if (req.method === 'GET' && m) { try { return send(200, fs.readFileSync(path.join(ROOT, 'library', 'part', m[1], m[2], m[3] + '.svg'), 'utf8'), 'image/svg+xml'); } catch (e) { return send(404, 'missing', 'text/plain'); } } }
   if (req.method === 'GET' && url === '/api/lab/examples') return send(200, { ok: true, items: listExamples() });
   if (req.method === 'POST' && url === '/api/lab/example') {
     const chunks = []; req.on('data', (c) => chunks.push(c));
