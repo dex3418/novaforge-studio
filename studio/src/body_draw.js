@@ -20,16 +20,17 @@
 
   // ---- the body's measurements, taken from the reference picture (all in box units) ----
   const M = {
-    head: { c: [0, 482, 0], r: [130, 145, 128] },
-    ear: { c: [128, 420, -4], r: [13, 28, 20] },
-    trunk: { top: 256, bottom: 200, rTop: 74, rBottom: 82, depth: 0.75 },   // ONE body piece, neck base to crotch
+    head: { c: [0, 484, -16], r: [130, 147, 134] },
+    jaw: { c: [0, 432, -10], r: [122, 92, 100] },
+    ear: { c: [122, 418, -6], r: [12, 26, 18] },
+    trunk: { zoff: -6, top: 256, bottom: 200, rTop: 70, rBottom: 82, depth: 0.85 },   // ONE body piece, neck base to crotch
     neck: { r: 34, depth: 1.1 },
-    shoulder: [46, 304, 6], elbowLen: 80, wristLen: 78,
+    shoulder: [46, 304, 6], elbowLen: 82, wristLen: 80,
     arm: { r0: 33, r1: 24, r2: 15 },
     hand: { len: 34, r0: 15, r1: 9 },
-    hip: [43, 118, 0], thighLen: 48, calfLen: 48,
-    leg: { r0: 36, r1: 31, r2: 25 },
-    foot: { r: [30, 11, 44], fwd: 17 },
+    hip: [46, 118, 0], thighLen: 48, calfLen: 48,
+    leg: { r0: 34, r1: 30, r2: 25 },
+    foot: { r: [30, 11, 38], fwd: 9 },
   };
 
   // ---- small 3D helpers ----
@@ -45,7 +46,7 @@
   const upright = (angles, j) => { const a = ang(angles, j); return mul(rotSide(-a.side), rotFb(-a.fb)); };
 
   // rest pose: arms hang a little out, as in the reference
-  const REST = { shoulder_l: { side: 32 }, shoulder_r: { side: 32 }, elbow_l: { fb: 6 }, elbow_r: { fb: 6 }, hip_l: { side: 3.5 }, hip_r: { side: 3.5 } };
+  const REST = { shoulder_l: { side: 37, fb: -9 }, shoulder_r: { side: 37, fb: -9 }, elbow_l: { fb: 6 }, elbow_r: { fb: 6 }, hip_l: { side: 4.5 }, hip_r: { side: 4.5 } };
   function withRest(angles) {
     const out = {};
     for (const j of new Set(Object.keys(REST).concat(Object.keys(angles || {})))) {
@@ -63,7 +64,7 @@
     const Rw = upright(A, 'waist');                      // torso lean
     const Rn = mul(Rw, upright(A, 'neck'));
     const at = (R, o, v) => add(o, app(R, v));
-    const waist = [0, M.trunk.bottom, 0];
+    const waist = [0, M.trunk.bottom, M.trunk.zoff || 0];
     const T = M.trunk;
     // the whole trunk (chest, belly, pelvis) is one tapered piece
     P.push({ kind: 'capsule', name: 'trunk', group: 'core', a: add(waist, app(Rw, [0, T.top - T.bottom, 0])), b: waist, ra: T.rTop, rb: T.rBottom, zr: T.depth, layer: 4 });
@@ -71,6 +72,8 @@
     P.push({ kind: 'capsule', name: 'neck', group: 'core', a: add(waist, app(Rw, [0, 118, 0])), b: add(neckTop, app(Rn, [0, 10, 0])), ra: M.neck.r, rb: M.neck.r, zr: M.neck.depth, layer: 3 });
     const headC = add(neckTop, app(Rn, [0, M.head.c[1] - neckTop[1], 0]));
     P.push({ kind: 'ellipsoid', name: 'head', group: 'head', c: headC, r: M.head.r, R: Rn, layer: 8 });
+    // the cheeks and jaw: the head is egg-shaped, wider at the cheeks than a plain oval (same group, so no seam)
+    P.push({ kind: 'ellipsoid', name: 'jaw', group: 'head', c: add(headC, app(Rn, [0, M.jaw.c[1] - M.head.c[1], M.jaw.c[2]])), r: M.jaw.r, R: Rn, layer: 8 });
     for (const sg of [1, -1]) P.push({ kind: 'ellipsoid', name: 'ear', group: 'ear' + sg, c: add(headC, app(Rn, [sg * M.ear.c[0], M.ear.c[1] - M.head.c[1], M.ear.c[2]])), r: M.ear.r, R: Rn, layer: 7 });
     for (const [side, sg] of [['l', 1], ['r', -1]]) {
       // arm
