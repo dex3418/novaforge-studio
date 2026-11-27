@@ -20,14 +20,14 @@
 
   // ---- the body's measurements, taken from the reference picture (all in box units) ----
   const M = {
-    head: { c: [0, 482, 0], r: [128, 148, 126] },
+    head: { c: [0, 480, 0], r: [130, 148, 128] },
     ear: { c: [124, 438, -4], r: [14, 26, 22] },
-    trunk: { c: [0, 262, 2], r: [76, 112, 64] },
+    trunk: { c: [0, 250, 2], r: [74, 108, 62] },
     pelvis: { c: [0, 168, 4], r: [74, 56, 64] },
-    shoulder: [64, 318, 8], elbowLen: 78, wristLen: 78,
+    shoulder: [64, 318, 8], elbowLen: 84, wristLen: 80,
     arm: { r0: 30, r1: 22, r2: 16 },
     hand: { r: [15, 22, 10] },
-    hip: [38, 150, 0], thighLen: 70, calfLen: 62,
+    hip: [32, 150, 0], thighLen: 72, calfLen: 64,
     leg: { r0: 34, r1: 29, r2: 23 },
     foot: { r: [25, 14, 40], fwd: 16 },
   };
@@ -45,7 +45,7 @@
   const upright = (angles, j) => { const a = ang(angles, j); return mul(rotSide(-a.side), rotFb(-a.fb)); };
 
   // rest pose: arms hang a little out, as in the reference
-  const REST = { shoulder_l: { side: 16 }, shoulder_r: { side: 16 }, elbow_l: { fb: 6 }, elbow_r: { fb: 6 }, hip_l: { side: 2 }, hip_r: { side: 2 } };
+  const REST = { shoulder_l: { side: 27 }, shoulder_r: { side: 27 }, elbow_l: { fb: 6 }, elbow_r: { fb: 6 }, hip_l: { side: 2 }, hip_r: { side: 2 } };
   function withRest(angles) {
     const out = {};
     for (const j of new Set(Object.keys(REST).concat(Object.keys(angles || {})))) {
@@ -178,5 +178,5 @@
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb.map(f).join(' ')}" width="${f(vb[2] * k)}" height="${f(vb[3] * k)}">${opt.background ? `<rect x="${f(vb[0])}" y="${f(vb[1])}" width="${f(vb[2])}" height="${f(vb[3])}" fill="${opt.background}"/>` : ''}${body}</svg>`;
   }
 
-  return { COLORS, BOX, VIEW_YAW, shapes, draw, body };
+  return { COLORS, BOX, VIEW_YAW, M, REST, shapes, draw, body };
 }));
