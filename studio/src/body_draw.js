@@ -74,7 +74,7 @@
     P.push({ kind: 'ellipsoid', name: 'head', group: 'head', c: headC, r: M.head.r, R: Rn, layer: 8 });
     // the cheeks and jaw: the head is egg-shaped, wider at the cheeks than a plain oval (same group, so no seam)
     P.push({ kind: 'ellipsoid', name: 'jaw', group: 'head', c: add(headC, app(Rn, [0, M.jaw.c[1] - M.head.c[1], M.jaw.c[2]])), r: M.jaw.r, R: Rn, layer: 8 });
-    for (const sg of [1, -1]) P.push({ kind: 'ellipsoid', name: 'ear', group: 'ear' + sg, c: add(headC, app(Rn, [sg * M.ear.c[0], M.ear.c[1] - M.head.c[1], M.ear.c[2]])), r: M.ear.r, R: Rn, layer: 7 });
+    for (const sg of [1, -1]) P.push({ kind: 'ellipsoid', name: 'ear_' + (sg > 0 ? 'l' : 'r'), group: 'ear' + sg, c: add(headC, app(Rn, [sg * M.ear.c[0], M.ear.c[1] - M.head.c[1], M.ear.c[2]])), r: M.ear.r, R: Rn, layer: 7 });
     for (const [side, sg] of [['l', 1], ['r', -1]]) {
       // arm
       const sh = add(waist, app(Rw, [sg * M.shoulder[0], M.shoulder[1] - waist[1], M.shoulder[2]]));
@@ -125,11 +125,13 @@
       const l1 = tr / 2 + disc, l2 = Math.max(0.01, tr / 2 - disc);
       const th = Math.abs(sxy) < 1e-9 && sxx >= syy ? 0 : Math.atan2(l1 - sxx, sxy) ;
       const ang = Math.abs(sxy) < 1e-9 ? (sxx >= syy ? 0 : Math.PI / 2) : th;
-      return { kind: 'ellipse', name: p.name, group: p.group, cx: dot(cam.sx, p.c), cy: dot(cam.sy, p.c), rx: Math.sqrt(l1), ry: Math.sqrt(l2), rot: (ang * 180) / Math.PI, depth: dot(cam.dp, p.c), layer: p.layer };
+      const ax = (v) => { const q = add(p.c, app(p.R, v)), w = add(p.c, app(p.R, [-v[0], -v[1], -v[2]])); return [dot(cam.sx, q), dot(cam.sy, q), dot(cam.sx, w), dot(cam.sy, w)]; };
+      const cand = [ax([0, p.r[1], 0]), ax([0, 0, p.r[2]]), ax([p.r[0], 0, 0])];
+      return { kind: 'ellipse', cand, name: p.name, group: p.group, cx: dot(cam.sx, p.c), cy: dot(cam.sy, p.c), rx: Math.sqrt(l1), ry: Math.sqrt(l2), rot: (ang * 180) / Math.PI, depth: dot(cam.dp, p.c), layer: p.layer };
     }
     const ax = dot(cam.sx, p.a), ay = dot(cam.sy, p.a), bx = dot(cam.sx, p.b), by = dot(cam.sy, p.b);
     const kz = p.zr ? Math.hypot(Math.cos(cam.yaw), p.zr * Math.sin(cam.yaw)) : 1; // a body piece that is flatter front-to-back
-    return { kind: 'capsule', name: p.name, group: p.group, ax, ay, bx, by, ra: p.ra * kz, rb: p.rb * kz, depth: (dot(cam.dp, p.a) + dot(cam.dp, p.b)) / 2, layer: p.layer };
+    return { kind: 'capsule', cand: [[ax, ay, bx, by]], name: p.name, group: p.group, ax, ay, bx, by, ra: p.ra * kz, rb: p.rb * kz, depth: (dot(cam.dp, p.a) + dot(cam.dp, p.b)) / 2, layer: p.layer };
   }
 
   // shapes in drawing order: far to near; a body part that belongs on top of its neighbour at equal depth uses its layer
@@ -197,5 +199,5 @@
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb.map(f).join(' ')}" width="${f(vb[2] * k)}" height="${f(vb[3] * k)}">${opt.background ? `<rect x="${f(vb[0])}" y="${f(vb[1])}" width="${f(vb[2])}" height="${f(vb[3])}" fill="${opt.background}"/>` : ''}${body}</svg>`;
   }
 
-  return { COLORS, BOX, VIEW_YAW, M, REST, shapes, draw, body };
+  return { COLORS, BOX, VIEW_YAW, M, REST, shapes, draw, body, groupsOf, capsulePath };
 }));
