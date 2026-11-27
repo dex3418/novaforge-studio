@@ -235,6 +235,35 @@
     return Object.assign({}, pose, { y: groundY - low });
   }
 
+
+  // ---------- box layout ----------
+  // The body is one box. rig.layout[view] = { w, h, slots: { part: { x, y, w, h } } } in the box's own units (the reference picture's pixels).
+  // Every part picture is fitted into its slot, so no part can sit outside the box and nothing is chained from the end of another picture.
+  // Parts without a slot of their own (the far arm and leg in a side view) use the slot of the opposite side and are drawn behind.
+  // pose: { view, x, y, unit }  unit = pixels tall the whole box is drawn; x, y = top-centre of the box on screen.
+  function boxSolve(rig, pose) {
+    const view = pose.view || 'front';
+    const L = rig.layout && rig.layout[view];
+    if (!L) throw new Error(`the rig has no box layout for ${view}`);
+    const k = (pose.unit || 100) / L.h;
+    const ox = (+pose.x || 0) - (L.w * k) / 2, oy = +pose.y || 0;
+    const items = {};
+    for (const part of RS.PARTS) {
+      const pic = pictureFor(rig, part, view);
+      if (!pic) continue;
+      const o = RS.oppositeOf ? RS.oppositeOf(part) : part.replace(/_l$/, '_x').replace(/_r$/, '_l').replace(/_x$/, '_r');
+      const slot = L.slots[part] || L.slots[o];
+      if (!slot) continue;
+      const sx = (slot.w * k) / pic.w, sy = (slot.h * k) / pic.h;
+      const ex = ox + slot.x * k, ey = oy + slot.y * k;
+      items[part] = { part, asset: pic.asset, w: pic.w, h: pic.h, far: pic.far || !L.slots[part], flip: pic.flip, from: pic.src.part + '__' + pic.src.view,
+        matrix: pic.flip ? [-sx, 0, 0, sy, ex + slot.w * k, ey] : [sx, 0, 0, sy, ex, ey] };
+    }
+    const order = (rig.draw_order && rig.draw_order[view]) || RS.drawOrder(view);
+    const list = order.map((q) => items[q]).filter(Boolean);
+    return { version: POSE_VERSION, view, items: list, joints: {}, bounds: { minX: ox, minY: oy, maxX: ox + L.w * k, maxY: oy + L.h * k }, sole: {} };
+  }
+
   // ---------- drawing ----------
   const r2 = (n) => Math.round(n * 100) / 100;
   // href(assetName) -> the URL or data: URI of that part's SVG. far parts are drawn a little darker.
@@ -389,5 +418,5 @@
     return { ok: !errors.length, errors };
   }
 
-  return { POSE_VERSION, CLIP_FORMAT, VIEW_YAW, FACING, PROPORTIONS, solve, restHeight, plant, toSvg, sampleAngles, poseAt, walkClip, measureSpeed, footSlide, validateClip };
+  return { boxSolve, POSE_VERSION, CLIP_FORMAT, VIEW_YAW, FACING, PROPORTIONS, solve, restHeight, plant, toSvg, sampleAngles, poseAt, walkClip, measureSpeed, footSlide, validateClip };
 }));

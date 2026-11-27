@@ -101,4 +101,24 @@ t('walk: the measured speed keeps the planted foot nearly still', () => {
   console.log(`  walk speed ${v.toFixed(3)} units/s, planted-foot movement per step ${still.toFixed(2)} px (${moving.toFixed(2)} px if standing in place)`);
 });
 
+
+t('box layout: every part is fitted inside its slot, and all slots lie inside the body box', () => {
+  const r = JSON.parse(JSON.stringify(rig));
+  r.layout = { front: { w: 100, h: 200, slots: {} } };
+  const sl = r.layout.front.slots;
+  sl.head = { x: 20, y: 0, w: 60, h: 80 }; sl.torso = { x: 25, y: 70, w: 50, h: 60 }; sl.pelvis = { x: 28, y: 120, w: 44, h: 30 };
+  sl.upper_arm_l = { x: 75, y: 75, w: 15, h: 30 }; sl.thigh_l = { x: 52, y: 145, w: 18, h: 30 }; sl.foot_l = { x: 52, y: 180, w: 18, h: 20 };
+  const s = P.boxSolve(r, { view: 'front', x: 0, y: 0, unit: 200 });
+  const b = s.bounds;
+  for (const it of s.items) {
+    const m = it.matrix, xs = [0, it.w].map((x) => m[0] * x + m[4]), ys = [0, it.h].map((y) => m[3] * y + m[5]);
+    assert.ok(Math.min(...xs) >= b.minX - 1e-6 && Math.max(...xs) <= b.maxX + 1e-6 && Math.min(...ys) >= b.minY - 1e-6 && Math.max(...ys) <= b.maxY + 1e-6, it.part + ' is inside the body box');
+  }
+  const head = s.items.find((i) => i.part === 'head');
+  assert.ok(Math.abs(head.matrix[0] * head.w - 60) < 1e-6 && Math.abs(head.matrix[3] * head.h - 80) < 1e-6, 'the head fills its slot exactly');
+  const far = s.items.find((i) => i.part === 'upper_arm_r');
+  assert.ok(far && far.far, 'the other arm uses the same slot and is drawn behind');
+  assert.throws(() => P.boxSolve(r, { view: 'back' }), /no box layout/);
+});
+
 console.log(`rig_pose.test.js: ${n} tests passed`);
