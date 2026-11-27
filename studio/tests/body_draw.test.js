@@ -25,7 +25,7 @@ t('a bent knee lifts the foot, a swung arm moves the hand, in the side view', ()
   const hand = (a) => B.shapes({ view: 'left_profile', angles: a }).find((s) => s.name === 'hand_l');
   const foot = (a) => B.shapes({ view: 'left_profile', angles: a }).find((s) => s.name === 'foot_l');
   assert.ok(foot({ knee_l: { fb: 80 } }).cy < foot({}).cy - 20, 'foot is higher (screen y is smaller)');
-  assert.ok(hand({ shoulder_l: { fb: 60 } }).cx < hand({}).cx - 30, 'the left profile faces screen-left, so forward is -x');
+  assert.ok(hand({ shoulder_l: { fb: 60 } }).bx < hand({}).bx - 30, 'the left profile faces screen-left, so forward is -x');
 });
 
 t('several bodies on one page never share a clip id', () => {

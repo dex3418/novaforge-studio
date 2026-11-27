@@ -20,16 +20,16 @@
 
   // ---- the body's measurements, taken from the reference picture (all in box units) ----
   const M = {
-    head: { c: [0, 480, 0], r: [130, 148, 128] },
-    ear: { c: [124, 438, -4], r: [14, 26, 22] },
-    trunk: { c: [0, 250, 2], r: [74, 108, 62] },
-    pelvis: { c: [0, 168, 4], r: [74, 56, 64] },
-    shoulder: [64, 318, 8], elbowLen: 84, wristLen: 80,
-    arm: { r0: 30, r1: 22, r2: 16 },
-    hand: { r: [15, 22, 10] },
-    hip: [32, 150, 0], thighLen: 72, calfLen: 64,
-    leg: { r0: 34, r1: 29, r2: 23 },
-    foot: { r: [25, 14, 40], fwd: 16 },
+    head: { c: [0, 482, 0], r: [130, 145, 128] },
+    ear: { c: [128, 420, -4], r: [13, 28, 20] },
+    trunk: { top: 256, bottom: 200, rTop: 74, rBottom: 82, depth: 0.75 },   // ONE body piece, neck base to crotch
+    neck: { r: 34, depth: 1.1 },
+    shoulder: [46, 304, 6], elbowLen: 80, wristLen: 78,
+    arm: { r0: 33, r1: 24, r2: 15 },
+    hand: { len: 34, r0: 15, r1: 9 },
+    hip: [43, 118, 0], thighLen: 48, calfLen: 48,
+    leg: { r0: 36, r1: 31, r2: 25 },
+    foot: { r: [30, 11, 44], fwd: 17 },
   };
 
   // ---- small 3D helpers ----
@@ -45,7 +45,7 @@
   const upright = (angles, j) => { const a = ang(angles, j); return mul(rotSide(-a.side), rotFb(-a.fb)); };
 
   // rest pose: arms hang a little out, as in the reference
-  const REST = { shoulder_l: { side: 27 }, shoulder_r: { side: 27 }, elbow_l: { fb: 6 }, elbow_r: { fb: 6 }, hip_l: { side: 2 }, hip_r: { side: 2 } };
+  const REST = { shoulder_l: { side: 32 }, shoulder_r: { side: 32 }, elbow_l: { fb: 6 }, elbow_r: { fb: 6 }, hip_l: { side: 3.5 }, hip_r: { side: 3.5 } };
   function withRest(angles) {
     const out = {};
     for (const j of new Set(Object.keys(REST).concat(Object.keys(angles || {})))) {
@@ -63,16 +63,15 @@
     const Rw = upright(A, 'waist');                      // torso lean
     const Rn = mul(Rw, upright(A, 'neck'));
     const at = (R, o, v) => add(o, app(R, v));
-    // pelvis and legs are the base
-    P.push({ kind: 'ellipsoid', name: 'pelvis', c: M.pelvis.c, r: M.pelvis.r, R: I3, layer: 2 });
-    const waist = [0, 205, 0];
-    P.push({ kind: 'ellipsoid', name: 'trunk', c: add(waist, app(Rw, [M.trunk.c[0], M.trunk.c[1] - waist[1], M.trunk.c[2]])), r: M.trunk.r, R: Rw, layer: 4 });
-    for (const sg of [1, -1]) P.push({ kind: 'ellipsoid', name: 'shoulder', c: add(waist, app(Rw, [sg * 56, 112, 6])), r: [44, 34, 40], R: Rw, layer: 4 });
-    const neck = add(waist, app(Rw, [0, 140, 0]));
-    P.push({ kind: 'ellipsoid', name: 'neck', c: add(neck, app(Rn0(Rw), [0, 4, 0])), r: [40, 32, 36], R: Rw, layer: 3 });
-    const headC = add(neck, app(Rn, [0, M.head.c[1] - 345, 0]));
-    P.push({ kind: 'ellipsoid', name: 'head', c: headC, r: M.head.r, R: Rn, layer: 8 });
-    for (const sg of [1, -1]) P.push({ kind: 'ellipsoid', name: 'ear', c: add(headC, app(Rn, [sg * M.ear.c[0], M.ear.c[1] - M.head.c[1], M.ear.c[2]])), r: M.ear.r, R: Rn, layer: 7 });
+    const waist = [0, M.trunk.bottom, 0];
+    const T = M.trunk;
+    // the whole trunk (chest, belly, pelvis) is one tapered piece
+    P.push({ kind: 'capsule', name: 'trunk', group: 'core', a: add(waist, app(Rw, [0, T.top - T.bottom, 0])), b: waist, ra: T.rTop, rb: T.rBottom, zr: T.depth, layer: 4 });
+    const neckTop = add(waist, app(Rw, [0, 132, 0]));
+    P.push({ kind: 'capsule', name: 'neck', group: 'core', a: add(waist, app(Rw, [0, 118, 0])), b: add(neckTop, app(Rn, [0, 10, 0])), ra: M.neck.r, rb: M.neck.r, zr: M.neck.depth, layer: 3 });
+    const headC = add(neckTop, app(Rn, [0, M.head.c[1] - neckTop[1], 0]));
+    P.push({ kind: 'ellipsoid', name: 'head', group: 'head', c: headC, r: M.head.r, R: Rn, layer: 8 });
+    for (const sg of [1, -1]) P.push({ kind: 'ellipsoid', name: 'ear', group: 'ear' + sg, c: add(headC, app(Rn, [sg * M.ear.c[0], M.ear.c[1] - M.head.c[1], M.ear.c[2]])), r: M.ear.r, R: Rn, layer: 7 });
     for (const [side, sg] of [['l', 1], ['r', -1]]) {
       // arm
       const sh = add(waist, app(Rw, [sg * M.shoulder[0], M.shoulder[1] - waist[1], M.shoulder[2]]));
@@ -81,10 +80,10 @@
       const R2 = mul(R1, hang(A, 'elbow_' + side));
       const wr = add(el, app(R2, [0, -M.wristLen, 0]));
       const R3 = mul(R2, hang(A, 'wrist_' + side));
-      const hc = add(wr, app(R3, [0, -M.hand.r[1] * 0.8, 0]));
-      P.push({ kind: 'capsule', name: 'upper_arm_' + side, a: sh, b: el, ra: M.arm.r0, rb: M.arm.r1, layer: 5 });
-      P.push({ kind: 'capsule', name: 'forearm_' + side, a: el, b: wr, ra: M.arm.r1, rb: M.arm.r2, layer: 5 });
-      P.push({ kind: 'ellipsoid', name: 'hand_' + side, c: hc, r: M.hand.r, R: R3, layer: 5 });
+      const tip = add(wr, app(R3, [0, -M.hand.len, 0]));
+      P.push({ kind: 'capsule', name: 'upper_arm_' + side, group: 'arm' + side, a: sh, b: el, ra: M.arm.r0, rb: M.arm.r1, layer: 3 });
+      P.push({ kind: 'capsule', name: 'forearm_' + side, group: 'arm' + side, a: el, b: wr, ra: M.arm.r1, rb: M.arm.r2, layer: 3 });
+      P.push({ kind: 'capsule', name: 'hand_' + side, group: 'arm' + side, a: wr, b: tip, ra: M.hand.r0, rb: M.hand.r1, layer: 3 });
       // leg
       const hp = [sg * M.hip[0], M.hip[1], M.hip[2]];
       const L1 = hang(A, 'hip_' + side);
@@ -93,9 +92,9 @@
       const an = add(kn, app(L2, [0, -M.calfLen, 0]));
       const L3 = mul(L2, hang(A, 'ankle_' + side));
       const ft = add(an, app(L3, [0, -M.foot.r[1] * 0.4, M.foot.fwd]));
-      P.push({ kind: 'capsule', name: 'thigh_' + side, a: hp, b: kn, ra: M.leg.r0, rb: M.leg.r1, layer: 1 });
-      P.push({ kind: 'capsule', name: 'calf_' + side, a: kn, b: an, ra: M.leg.r1, rb: M.leg.r2, layer: 1 });
-      P.push({ kind: 'ellipsoid', name: 'foot_' + side, c: ft, r: M.foot.r, R: L3, layer: 1 });
+      P.push({ kind: 'capsule', name: 'thigh_' + side, group: 'leg' + side, a: hp, b: kn, ra: M.leg.r0, rb: M.leg.r1, layer: 1 });
+      P.push({ kind: 'capsule', name: 'calf_' + side, group: 'leg' + side, a: kn, b: an, ra: M.leg.r1, rb: M.leg.r2, layer: 1 });
+      P.push({ kind: 'ellipsoid', name: 'foot_' + side, group: 'leg' + side, c: ft, r: M.foot.r, R: L3, layer: 1 });
     }
     return P;
   }
@@ -103,7 +102,7 @@
   // ---- the camera ----
   function camera(view) {
     const p = rad(VIEW_YAW[view]);
-    return { sx: [Math.cos(p), 0, -Math.sin(p)], sy: [0, -1, 0], dp: [Math.sin(p), 0, Math.cos(p)] };
+    return { sx: [Math.cos(p), 0, -Math.sin(p)], sy: [0, -1, 0], dp: [Math.sin(p), 0, Math.cos(p)], yaw: p };
   }
   const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 
@@ -120,10 +119,11 @@
       const l1 = tr / 2 + disc, l2 = Math.max(0.01, tr / 2 - disc);
       const th = Math.abs(sxy) < 1e-9 && sxx >= syy ? 0 : Math.atan2(l1 - sxx, sxy) ;
       const ang = Math.abs(sxy) < 1e-9 ? (sxx >= syy ? 0 : Math.PI / 2) : th;
-      return { kind: 'ellipse', name: p.name, cx: dot(cam.sx, p.c), cy: dot(cam.sy, p.c), rx: Math.sqrt(l1), ry: Math.sqrt(l2), rot: (ang * 180) / Math.PI, depth: dot(cam.dp, p.c), layer: p.layer };
+      return { kind: 'ellipse', name: p.name, group: p.group, cx: dot(cam.sx, p.c), cy: dot(cam.sy, p.c), rx: Math.sqrt(l1), ry: Math.sqrt(l2), rot: (ang * 180) / Math.PI, depth: dot(cam.dp, p.c), layer: p.layer };
     }
     const ax = dot(cam.sx, p.a), ay = dot(cam.sy, p.a), bx = dot(cam.sx, p.b), by = dot(cam.sy, p.b);
-    return { kind: 'capsule', name: p.name, ax, ay, bx, by, ra: p.ra, rb: p.rb, depth: (dot(cam.dp, p.a) + dot(cam.dp, p.b)) / 2, layer: p.layer };
+    const kz = p.zr ? Math.hypot(Math.cos(cam.yaw), p.zr * Math.sin(cam.yaw)) : 1; // a body piece that is flatter front-to-back
+    return { kind: 'capsule', name: p.name, group: p.group, ax, ay, bx, by, ra: p.ra * kz, rb: p.rb * kz, depth: (dot(cam.dp, p.a) + dot(cam.dp, p.b)) / 2, layer: p.layer };
   }
 
   // shapes in drawing order: far to near; a body part that belongs on top of its neighbour at equal depth uses its layer
@@ -146,22 +146,34 @@
     return `M${f(ta(1)[0])} ${f(ta(1)[1])} L${f(tb(1)[0])} ${f(tb(1)[1])} A${s.rb} ${s.rb} 0 0 ${dy >= 0 || true ? 0 : 1} ${f(tb(-1)[0])} ${f(tb(-1)[1])} L${f(ta(-1)[0])} ${f(ta(-1)[1])} A${s.ra} ${s.ra} 0 0 0 ${f(ta(1)[0])} ${f(ta(1)[1])}Z`;
   }
 
-  // SVG for one shape: outline + shade, then the lit skin shifted toward the light (up and to the left) and clipped to the shape
-  function svgShape(s, id) {
+  // A limb is drawn as ONE unit so it has no seams: first every outline, then every shade, then every lit skin.
+  const outlineOf = (s) => {
+    const C = COLORS;
+    if (s.kind === 'ellipse') return `<ellipse transform="translate(${f(s.cx)} ${f(s.cy)}) rotate(${f(s.rot)})" rx="${f(s.rx)}" ry="${f(s.ry)}" fill="${C.outline}" stroke="${C.outline}" stroke-width="7.2"/>`;
+    return `<path d="${capsulePath(s)}" fill="${C.outline}" stroke="${C.outline}" stroke-width="7.2" stroke-linejoin="round"/>`;
+  };
+  const shadeOf = (s) => {
+    if (s.kind === 'ellipse') return `<ellipse transform="translate(${f(s.cx)} ${f(s.cy)}) rotate(${f(s.rot)})" rx="${f(s.rx)}" ry="${f(s.ry)}" fill="${COLORS.shade}"/>`;
+    return `<path d="${capsulePath(s)}" fill="${COLORS.shade}"/>`;
+  };
+  const litOf = (s, id) => {
     const C = COLORS;
     if (s.kind === 'ellipse') {
       // the lit skin is the same ellipse, a little smaller and moved up and to the left ON THE SCREEN; inside the rotated group that move is turned back
       const m = 0.1 * Math.max(s.rx, s.ry), sx = -m, sy = -m * 0.75, r = (s.rot * Math.PI) / 180;
       const lx = Math.cos(r) * sx + Math.sin(r) * sy, ly = -Math.sin(r) * sx + Math.cos(r) * sy;
-      return `<g transform="translate(${f(s.cx)} ${f(s.cy)}) rotate(${f(s.rot)})"><clipPath id="c${id}"><ellipse rx="${f(s.rx)}" ry="${f(s.ry)}"/></clipPath><ellipse rx="${f(s.rx)}" ry="${f(s.ry)}" fill="${C.shade}"/>` +
-        `<ellipse rx="${f(s.rx * 0.97)}" ry="${f(s.ry * 0.97)}" cx="${f(lx)}" cy="${f(ly)}" fill="${C.skin}" clip-path="url(#c${id})"/>` +
-        `<ellipse rx="${f(s.rx)}" ry="${f(s.ry)}" fill="none" stroke="${C.outline}" stroke-width="3.6"/></g>`;
+      return `<g transform="translate(${f(s.cx)} ${f(s.cy)}) rotate(${f(s.rot)})"><clipPath id="c${id}"><ellipse rx="${f(s.rx)}" ry="${f(s.ry)}"/></clipPath><ellipse rx="${f(s.rx * 0.97)}" ry="${f(s.ry * 0.97)}" cx="${f(lx)}" cy="${f(ly)}" fill="${C.skin}" clip-path="url(#c${id})"/></g>`;
     }
     const d = capsulePath(s);
     const dx = Math.min(s.ra, s.rb) * 0.35;
-    return `<clipPath id="c${id}"><path d="${d}"/></clipPath><path d="${d}" fill="${C.shade}"/>` +
-      `<g clip-path="url(#c${id})"><path d="${d}" fill="${C.skin}" transform="translate(${f(-dx)} ${f(-dx * 0.5)})"/></g>` +
-      `<path d="${d}" fill="none" stroke="${C.outline}" stroke-width="3.6" stroke-linejoin="round"/>`;
+    return `<clipPath id="c${id}"><path d="${d}"/></clipPath><g clip-path="url(#c${id})"><path d="${d}" fill="${C.skin}" transform="translate(${f(-dx)} ${f(-dx * 0.5)})"/></g>`;
+  };
+  function groupsOf(list) {
+    const map = new Map();
+    list.forEach((s) => { const k = s.group || s.name; if (!map.has(k)) map.set(k, []); map.get(k).push(s); });
+    const gs = [...map.entries()].map(([name, items]) => ({ name, items, depth: items.reduce((t, s) => t + s.depth, 0) / items.length, layer: Math.max(...items.map((s) => s.layer)) }));
+    gs.sort((a, b) => (Math.abs(a.depth - b.depth) < 30 ? a.layer - b.layer : a.depth - b.depth));
+    return gs;
   }
 
   // x, y: where the top-centre of the box goes on screen; unit: the box's drawn height in pixels (default 630)
@@ -171,7 +183,8 @@
     const k = (opt.unit || BOX.h) / BOX.h;
     const list = shapes(opt);
     const uid = (opt.idPrefix || 'bd') + (++drawCount); // clip ids must be unique when several bodies share one page
-    const body = list.map((s, i) => svgShape(s, uid + '_' + i)).join('');
+    let n = 0;
+    const body = groupsOf(list).map((g) => g.items.map(outlineOf).join('') + g.items.map(shadeOf).join('') + g.items.map((s) => litOf(s, uid + '_' + (n++))).join('')).join('');
     const pad = 20;
     const vb = opt.viewBox || [-BOX.w / 2 - pad, -BOX.h - pad, BOX.w + 2 * pad, BOX.h + 2 * pad];
     // body y runs up from the ground; the shapes already use screen y (down = -Y), so ground is y = 0
