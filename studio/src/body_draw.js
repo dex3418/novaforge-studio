@@ -96,6 +96,9 @@
       P.push({ kind: 'capsule', name: 'calf_' + side, group: 'leg' + side, a: kn, b: an, ra: M.leg.r1, rb: M.leg.r2, layer: 1 });
       P.push({ kind: 'ellipsoid', name: 'foot_' + side, group: 'leg' + side, c: ft, r: M.foot.r, R: L3, layer: 1 });
     }
+    // whole-body lift: angles.root.y moves everything up (a jump) or down (sitting)
+    const ry = (angles0 && angles0.root && +angles0.root.y) || 0;
+    if (ry) for (const p of P) for (const k of ['a', 'b', 'c']) if (p[k]) p[k] = [p[k][0], p[k][1] + ry, p[k][2]];
     return P;
   }
 
